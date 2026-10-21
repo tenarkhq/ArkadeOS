@@ -45,7 +45,7 @@ Older NVIDIA cards (GTX 10xx and earlier) are not supported.
 **Already on Fedora Atomic, Bazzite or another bootc system?** Switch to ArkadeOS:
 
 ```bash
-sudo bootc switch ghcr.io/<owner>/arkadeos-nvidia:stable
+sudo bootc switch ghcr.io/tenarkhq/arkadeos-nvidia:stable
 ```
 
 Use `arkadeos` instead of `arkadeos-nvidia` for AMD or Intel graphics. Reboot to finish.
@@ -74,8 +74,8 @@ sudo bootc rollback
 ## Build it yourself
 
 ```bash
-git clone https://github.com/<owner>/arkadeos.git
-cd arkadeos
+git clone https://github.com/tenarkhq/ArkadeOS.git
+cd ArkadeOS
 podman build -t arkadeos -f Containerfile .
 ```
 
