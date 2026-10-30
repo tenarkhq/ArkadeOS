@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=New web app
+Name[hu]=Új webapp
+Comment=Make an app on the dock from a website
+Comment[hu]=Weboldalból app a dockon
+Exec=arkadeos-webapp
+Icon=applications-internet
+Categories=Network;Utility;

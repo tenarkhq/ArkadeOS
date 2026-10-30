@@ -1,0 +1,74 @@
+#!/usr/bin/bash
+# A website as an app of its own (T039): own window (Chrome app mode), own
+# entry in the menu, and on the dock.
+#   arkadeos-webapp                    ask name and address in a window
+#   arkadeos-webapp add NAME URL       e.g. add "Tenark Console" https://console.tenark.dev
+#   arkadeos-webapp remove NAME
+set -euo pipefail
+
+apps="${XDG_DATA_HOME:-${HOME}/.local/share}/applications"
+icons="${XDG_DATA_HOME:-${HOME}/.local/share}/icons/hicolor/256x256/apps"
+hu() { [[ "${LANG:-}" == hu* || "${LANGUAGE:-}" == hu* ]]; }
+id_of() { echo "arkadeos-webapp-$(echo "$1" | tr '[:upper:]' '[:lower:]' | tr -cs 'a-z0-9' '-' | sed 's/^-//; s/-$//')"; }
+
+dock() {  # $1 add|remove, $2 desktop file name
+    local js="panels().forEach(function (p) { p.widgets('org.kde.plasma.icontasks').forEach(function (w) {
+        w.currentConfigGroup = ['General']; var l = w.readConfig('launchers', []);
+        if (typeof l === 'string') l = l ? l.split(',') : [];
+        var s = 'applications:$2', i = l.indexOf(s);
+        if ('$1' === 'add' && i < 0) l.push(s); else if ('$1' === 'remove' && i >= 0) l.splice(i, 1); else return;
+        w.writeConfig('launchers', l); w.reloadConfig() }) })"
+    busctl --user call org.kde.plasmashell /PlasmaShell org.kde.PlasmaShell evaluateScript s "${js}" >/dev/null || true
+}
+
+add() {
+    local name=$1 url=$2 id
+    [[ "${url}" == http*://* ]] || url="https://${url}"
+    local exec_url=${url//%/%%}
+    id=$(id_of "${name}")
+    mkdir -p "${apps}" "${icons}"
+    # The site's own icon when it has one, otherwise a generic web icon.
+    local icon=applications-internet origin
+    origin=$(echo "${url}" | grep -oE '^https?://[^/]+')
+    for path in /apple-touch-icon.png /favicon.png; do
+        if curl -fsSL --max-time 10 -o "${icons}/${id}.png" "${origin}${path}" &&
+            file -b --mime-type "${icons}/${id}.png" | grep -q '^image/png'; then
+            icon=${id}
+            break
+        fi
+        rm -f "${icons}/${id}.png"
+    done
+    cat > "${apps}/${id}.desktop" <<DESKTOP
+[Desktop Entry]
+Type=Application
+Name=${name}
+Comment=${url}
+Exec=flatpak run com.google.Chrome --app=${exec_url} --class=${id} --user-data-dir=${XDG_DATA_HOME:-${HOME}/.local/share}/arkadeos/webapps/${id}
+Icon=${icon}
+StartupWMClass=${id}
+Categories=Network;
+X-ArkadeOS-WebApp=${url}
+DESKTOP
+    update-desktop-database -q "${apps}" || true
+    dock add "${id}.desktop"
+}
+
+remove() {
+    local id
+    id=$(id_of "$1")
+    dock remove "${id}.desktop"
+    rm -f "${apps}/${id}.desktop" "${icons}/${id}.png"
+    rm -rf "${XDG_DATA_HOME:-${HOME}/.local/share}/arkadeos/webapps/${id}"
+}
+
+case "${1:-}" in
+    add) add "$2" "$3" ;;
+    remove) remove "$2" ;;
+    "")
+        if hu; then t1="Az app neve:"; t2="A weboldal címe:"; else t1="App name:"; t2="Website address:"; fi
+        name=$(kdialog --title "Web app" --inputbox "${t1}") || exit 0
+        url=$(kdialog --title "Web app" --inputbox "${t2}" "https://") || exit 0
+        [[ -n "${name}" && -n "${url}" ]] && add "${name}" "${url}"
+        ;;
+    *) sed -n '2,7p' "$0" | sed 's/^# \{0,1\}//'; exit 2 ;;
+esac

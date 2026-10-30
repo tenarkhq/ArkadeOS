@@ -5,4 +5,6 @@ chrome|com.google.Chrome|always
 discord|com.discordapp.Discord|on
 vesktop|dev.vencord.Vesktop|off
 easyeffects|com.github.wwmm.easyeffects|always
+vlc|org.videolan.VLC|always
+protonplus|com.vysp3r.ProtonPlus|always
 heroic|com.heroicgameslauncher.hgl|off
