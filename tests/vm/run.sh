@@ -239,6 +239,66 @@ check "Gaming while a game runs" 'grep -q arkadeos-gaming /tmp/profiles.log'
 sleep 20
 check "Balanced after the game" 'tuned-adm active | grep -q arkadeos-balanced'
 
+step "apps"
+# T014: Battle.net on the image's GE-Proton, its installer reachable, and in
+# Steam Game Mode (a Steam account folder stands in for a Steam login).
+check "Battle.net launcher on GE-Proton" "${session} arkadeos-battlenet --check | grep -q '^proton=.*GE-Proton'"
+check "Battle.net installer reachable" "curl -fsSL -o /dev/null -r 0-0 \"\$(grep -o 'https://downloader[^\"]*' /usr/bin/arkadeos-battlenet)\""
+ssh_vm "pkill -u arkade -x steam; sleep 5; runuser -u arkade -- mkdir -p /home/arkade/.local/share/Steam/userdata/1234/config &&
+    systemctl --user -M arkade@ start arkadeos-session-setup.service" || true
+check "Battle.net in Steam Game Mode" 'grep -qa arkadeos-battlenet /home/arkade/.local/share/Steam/userdata/1234/config/shortcuts.vdf'
+check "Battle.net on the dock" "grep -q 'org.arkadeos.BattleNet.desktop' ${home}/plasma-org.kde.plasma.desktop-appletsrc"
+# T015: WowUp downloads itself and starts, pointed at the Battle.net folder.
+ssh_vm "nohup ${session} arkadeos-wowup > /tmp/wowup.log 2>&1 &"
+for _ in $(seq 24); do
+    sleep 5
+    ssh_vm 'pgrep -u arkade -f WowUp.AppImage' >/dev/null && break
+done
+sleep 20
+shot wowup
+check "WowUp running" 'pgrep -u arkade -f WowUp.AppImage'
+check "WowUp finds the Battle.net folder" "grep -q 'game_path: /home/arkade/Games' ${home}/lutris/system.yml"
+# T016-T017: Flathub apps installed at first boot.
+for _ in $(seq 90); do
+    ssh_vm 'test "$(systemctl show -P ActiveState arkadeos-apps.service)" = inactive &&
+        test "$(systemctl show -P Result arkadeos-apps.service)" = success' && break
+    sleep 10
+done
+ssh_vm 'systemctl status --no-pager arkadeos-apps.service; journalctl -b -u arkadeos-apps --no-pager | tail -40' > "${out}/apps-install.txt" 2>&1 || true
+for app in org.mozilla.firefox com.google.Chrome com.discordapp.Discord com.github.wwmm.easyeffects; do
+    check "${app} installed" "flatpak info --system ${app}"
+done
+for app in org.mozilla.firefox:firefox com.google.Chrome:chrome com.discordapp.Discord:discord; do
+    ssh_vm "nohup ${session} flatpak run ${app%%:*} > /tmp/${app%%:*}.log 2>&1 &"
+    sleep 25
+    shot "app-${app#*:}"
+    check "${app#*:} starts" "pgrep -u arkade -fi '/app/.*${app#*:}'"
+done
+sleep 10
+check "microphone noise filter set up" "test -f ${home}/autostart/com.github.wwmm.easyeffects.desktop &&
+    grep -q 'ArkadeOS mikrofon' /home/arkade/.var/app/com.github.wwmm.easyeffects/config/easyeffects/db/easyeffectsrc"
+check "Easy Effects running" 'pgrep -u arkade -f easyeffects'
+check "low-latency audio" "${session} pw-metadata -n settings | grep -q \"clock.quantum' value:'256'\""
+# T021: anti-cheat answer with its source.
+check "anti-cheat check" "${session} arkadeos-anticheat valorant | grep -q '✘ Valorant' &&
+    ${session} arkadeos-anticheat 'world of warcraft' | grep -q 'areweanticheatyet.com'"
+# T018: a store appears on the dock when installed, goes when removed.
+ssh_vm "runuser -u arkade -- sh -c 'mkdir -p /home/arkade/.local/share/applications &&
+    sed s/^Name=.*/Name=Heroic/ /usr/share/applications/steam.desktop > /home/arkade/.local/share/applications/com.heroicgameslauncher.hgl.desktop' &&
+    systemctl --user -M arkade@ start arkadeos-session-setup.service && sleep 5" || true
+check "installed store added to the dock" "grep -q com.heroicgameslauncher.hgl.desktop ${home}/plasma-org.kde.plasma.desktop-appletsrc"
+shot dock-heroic
+ssh_vm "rm /home/arkade/.local/share/applications/com.heroicgameslauncher.hgl.desktop &&
+    systemctl --user -M arkade@ start arkadeos-session-setup.service && sleep 5" || true
+check "removed store gone from the dock" "! grep -q 'launchers=.*com.heroicgameslauncher.hgl' ${home}/plasma-org.kde.plasma.desktop-appletsrc"
+
+step "security"
+# T024: firewall on with the ArkadeOS zone (no open port range), no telemetry.
+check "firewall on, ArkadeOS zone" 'firewall-cmd --state | grep -qx running && test "$(firewall-cmd --get-default-zone)" = ArkadeOS &&
+    test -z "$(firewall-cmd --zone=ArkadeOS --list-ports)"'
+check "no telemetry" '! grep -l "^countme=1" /etc/yum.repos.d/*.repo && ! systemctl is-enabled -q rpm-ostree-countme.timer &&
+    grep -q "toolkit.telemetry.enabled\", false" /var/lib/flatpak/extension/org.mozilla.firefox.systemconfig/x86_64/stable/defaults/pref/02-arkadeos-privacy.js'
+
 step "switching to Game Mode"
 ssh_vm "PKEXEC_UID=${uid} /usr/libexec/arkadeos/session-select game"
 sleep 45
@@ -269,6 +329,7 @@ ssh_vm 'test ! -e /etc/plasmalogin.conf.d/zz-arkadeos-session.conf' ||
     { echo "FAILED one-time login left behind" >> "${out}/apps.txt"; failed=1; }
 
 ssh_vm 'journalctl -b --no-pager -p warning' > "${out}/journal-warnings.txt" || true
+ssh_vm 'findmnt -R /; btrfs subvolume list /; btrfs subvolume show /var/home' > "${out}/disk-layout.txt" 2>&1 || true
 ssh_vm 'systemd-analyze; systemd-analyze blame | head -30; free -m' > "${out}/boot.txt" || true
 kill "$(cat "${out}/qemu.pid")" || true
 
