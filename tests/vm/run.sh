@@ -238,6 +238,13 @@ check "Windows program ran with GE-Proton" 'grep -q ArkadeOS /home/arkade/proton
 check "Gaming while a game runs" 'grep -q arkadeos-gaming /tmp/profiles.log'
 sleep 20
 check "Balanced after the game" 'tuned-adm active | grep -q arkadeos-balanced'
+# T034: a second game set to Akku in its launch options (as in Steam:
+# ARKADEOS_PROFILE=battery %command%) runs on Akku, then Balanced comes back.
+ssh_vm "cd /home/arkade && ${session} DISPLAY=:0 ARKADEOS_PROFILE=battery GAMEID=umu-default PROTONPATH=${proton} \
+    WINEPREFIX=/home/arkade/proton-test timeout 600 umu-run /home/arkade/proton-test.bat" >> "${out}/proton.log" 2>&1 || true
+check "per-game profile: Akku game on Akku" 'grep -q arkadeos-battery /tmp/profiles.log'
+sleep 20
+check "Balanced after the Akku game" 'tuned-adm active | grep -q arkadeos-balanced'
 
 step "apps"
 # T014: Battle.net on the image's GE-Proton, its installer reachable, and in
@@ -265,7 +272,8 @@ for _ in $(seq 90); do
     sleep 10
 done
 ssh_vm 'systemctl status --no-pager arkadeos-apps.service; journalctl -b -u arkadeos-apps --no-pager | tail -40' > "${out}/apps-install.txt" 2>&1 || true
-for app in org.mozilla.firefox com.google.Chrome com.discordapp.Discord com.github.wwmm.easyeffects; do
+for app in org.mozilla.firefox com.google.Chrome com.discordapp.Discord com.github.wwmm.easyeffects \
+    org.videolan.VLC com.vysp3r.ProtonPlus; do
     check "${app} installed" "flatpak info --system ${app}"
 done
 for app in org.mozilla.firefox:firefox com.google.Chrome:chrome com.discordapp.Discord:discord; do
@@ -279,6 +287,28 @@ check "microphone noise filter set up" "test -f ${home}/autostart/com.github.wwm
     grep -q 'ArkadeOS mikrofon' /home/arkade/.var/app/com.github.wwmm.easyeffects/config/easyeffects/db/easyeffectsrc"
 check "Easy Effects running" 'pgrep -u arkade -f easyeffects'
 check "low-latency audio" "${session} pw-metadata -n settings | grep -q \"clock.quantum' value:'256'\""
+# T041: VLC plays videos by default.
+check "VLC opens videos" "test \"\$(${session} xdg-mime query default video/mp4)\" = org.videolan.VLC.desktop"
+# T033: LACT GPU control daemon.
+check "LACT running" 'rpm -q lact && systemctl is-active -q lactd.service'
+# T038: auto-tiling off by default, on with the switch.
+check "auto-tiling off by default" "test \"\$(${session} arkadeos-tiling status)\" = off"
+ssh_vm "${session} arkadeos-tiling on; sleep 3; for i in 1 2; do nohup ${session} konsole >/dev/null 2>&1 & sleep 3; done; sleep 5" || true
+shot tiling-on
+check "auto-tiling on" "${session} busctl --user call org.kde.KWin /Scripting org.kde.kwin.Scripting isScriptLoaded s polonium | grep -q true"
+ssh_vm "${session} arkadeos-tiling off; pkill -u arkade -x konsole" || true
+# T039: a website as an app on the dock.
+ssh_vm "${session} arkadeos-webapp add 'ArkadeOS GitHub' https://github.com/tenarkhq/ArkadeOS" || true
+check "web app in the menu and on the dock" "test -f /home/arkade/.local/share/applications/arkadeos-webapp-arkadeos-github.desktop && sleep 3 &&
+    grep -q arkadeos-webapp-arkadeos-github.desktop ${home}/plasma-org.kde.plasma.desktop-appletsrc"
+ssh_vm "nohup ${session} gtk-launch arkadeos-webapp-arkadeos-github > /tmp/webapp.log 2>&1 &"
+sleep 20
+shot webapp
+check "web app starts" "pgrep -u arkade -f 'class=arkadeos-webapp-arkadeos-github'"
+# T040: AirPlay receiver running, its ports open; AirPlay speakers module on.
+check "AirPlay receiver" "systemctl --user -M arkade@ is-active -q arkadeos-airplay.service arkadeos-airplay-audio.service &&
+    firewall-cmd --zone=ArkadeOS --query-service=arkadeos-airplay && rpm -q shairport-sync"
+check "AirPlay speakers (PipeWire RAOP)" "${session} pw-cli ls Module | grep -q raop-discover"
 # T021: anti-cheat answer with its source.
 check "anti-cheat check" "${session} arkadeos-anticheat valorant | grep -q '✘ Valorant' &&
     ${session} arkadeos-anticheat 'world of warcraft' | grep -q 'areweanticheatyet.com'"
@@ -331,6 +361,38 @@ ssh_vm 'test ! -e /etc/plasmalogin.conf.d/zz-arkadeos-session.conf' ||
 ssh_vm 'journalctl -b --no-pager -p warning' > "${out}/journal-warnings.txt" || true
 ssh_vm 'findmnt -R /; btrfs subvolume list /; btrfs subvolume show /var/home' > "${out}/disk-layout.txt" 2>&1 || true
 ssh_vm 'systemd-analyze; systemd-analyze blame | head -30; free -m' > "${out}/boot.txt" || true
+
+step "update and rollback"
+# T025: the VM pulls an update (the same image plus a marker file) from the
+# runner's registry, starts it at the reboot, then goes back to the previous
+# version. The user's files stay through both.
+reboot_vm() {
+    ssh_vm 'systemctl reboot' || true
+    sleep 40
+    wait_ssh
+    ssh_vm "timeout 600 systemctl is-system-running --wait" || true
+}
+check "daily updates on (system and apps)" 'systemctl is-enabled -q uupd.timer && systemctl is-active -q uupd.timer'
+check "home snapshots" 'snapper -c home list | grep -q "ArkadeOS: first snapshot" &&
+    btrfs subvolume show /home/arkade/Games'
+if [[ -n "${UPDATE_PUSH:-}" ]]; then
+    before=$(ssh_vm "bootc status --json | jq -r .status.booted.image.imageDigest")
+    ssh_vm 'echo keep > /home/arkade/keep.txt'
+    eval "${UPDATE_PUSH}"
+    ssh_vm 'bootc upgrade' > "${out}/update.txt" 2>&1 || true
+    check "update waits for the reboot" 'test "$(bootc status --json | jq -r .status.staged.image.imageDigest)" != null'
+    reboot_vm
+    ssh_vm 'arkadeos-update status' >> "${out}/update.txt" 2>&1 || true
+    check "update running after the reboot" 'test -f /usr/share/arkadeos/update-test && test -f /home/arkade/keep.txt'
+    ssh_vm 'arkadeos-update rollback --yes' >> "${out}/update.txt" 2>&1 || true
+    reboot_vm
+    ssh_vm 'arkadeos-update status' >> "${out}/update.txt" 2>&1 || true
+    check "previous version back" "test ! -e /usr/share/arkadeos/update-test && test -f /home/arkade/keep.txt &&
+        test \"\$(bootc status --json | jq -r .status.booted.image.imageDigest)\" = '${before}'"
+    shot after-rollback
+else
+    echo "info update and rollback: no registry (UPDATE_PUSH unset)" >> "${out}/apps.txt"
+fi
 kill "$(cat "${out}/qemu.pid")" || true
 
 cat "${out}/apps.txt"
