@@ -76,7 +76,7 @@ sleep 20
 shot desktop
 
 uid=$(ssh_vm 'id -u arkade')
-session="runuser -u arkade -- env XDG_RUNTIME_DIR=/run/user/${uid} WAYLAND_DISPLAY=wayland-0 QT_QPA_PLATFORM=wayland DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/${uid}/bus"
+session="runuser -u arkade -- env XDG_RUNTIME_DIR=/run/user/${uid} WAYLAND_DISPLAY=wayland-0 QT_QPA_PLATFORM=wayland XDG_CURRENT_DESKTOP=KDE KDE_FULL_SESSION=true KDE_SESSION_VERSION=6 XDG_SESSION_TYPE=wayland DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/${uid}/bus"
 failed=0
 while read -r app; do
     [[ -z "${app}" || "${app}" == \#* ]] && continue
@@ -111,6 +111,7 @@ check "WhiteSur global theme" "grep -qE '^org\.arkadeos\.(light|dark)\.desktop' 
 check "day/night switch on" "test \"\$(${session} kreadconfig6 --group KDE --key AutomaticLookAndFeel)\" = true"
 check "Inter font" "fc-list : family | grep -qx Inter"
 check "GTK WhiteSur" "grep -qx gtk-theme-name=WhiteSur-Light ${home}/gtk-3.0/settings.ini && test -f /usr/share/themes/WhiteSur-Light/gtk-3.0/gtk.css"
+# Apps get the Plasma session variables, as when started from the menu.
 # Both themes with Dolphin open in front: the day/night switch must restyle
 # running apps, not only new ones. (System Settings is left out: Plasma does
 # not restyle it on the fly.)
