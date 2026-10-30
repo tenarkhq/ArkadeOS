@@ -7,6 +7,8 @@ set -euo pipefail
 disk=$1 key=$2 out=$3
 here=$(dirname "$(readlink -f "$0")")
 mkdir -p "${out}"
+# QEMU runs detached from this folder, so it needs absolute paths.
+out=$(readlink -f "${out}")
 qmp=${out}/qmp.sock
 
 ssh_vm() {
