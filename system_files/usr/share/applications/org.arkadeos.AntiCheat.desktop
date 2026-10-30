@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=Anti-cheat check
+Name[hu]=Anti-cheat ellenőrző
+Comment=Does a game run on Linux?
+Comment[hu]=Fut-e egy játék Linuxon?
+Exec=arkadeos-anticheat
+Icon=security-medium
+Categories=Game;Utility;

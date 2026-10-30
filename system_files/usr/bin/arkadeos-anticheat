@@ -1,0 +1,97 @@
+#!/usr/bin/python3
+"""Does a game run on Linux, judged by its anti-cheat (T021)? Answers from
+AreWeAntiCheatYet's list, with the source. Without a game name it asks in a
+window (kdialog) and answers there.
+  arkadeos-anticheat "world of warcraft"
+  arkadeos-anticheat            (window)"""
+import datetime
+import difflib
+import email.utils
+import json
+import os
+import subprocess
+import sys
+import time
+import urllib.parse
+import urllib.request
+from pathlib import Path
+
+DATA = "https://raw.githubusercontent.com/AreWeAntiCheatYet/AreWeAntiCheatYet/master/games.json"
+SITE = "https://areweanticheatyet.com/?search="
+HU = os.environ.get("LANG", "").startswith("hu") or os.environ.get("LANGUAGE", "").startswith("hu")
+
+STATUS = {  # status: (runs?, English, Hungarian)
+    "Supported": (True, "Runs: anti-cheat supports Linux", "Fut: az anti-cheat támogatja a Linuxot"),
+    "Running": (True, "Runs: players report it works", "Fut: a játékosok szerint működik"),
+    "Planned": (False, "Does not run yet: Linux support is planned", "Még nem fut: a Linux-támogatás tervben van"),
+    "Broken": (False, "Does not run: the anti-cheat blocks it", "Nem fut: az anti-cheat letiltja"),
+    "Denied": (False, "Does not run: the developer does not allow Linux",
+               "Nem fut: a fejlesztő nem engedi Linuxon"),
+}
+
+
+def games():
+    cache = Path(os.environ.get("XDG_CACHE_HOME", Path.home() / ".cache")) / "arkadeos/anticheat.json"
+    if not cache.exists() or time.time() - cache.stat().st_mtime > 86400:
+        try:
+            with urllib.request.urlopen(DATA, timeout=20) as r:
+                data = r.read()
+            cache.parent.mkdir(parents=True, exist_ok=True)
+            cache.write_bytes(data)
+        except OSError:
+            if not cache.exists():
+                raise
+    return json.loads(cache.read_text())
+
+
+def day(text):
+    """The date of an update note; the list mixes RFC 2822 and 'Jun 11, 2024, 5:00 PM'."""
+    try:
+        return email.utils.parsedate_to_datetime(text).date().isoformat()
+    except (TypeError, ValueError):
+        pass
+    try:
+        return datetime.datetime.strptime(", ".join(text.split(", ")[:2]), "%b %d, %Y").date().isoformat()
+    except ValueError:
+        return text
+
+
+def answer(query):
+    data = games()
+    names = {g["name"].lower(): g for g in data}
+    q = query.strip().lower()
+    hits = [g for n, g in names.items() if q == n] or [g for n, g in names.items() if q in n]
+    if not hits:
+        hits = [names[n] for n in difflib.get_close_matches(q, names, n=3, cutoff=0.6)]
+    if not hits:
+        msg = (f"„{query}” nincs a listán: nincs ismert anti-cheat akadálya, de ezt senki nem ellenőrizte."
+               if HU else f"'{query}' is not on the list: no known anti-cheat problem, but nobody has checked it.")
+        return msg + f"\n{'Forrás' if HU else 'Source'}: {SITE}{urllib.parse.quote(query)}"
+    lines = []
+    for g in hits[:5]:
+        runs, en, hu = STATUS.get(g["status"], (None, g["status"], g["status"]))
+        mark = "✔" if runs else "✘"
+        ac = ", ".join(g.get("anticheats") or []) or "-"
+        lines.append(f"{mark} {g['name']}: {hu if HU else en} (anti-cheat: {ac})")
+        if g.get("updates"):
+            last = g["updates"][-1]
+            lines.append(f"   {last['name']} ({day(last.get('date', ''))})")
+        lines.append(f"   {'Forrás' if HU else 'Source'}: {SITE}{urllib.parse.quote(g['name'])}")
+    return "\n".join(lines)
+
+
+def main():
+    if len(sys.argv) > 1:
+        print(answer(" ".join(sys.argv[1:])))
+        return
+    title = "Anti-cheat"
+    ask = "Melyik játék?" if HU else "Which game?"
+    while True:
+        r = subprocess.run(["kdialog", "--title", title, "--inputbox", ask], capture_output=True, text=True)
+        if r.returncode != 0 or not r.stdout.strip():
+            return
+        subprocess.run(["kdialog", "--title", title, "--msgbox", answer(r.stdout)])
+
+
+if __name__ == "__main__":
+    main()
