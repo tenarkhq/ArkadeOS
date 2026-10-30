@@ -75,7 +75,8 @@ jobs:
           podman push --digestfile digest localhost/${{ matrix.image }}:build docker://${dest}:testing-${{ steps.ver.outputs.version }}
           digest=$(cat digest)
           for tag in testing sha-${GITHUB_SHA::7}; do
-            skopeo copy --preserve-digests docker://${dest}@${digest} docker://${dest}:${tag}
+            # A new GHCR package can take a few seconds to serve its first manifest.
+            skopeo copy --retry-times 5 --retry-delay 10s --preserve-digests docker://${dest}@${digest} docker://${dest}:${tag}
           done
           echo "digest=${digest}" >> "$GITHUB_OUTPUT"
           echo "pushed ${dest}@${digest}: testing, testing-${{ steps.ver.outputs.version }}, sha-${GITHUB_SHA::7}" >> "$GITHUB_STEP_SUMMARY"
