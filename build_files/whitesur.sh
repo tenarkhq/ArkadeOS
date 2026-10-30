@@ -24,10 +24,10 @@ for pin in "${PINS[@]}"; do
     tar -xzf "${src}/${repo}.tar.gz" -C "${src}/${repo}" --strip-components=1
 done
 
-# KDE: colour schemes, Plasma styles, window decorations, Kvantum (light and
+# KDE: colour schemes, Plasma styles and window decorations (light and
 # dark of each).
 kde=${src}/WhiteSur-kde
-install -d /usr/share/color-schemes /usr/share/plasma/desktoptheme /usr/share/aurorae/themes /usr/share/Kvantum
+install -d /usr/share/color-schemes /usr/share/plasma/desktoptheme /usr/share/aurorae/themes
 cp "${kde}"/color-schemes/{WhiteSur,WhiteSurDark}.colors /usr/share/color-schemes/
 for variant in WhiteSur WhiteSur-dark; do
     cp -r "${kde}/plasma/desktoptheme/${variant}" /usr/share/plasma/desktoptheme/
@@ -42,7 +42,6 @@ for variant in WhiteSur WhiteSur-dark; do
     cp "${kde}/aurorae/main/${variant}rc" "${theme}/${variant}rc"
     sed -i "s/WhiteSur/${variant}/g" "${theme}/metadata.desktop" "${theme}/metadata.json"
 done
-cp -r "${kde}/Kvantum/WhiteSur" /usr/share/Kvantum/
 
 # GTK 2, 3 and 4 from the prebuilt release; the GNOME Shell, Cinnamon and
 # other desktop parts (with the Apple activities icon) are left out.

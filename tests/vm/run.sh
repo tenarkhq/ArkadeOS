@@ -110,13 +110,15 @@ check "WhiteSur global theme" "grep -qE '^org\.arkadeos\.(light|dark)\.desktop' 
     grep -qE '^ColorScheme=WhiteSur(Dark)?$' ${home}/kdedefaults/kdeglobals"
 check "day/night switch on" "test \"\$(${session} kreadconfig6 --group KDE --key AutomaticLookAndFeel)\" = true"
 check "Inter font" "fc-list : family | grep -qx Inter"
-check "Kvantum WhiteSur" "grep -qx theme=WhiteSur ${home}/Kvantum/kvantum.kvconfig && test -f /usr/share/Kvantum/WhiteSur/WhiteSur.kvconfig"
 check "GTK WhiteSur" "grep -qx gtk-theme-name=WhiteSur-Light ${home}/gtk-3.0/settings.ini && test -f /usr/share/themes/WhiteSur-Light/gtk-3.0/gtk.css"
+# Both themes with the apps still open: the day/night switch must restyle
+# running apps, not only new ones.
 for variant in light dark; do
     ssh_vm "${session} plasma-apply-lookandfeel -a org.arkadeos.${variant}.desktop" >/dev/null 2>&1 || true
     sleep 10
     shot "look-${variant}"
 done
+check "dark theme applied" "grep -qx ColorScheme=WhiteSurDark ${home}/kdeglobals"
 
 step "gaming features"
 check "scx_lavd scheduler running" 'grep -qx lavd /sys/kernel/sched_ext/root/ops || grep -q lavd /sys/kernel/sched_ext/root/ops'
