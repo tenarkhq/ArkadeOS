@@ -19,8 +19,6 @@ for f in /usr/share/applications/org.kde.plasma-systemmonitor.desktop /usr/share
     grep -qx 'X-KDE-Shortcuts=Meta+Esc,Ctrl+Shift+Esc' "${f}"
 done
 
-# Ark logo on the launcher (T009): our icon files went in after whitesur.sh
-# built the caches.
-for theme in hicolor WhiteSur WhiteSur-dark; do
-    gtk-update-icon-cache -f -q "/usr/share/icons/${theme}"
-done
+# Ark logo on the launcher (T009): our icons in hicolor went in after the
+# cache was built.
+gtk-update-icon-cache -f -q /usr/share/icons/hicolor
