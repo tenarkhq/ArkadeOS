@@ -13,4 +13,4 @@ kver=$(ls /usr/lib/modules)
 dracut --no-hostonly --kver "${kver}" --reproducible --zstd --add ostree \
     -f "/usr/lib/modules/${kver}/initramfs.img"
 chmod 0600 "/usr/lib/modules/${kver}/initramfs.img"
-lsinitrd "/usr/lib/modules/${kver}/initramfs.img" | grep -q themes/arkadeos/watermark.png
+lsinitrd "/usr/lib/modules/${kver}/initramfs.img" | grep -c themes/arkadeos/watermark.png
