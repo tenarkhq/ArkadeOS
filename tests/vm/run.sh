@@ -111,6 +111,10 @@ check "WhiteSur global theme" "grep -qE '^org\.arkadeos\.(light|dark)\.desktop' 
 check "day/night switch on" "test \"\$(${session} kreadconfig6 --group KDE --key AutomaticLookAndFeel)\" = true"
 check "Inter font" "fc-list : family | grep -qx Inter"
 check "GTK WhiteSur" "grep -qx gtk-theme-name=WhiteSur-Light ${home}/gtk-3.0/settings.ini && test -f /usr/share/themes/WhiteSur-Light/gtk-3.0/gtk.css"
+# T007: the first login built the bar and the dock from our layout.
+check "top bar and dock" "f=${home}/plasma-org.kde.plasma.desktop-appletsrc &&
+    for w in kickoff appmenu systemtray digitalclock kickerdash icontasks trash; do grep -qx plugin=org.kde.plasma.\$w \$f || exit 1; done"
+check "window buttons on the left" "test \"\$(${session} kreadconfig6 --file kwinrc --group org.kde.kdecoration2 --key ButtonsOnLeft)\" = XIA"
 # Apps get the Plasma session variables, as when started from the menu.
 # Both themes with Dolphin open in front: the day/night switch must restyle
 # running apps, not only new ones. (System Settings is left out: Plasma does

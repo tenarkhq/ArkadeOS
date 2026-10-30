@@ -1,0 +1,4 @@
+# ArkadeOS search defaults (T007): KRunner opens in the middle of the screen,
+# like Spotlight. Fedora's plugin choices sit below this in /usr/share/kde-settings.
+[General]
+FreeFloating=true

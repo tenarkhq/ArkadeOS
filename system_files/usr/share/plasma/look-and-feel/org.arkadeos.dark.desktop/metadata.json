@@ -15,7 +15,7 @@
         "Website": "https://github.com/tenarkhq/ArkadeOS"
     },
     "Keywords": "Desktop;Workspace;Appearance;Look and Feel;",
-    "X-KDE-fallbackPackage": "org.kde.breeze.desktop",
+    "X-KDE-fallbackPackage": "org.arkadeos.light.desktop",
     "X-Plasma-APIVersion": "2",
     "X-Plasma-MainScript": "defaults"
 }

@@ -1,0 +1,15 @@
+# ArkadeOS window manager defaults (T007). Fedora's own kwinrc sits below this
+# in /usr/share/kde-settings; the global theme sets the window decoration.
+
+# macOS-style window buttons on the left: close, minimise, maximise.
+[org.kde.kdecoration2]
+ButtonsOnLeft=XIA
+ButtonsOnRight=
+
+# Hot corners: bottom left opens the Overview, bottom right shows the desktop.
+# The top corners stay free for the launcher logo and the tray.
+[Effect-overview]
+BorderActivate=5
+
+[ElectricBorders]
+BottomRight=ShowDesktop
