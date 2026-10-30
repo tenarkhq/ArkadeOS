@@ -1,0 +1,7 @@
+# Windows keys (T008) for new users: Meta+Up maximises, Meta+Down minimises.
+# KWin binds these to tiling to the top and bottom half by default.
+[kwin]
+Window Maximize=Meta+Up\tMeta+PgUp,Meta+PgUp,Maximize Window
+Window Minimize=Meta+Down\tMeta+PgDown,Meta+PgDown,Minimize Window
+Window Quick Tile Bottom=none,Meta+Down,Quick Tile Window to the Bottom
+Window Quick Tile Top=none,Meta+Up,Quick Tile Window to the Top

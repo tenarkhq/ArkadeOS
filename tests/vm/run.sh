@@ -24,6 +24,15 @@ shot() {
     convert "${out}/$1.ppm" "${out}/$1.png" && rm "${out}/$1.ppm"
 }
 
+# Presses keys together on the VM keyboard, e.g. key meta_l shift s.
+key() {
+    local keys
+    keys=$(printf '{"type":"qcode","data":"%s"},' "$@")
+    printf '%s\n' '{"execute":"qmp_capabilities"}' \
+        "{\"execute\":\"send-key\",\"arguments\":{\"keys\":[${keys%,}],\"hold-time\":${HOLD:-100}}}" |
+        socat - "UNIX-CONNECT:${qmp}" >/dev/null
+}
+
 step() { echo "$(date -u +%T) $*"; }
 
 step "boot"
@@ -130,6 +139,36 @@ for variant in light dark; do
 done
 check "dark theme applied" "grep -qx ColorScheme=WhiteSurDark ${home}/kdedefaults/kdeglobals &&
     grep -A3 '^\\[Colors:Window\\]' ${home}/kdeglobals | grep -qx BackgroundNormal=54,54,54"
+
+step "windows keys"
+# T008: the Windows shortcuts, pressed on the VM keyboard with Dolphin in front.
+key meta_l up
+sleep 3
+shot win-up
+check "Meta+Up maximises" "${session} kreadconfig6 --file kglobalshortcutsrc --group kwin --key 'Window Maximize' | grep -q '^Meta+Up'"
+key meta_l down
+sleep 3
+key meta_l v
+sleep 3
+shot win-v
+check "Meta+V clipboard" "${session} kreadconfig6 --file kglobalshortcutsrc --group plasmashell --key show-on-mouse-pos | grep -q '^Meta+V'"
+key esc
+HOLD=4000 key alt tab &
+sleep 2
+shot alt-tab
+wait
+sleep 2
+key ctrl shift esc
+sleep 10
+shot ctrl-shift-esc
+check "Ctrl+Shift+Esc System Monitor" 'pgrep -u arkade -f plasma-systemmonitor'
+ssh_vm "pkill -u arkade -f plasma-systemmonitor" || true
+key meta_l shift s
+sleep 5
+shot win-shift-s
+check "Meta+Shift+S screenshot" 'pgrep -u arkade -x spectacle'
+key esc
+ssh_vm "pkill -u arkade -x spectacle" || true
 
 step "gaming features"
 check "scx_lavd scheduler running" 'grep -qx lavd /sys/kernel/sched_ext/root/ops || grep -q lavd /sys/kernel/sched_ext/root/ops'
