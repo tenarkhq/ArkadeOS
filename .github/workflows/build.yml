@@ -32,28 +32,27 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - image: arkadeos
-            base: ghcr.io/ublue-os/bazzite:stable
-          - image: arkadeos-nvidia
-            base: ghcr.io/ublue-os/bazzite-nvidia-open:stable
+        image: [arkadeos, arkadeos-nvidia]
     steps:
       - uses: actions/checkout@v4
 
       - name: Version
         id: ver
         run: |
-          podman pull -q ${{ matrix.base }} >/dev/null
-          base_version=$(podman image inspect --format '{{ index .Config.Labels "org.opencontainers.image.version" }}' ${{ matrix.base }})
+          base=$(awk -v i=${{ matrix.image }} '$1 == i { print $2 }' bases.txt)
+          test -n "$base"
+          podman pull -q "$base" >/dev/null
+          base_version=$(podman image inspect --format '{{ index .Config.Labels "org.opencontainers.image.version" }}' "$base")
           fedora=${base_version%%.*}
           version="${fedora}.$(date -u +%Y%m%d)"
+          echo "base=${base}" >> "$GITHUB_OUTPUT"
           echo "version=${version}" >> "$GITHUB_OUTPUT"
-          echo "${{ matrix.image }} ${version} on ${{ matrix.base }} ${base_version}" >> "$GITHUB_STEP_SUMMARY"
+          echo "${{ matrix.image }} ${version} on ${base} (${base_version})" >> "$GITHUB_STEP_SUMMARY"
 
       - name: Build
         run: |
           podman build \
-            --build-arg BASE_IMAGE=${{ matrix.base }} \
+            --build-arg BASE_IMAGE=${{ steps.ver.outputs.base }} \
             --build-arg IMAGE_NAME=${{ matrix.image }} \
             --build-arg IMAGE_VERSION=${{ steps.ver.outputs.version }} \
             --label org.opencontainers.image.title=ArkadeOS \

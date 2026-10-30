@@ -1,0 +1,13 @@
+# ArkadeOS: services that stay off until something asks for them (T002, T050).
+# Presets run again on first boot, so they must agree with 50-services.sh.
+
+# Fedora's weekly usage ping
+disable rpm-ostree-countme.timer
+# Fedora Flatpak remote; Flathub stays
+disable flatpak-add-fedora-repos.service
+# Printing starts when a program prints (cups.socket)
+disable cups.service
+disable cups.path
+disable cups-browsed.service
+# Mobile broadband modems: off until switched on in the ArkadeOS Portal
+disable ModemManager.service

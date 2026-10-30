@@ -1,0 +1,4 @@
+# Bazzite base of each ArkadeOS image, pinned by digest. A base update is its
+# own tested change: tools/bump-bases.sh rewrites this file.
+arkadeos ghcr.io/ublue-os/bazzite:stable@sha256:ee82a885dbb77cd4604a5ffa8278a0eef0bc84d16850045c7b9d847729da9949
+arkadeos-nvidia ghcr.io/ublue-os/bazzite-nvidia-open:stable@sha256:fecc39b4b278dabd27092d0b0cad01a6ab4ce7eb07b669561150fa77dea684c7
