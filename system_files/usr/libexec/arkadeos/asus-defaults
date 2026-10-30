@@ -1,0 +1,17 @@
+#!/usr/bin/bash
+# ASUS defaults (T013), once per machine, after asusd wrote its first config:
+# charge limit 80% (the user changes it in ROG Control Center or Plasma), and
+# asusd does not switch the fan mode on the charger by itself: the ArkadeOS
+# power profiles (T011) set it through the platform profile.
+set -euo pipefail
+
+conf=/etc/asusd/asusd.ron
+for _ in $(seq 30); do
+    [[ -s "${conf}" ]] && break
+    sleep 1
+done
+sed -i -E -e 's/(change_platform_profile_on_(ac|battery)): *true/\1: false/' \
+    -e 's/(charge_control_end_threshold): *[0-9]+/\1: 80/' "${conf}"
+systemctl restart --no-block asusd.service
+mkdir -p /var/lib/arkadeos
+touch /var/lib/arkadeos/asus-defaults

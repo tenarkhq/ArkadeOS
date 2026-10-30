@@ -1,0 +1,12 @@
+[Unit]
+Description=ArkadeOS: ASUS defaults, once (80% charge limit, fan mode follows the power profile)
+After=asusd.service
+Wants=asusd.service
+ConditionPathExists=!/var/lib/arkadeos/asus-defaults
+
+[Service]
+Type=oneshot
+ExecStart=/usr/libexec/arkadeos/asus-defaults
+
+[Install]
+WantedBy=asusd.service
