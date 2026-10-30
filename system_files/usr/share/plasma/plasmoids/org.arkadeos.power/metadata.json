@@ -1,0 +1,20 @@
+{
+    "KPackageStructure": "Plasma/Applet",
+    "KPlugin": {
+        "Authors": [
+            {
+                "Name": "ArkadeOS"
+            }
+        ],
+        "Category": "System Information",
+        "Description": "ArkadeOS power profile: current profile, manual choice, Max on the charger",
+        "Description[hu]": "ArkadeOS energiaprofil: aktuális profil, kézi választás, Max töltőn",
+        "Icon": "power-profile-balanced-symbolic",
+        "Id": "org.arkadeos.power",
+        "License": "GPL-3.0-or-later",
+        "Name": "Power Profile",
+        "Name[hu]": "Energiaprofil",
+        "Website": "https://github.com/tenarkhq/ArkadeOS"
+    },
+    "X-Plasma-API-Minimum-Version": "6.0"
+}

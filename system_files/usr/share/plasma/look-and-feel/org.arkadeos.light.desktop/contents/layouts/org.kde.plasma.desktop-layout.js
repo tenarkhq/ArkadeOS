@@ -2,8 +2,8 @@
 // Plasma runs this once, when a user first logs in. ArkadeOS Dark falls back
 // to this package, so both global themes give the same layout.
 
-// Top bar: Ark logo (opens the launcher), the active app's menu, tray, clock
-// (the calendar opens from the clock).
+// Top bar: Ark logo (opens the launcher), the active app's menu, power
+// profile, tray, clock (the calendar opens from the clock).
 var bar = new Panel
 bar.location = "top"
 bar.floating = false
@@ -13,6 +13,7 @@ launcher.currentConfigGroup = ["General"]
 launcher.writeConfig("icon", "arkadeos-launcher")
 bar.addWidget("org.kde.plasma.appmenu")
 bar.addWidget("org.kde.plasma.panelspacer")
+bar.addWidget("org.arkadeos.power")  // power profile switch (T012)
 bar.addWidget("org.kde.plasma.systemtray")
 bar.addWidget("org.kde.plasma.digitalclock")
 
