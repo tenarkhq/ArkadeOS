@@ -94,6 +94,30 @@ while read -r app; do
     fi
 done < "${here}/apps.txt"
 
+step "gaming features"
+check() {
+    if ssh_vm "$2" >/dev/null 2>&1; then
+        echo "ok $1" >> "${out}/apps.txt"
+    else
+        echo "FAILED $1" >> "${out}/apps.txt"
+        failed=1
+    fi
+}
+check "scx_lavd scheduler running" 'grep -qx lavd /sys/kernel/sched_ext/root/ops || grep -q lavd /sys/kernel/sched_ext/root/ops'
+check "NTSYNC device" 'test -c /dev/ntsync'
+check "GameMode installed" 'command -v gamemoded'
+check "GE-Proton for every user" 'ls -d /usr/share/steam/compatibilitytools.d/GE-Proton*/proton'
+check "controller drivers" 'for m in xpad hid_playstation hid_nintendo xone_gip; do modinfo -F filename $m || exit 1; done'
+
+step "running a Windows program with GE-Proton"
+# umu-launcher is how ArkadeOS starts non-Steam games (Battle.net). The first
+# run downloads the Steam Linux Runtime.
+proton=$(ssh_vm 'ls -d /usr/share/steam/compatibilitytools.d/GE-Proton* | sort -V | tail -1')
+ssh_vm "${session} DISPLAY=:0 GAMEID=umu-default PROTONPATH=${proton} WINEPREFIX=/home/arkade/proton-test \
+    timeout 900 umu-run cmd /c 'echo ArkadeOS> C:\\proton-ok.txt'" > "${out}/proton.log" 2>&1 || true
+shot proton
+check "Windows program ran with GE-Proton" 'grep -q ArkadeOS /home/arkade/proton-test/drive_c/proton-ok.txt'
+
 step "switching to Game Mode"
 ssh_vm "PKEXEC_UID=${uid} /usr/libexec/arkadeos/session-select game"
 sleep 45
