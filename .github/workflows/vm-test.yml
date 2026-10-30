@@ -69,6 +69,7 @@ jobs:
             -v ./vm-key.pub:/vm-key.pub:ro \
             localhost/vm-test \
             bootc install to-disk --via-loopback --generic-image --wipe --filesystem btrfs \
+              --karg console=ttyS0,115200 \
               --root-ssh-authorized-keys /vm-key.pub /output/disk.raw
           sudo chown "$USER" /mnt/disk.raw
           echo "disk image: $(( $(date +%s) - start )) s" >> "$GITHUB_STEP_SUMMARY"
