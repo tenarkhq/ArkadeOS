@@ -1,0 +1,4 @@
+# ArkadeOS: scx_lavd, the low-latency scheduler built for games, runs from
+# boot (T003). The power profiles switch its mode (T011).
+default_sched = "scx_lavd"
+default_mode = "Auto"

@@ -9,6 +9,13 @@ COPY cosign.pub /cosign.pub
 
 FROM ${BASE_IMAGE}
 
+# Proton-GE gets its own layer before everything else, so the build server's
+# layer cache reuses it until a new GE-Proton release comes out.
+ARG PROTON_GE_VERSION
+RUN --mount=type=bind,from=ctx,source=/,target=/ctx \
+    --mount=type=tmpfs,dst=/tmp \
+    /ctx/build_files/proton-ge.sh "${PROTON_GE_VERSION}"
+
 ARG IMAGE_NAME=arkadeos
 ARG IMAGE_VENDOR=tenarkhq
 ARG IMAGE_VERSION=dev

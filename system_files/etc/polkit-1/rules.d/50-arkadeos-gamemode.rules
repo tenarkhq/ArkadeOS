@@ -1,0 +1,7 @@
+// The ArkadeOS power profiles (T011) set the CPU governor. GameMode keeps its
+// other tweaks, but may not switch the governor behind the profile's back.
+polkit.addRule(function(action, subject) {
+    if (action.id == "com.feralinteractive.GameMode.governor-helper") {
+        return polkit.Result.NO;
+    }
+});

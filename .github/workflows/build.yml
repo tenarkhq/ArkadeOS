@@ -10,6 +10,9 @@ on:
       - "**.md"
       - "tools/prefetch.py"
       - ".github/workflows/prefetch.yml"
+      - ".github/workflows/vm-test.yml"
+      - ".github/workflows/promote.yml"
+      - "tests/**"
 
 permissions:
   contents: read
@@ -46,14 +49,18 @@ jobs:
           fedora=${base_version%%.*}
           version="${fedora}.$(date -u +%Y%m%d)"
           echo "base=${base}" >> "$GITHUB_OUTPUT"
+          proton_ge=$(curl -fsSL -H "Authorization: Bearer ${{ github.token }}" \
+            https://api.github.com/repos/GloriousEggroll/proton-ge-custom/releases/latest | jq -r .tag_name)
+          echo "proton_ge=${proton_ge}" >> "$GITHUB_OUTPUT"
           echo "version=${version}" >> "$GITHUB_OUTPUT"
-          echo "${{ matrix.image }} ${version} on ${base} (${base_version})" >> "$GITHUB_STEP_SUMMARY"
+          echo "${{ matrix.image }} ${version} on ${base} (${base_version}), ${proton_ge}" >> "$GITHUB_STEP_SUMMARY"
 
       - name: Build
         run: |
           podman build \
             --build-arg BASE_IMAGE=${{ steps.ver.outputs.base }} \
             --build-arg IMAGE_NAME=${{ matrix.image }} \
+            --build-arg PROTON_GE_VERSION=${{ steps.ver.outputs.proton_ge }} \
             --build-arg IMAGE_VERSION=${{ steps.ver.outputs.version }} \
             --label org.opencontainers.image.title=ArkadeOS \
             --label org.opencontainers.image.description="Fast, gaming-first Linux built on Fedora Atomic" \
@@ -101,4 +108,5 @@ jobs:
         run: |
           podman logout ghcr.io || true
           podman rmi -f localhost/${{ matrix.image }}:build || true
-          podman image prune -f
+          # Keeps recent build layers as cache for the next build.
+          podman image prune -f --filter until=72h

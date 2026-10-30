@@ -55,6 +55,3 @@ if [[ -n "${extra}" ]]; then
     echo "${extra}" >&2
     exit 1
 fi
-
-# dnf leaves runtime state in /run, which bootc lint rejects.
-rm -rf /run/dnf /run/selinux-policy
