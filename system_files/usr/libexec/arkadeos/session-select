@@ -33,16 +33,14 @@ uid=${PKEXEC_UID:?run through pkexec}
 user=$(id -nu "${uid}")
 
 mkdir -p "$(dirname "${conf}")"
-printf '[Autologin]\nUser=%s\nSession=%s\nRelogin=true\n' "${user}" "${session}" > "${conf}"
+printf '[Autologin]\nUser=%s\nSession=%s\n' "${user}" "${session}" > "${conf}"
 
 sessions=$(loginctl list-sessions --no-legend | awk -v u="${user}" '$3 == u { print $1 }' | xargs)
-systemd-run --quiet --no-block --collect --unit="arkadeos-session-forget-${uid}" \
+unit=arkadeos-session-forget-${uid}
+systemctl stop "${unit}" 2>/dev/null || true
+systemd-run --quiet --no-block --collect --unit="${unit}" \
     /usr/libexec/arkadeos/session-select --forget "${user}" "${sessions}"
 
-# Ending the graphical session makes the login manager log in again with the
-# session written above.
-for id in ${sessions}; do
-    if [[ "$(loginctl show-session "${id}" -p Type --value)" =~ ^(wayland|x11)$ ]]; then
-        loginctl terminate-session "${id}"
-    fi
-done
+# The login manager reads its settings only when it starts: restarting it
+# ends the current session and logs in with the session written above.
+systemctl restart plasmalogin.service
