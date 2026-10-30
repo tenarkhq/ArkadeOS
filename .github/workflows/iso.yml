@@ -1,0 +1,97 @@
+name: Installer ISO
+# T022: builds the installer ISO, installs ArkadeOS from it in a VM without
+# input and checks the installed system. Runs when the installer changes,
+# weekly, or by hand.
+on:
+  push:
+    branches: [main]
+    paths:
+      - "iso/**"
+      - "tests/iso/**"
+      - ".github/workflows/iso.yml"
+  schedule:
+    - cron: "0 3 * * 1"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Image tag the test ISO installs"
+        default: testing
+        required: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: iso
+  cancel-in-progress: true
+
+jobs:
+  iso:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    env:
+      TAG: ${{ inputs.tag || 'testing' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Graphics card check
+        run: tests/iso/gpu-detect.sh
+
+      - name: KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+          sudo udevadm settle
+          test -w /dev/kvm
+
+      - name: Tools
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y -q qemu-system-x86 qemu-utils ovmf socat imagemagick
+
+      - name: Fedora installer cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/arkadeos-iso
+          key: fedora-netinst-44-1.7
+
+      - name: Build ISOs
+        run: |
+          start=$(date +%s)
+          export PODMAN="sudo podman" ISO_CACHE=$HOME/.cache/arkadeos-iso
+          mkdir -p out
+          # The ISO users get (installs the stable channel).
+          iso/build.sh out/arkadeos.iso stable
+          # The test ISO: same installer, answers prepared, installs $TAG.
+          ssh-keygen -q -t ed25519 -N '' -f vm-key
+          sed "s|@SSHKEY@|$(cat vm-key.pub)|" tests/iso/auto.ks > auto.ks
+          ISO_CMDLINE="console=ttyS0,115200" ISO_AUTOBOOT=1 iso/build.sh out/arkadeos-test.iso "$TAG" auto.ks
+          sudo chown -R "$USER" out "$HOME/.cache/arkadeos-iso"
+          ls -la out
+          echo "ISO build: $(( $(date +%s) - start )) s, $(du -h out/arkadeos.iso | cut -f1)" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Install from the ISO in a VM
+        run: |
+          start=$(date +%s)
+          tests/iso/run.sh out/arkadeos-test.iso vm-key iso-out "ghcr.io/tenarkhq/arkadeos:${TAG}"
+          echo "install test: $(( $(date +%s) - start )) s" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: iso-test
+          path: |
+            iso-out/*.png
+            iso-out/*.txt
+            iso-out/*.log
+          if-no-files-found: ignore
+
+      - name: ISO
+        uses: actions/upload-artifact@v4
+        with:
+          name: arkadeos-iso
+          path: out/arkadeos.iso
+          retention-days: 7
+          compression-level: 0
