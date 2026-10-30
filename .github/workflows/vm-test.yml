@@ -41,14 +41,10 @@ jobs:
           grep -c -E 'vmx|svm' /proc/cpuinfo || true
           test -w /dev/kvm || { echo "no KVM on this runner" >&2; exit 1; }
 
-      - name: Disk space and tools
+      - name: Tools
         run: |
-          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache /usr/local/share/boost
-          sudo mkdir -p /mnt/containers /var/lib/containers
-          sudo mount --bind /mnt/containers /var/lib/containers
           sudo apt-get update -q
           sudo apt-get install -y -q qemu-system-x86 ovmf socat imagemagick
-          df -h / /mnt
 
       - name: Pull image
         env:
@@ -64,28 +60,22 @@ jobs:
       - name: Disk image
         run: |
           ssh-keygen -q -t ed25519 -N '' -f vm-key
-          # Test-only VM user; the disk image never leaves this job.
-          cat > config.toml <<EOT
-          [[customizations.user]]
-          name = "arkade"
-          password = "arkade"
-          key = "$(cat vm-key.pub)"
-          groups = ["wheel"]
-          EOT
-          sudo mkdir -p /mnt/output
+          sudo truncate -s 60G /mnt/disk.raw
           start=$(date +%s)
-          sudo podman run --rm --privileged --security-opt label=type:unconfined_t \
-            -v ./config.toml:/config.toml:ro -v /mnt/output:/output \
-            -v /var/lib/containers/storage:/var/lib/containers/storage \
-            quay.io/centos-bootc/bootc-image-builder:latest \
-            --type qcow2 --rootfs btrfs localhost/vm-test
-          sudo chown -R "$USER" /mnt/output
+          # The image installs itself, the same way a real install does.
+          sudo podman run --rm --privileged --pid=host --security-opt label=type:unconfined_t \
+            -v /dev:/dev -v /var/lib/containers:/var/lib/containers -v /mnt:/mnt \
+            -v ./vm-key.pub:/vm-key.pub:ro \
+            localhost/vm-test \
+            bootc install to-disk --via-loopback --generic-image --wipe --filesystem btrfs \
+              --root-ssh-authorized-keys /vm-key.pub /mnt/disk.raw
+          sudo chown "$USER" /mnt/disk.raw
           echo "disk image: $(( $(date +%s) - start )) s" >> "$GITHUB_STEP_SUMMARY"
 
       - name: Boot, desktop, apps
         run: |
           start=$(date +%s)
-          tests/vm/run.sh /mnt/output/qcow2/disk.qcow2 vm-key vm-out
+          tests/vm/run.sh /mnt/disk.raw vm-key vm-out
           echo "VM test: $(( $(date +%s) - start )) s" >> "$GITHUB_STEP_SUMMARY"
 
       - name: Results

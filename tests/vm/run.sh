@@ -1,7 +1,7 @@
 #!/usr/bin/bash
-# Boots a qcow2 disk of an ArkadeOS image in QEMU and checks that it reaches
+# Boots an installed disk of an ArkadeOS image in QEMU and checks that it reaches
 # the desktop and that the programs in apps.txt start (T004).
-# Usage: run.sh <disk.qcow2> <ssh private key> <out dir>
+# Usage: run.sh <raw disk> <root ssh private key> <out dir>
 set -euo pipefail
 
 disk=$1 key=$2 out=$3
@@ -13,7 +13,7 @@ qmp=${out}/qmp.sock
 
 ssh_vm() {
     ssh -n -i "${key}" -p 2222 -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null \
-        -o ConnectTimeout=5 -o LogLevel=ERROR arkade@127.0.0.1 "$@"
+        -o ConnectTimeout=5 -o LogLevel=ERROR root@127.0.0.1 "$@"
 }
 
 shot() {
@@ -29,7 +29,7 @@ step() { echo "$(date -u +%T) $*"; }
 step "boot"
 qemu-system-x86_64 -enable-kvm -cpu host -smp 4 -m 8G -machine q35 \
     -drive if=pflash,format=raw,readonly=on,file=/usr/share/OVMF/OVMF_CODE_4M.fd \
-    -drive file="${disk}",if=virtio,format=qcow2 \
+    -drive file="${disk}",if=virtio,format=raw \
     -device virtio-vga -display none \
     -nic user,model=virtio-net-pci,hostfwd=tcp:127.0.0.1:2222-:22 \
     -serial file:"${out}/serial.log" -qmp unix:"${qmp}",server,nowait \
@@ -49,7 +49,11 @@ ssh_vm 'systemctl --failed --no-legend --plain' | tee "${out}/failed-units.txt"
 shot login
 
 step "logging in to the desktop"
-ssh_vm "echo arkade | sudo -S sh -c 'mkdir -p /etc/plasmalogin.conf.d && printf \"[Autologin]\nUser=arkade\nSession=plasma.desktop\n\" > /etc/plasmalogin.conf.d/zz-vm-test.conf && systemctl restart plasmalogin'" 2>/dev/null
+# Test-only user with automatic login; the disk never leaves the test job.
+ssh_vm 'useradd -m -G wheel arkade &&
+    mkdir -p /etc/plasmalogin.conf.d &&
+    printf "[Autologin]\nUser=arkade\nSession=plasma.desktop\n" > /etc/plasmalogin.conf.d/zz-vm-test.conf &&
+    systemctl restart plasmalogin'
 for _ in $(seq 60); do
     ssh_vm 'pgrep -u arkade -x plasmashell' >/dev/null && break
     sleep 5
@@ -58,12 +62,13 @@ ssh_vm 'pgrep -u arkade -x plasmashell' >/dev/null || { shot desktop-missing; ec
 sleep 20
 shot desktop
 
-session='export XDG_RUNTIME_DIR=/run/user/$(id -u) WAYLAND_DISPLAY=wayland-0 QT_QPA_PLATFORM=wayland DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/$(id -u)/bus;'
+uid=$(ssh_vm 'id -u arkade')
+session="runuser -u arkade -- env XDG_RUNTIME_DIR=/run/user/${uid} WAYLAND_DISPLAY=wayland-0 QT_QPA_PLATFORM=wayland DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/${uid}/bus"
 failed=0
 while read -r app; do
     [[ -z "${app}" || "${app}" == \#* ]] && continue
     step "starting ${app}"
-    ssh_vm "${session} nohup ${app} >/tmp/${app%% *}.log 2>&1 & echo \$! > /tmp/${app%% *}.pid"
+    ssh_vm "nohup ${session} ${app} >/tmp/${app%% *}.log 2>&1 & echo \$! > /tmp/${app%% *}.pid"
     sleep 15
     if ssh_vm "kill -0 \$(cat /tmp/${app%% *}.pid)"; then
         shot "app-${app%% *}"
