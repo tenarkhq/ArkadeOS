@@ -1,0 +1,4 @@
+#!/usr/bin/bash
+# arkadeos-session game     switch to Steam Game Mode
+# arkadeos-session desktop  switch back to the desktop
+exec pkexec /usr/libexec/arkadeos/session-select "$@"

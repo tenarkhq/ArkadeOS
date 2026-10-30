@@ -1,0 +1,48 @@
+#!/usr/bin/bash
+# Switches the calling user between the desktop and Steam Game Mode (T003).
+# Runs as root through pkexec: logs the user in again with the chosen session
+# once, then removes the one-time automatic login.
+# Usage: session-select <game|desktop>
+#        session-select --forget <user>   (internal)
+set -euo pipefail
+
+conf=/etc/plasmalogin.conf.d/zz-arkadeos-session.conf
+
+if [[ "${1:-}" == "--forget" ]]; then
+    # Wait until a new session of the user is up, then drop the automatic
+    # login, so the next boot shows the normal login screen again.
+    user=$2 old=" ${3:-} "
+    for _ in $(seq 60); do
+        sleep 2
+        for id in $(loginctl list-sessions --no-legend | awk -v u="${user}" '$3 == u { print $1 }'); do
+            [[ "${old}" == *" ${id} "* ]] || break 2
+        done
+    done
+    sleep 5
+    rm -f "${conf}"
+    exit 0
+fi
+
+case "${1:-}" in
+    game) session=gamescope-session-steam.desktop ;;
+    desktop | plasma) session=plasma.desktop ;;
+    *) echo "usage: $0 <game|desktop>" >&2; exit 2 ;;
+esac
+
+uid=${PKEXEC_UID:?run through pkexec}
+user=$(id -nu "${uid}")
+
+mkdir -p "$(dirname "${conf}")"
+printf '[Autologin]\nUser=%s\nSession=%s\nRelogin=true\n' "${user}" "${session}" > "${conf}"
+
+sessions=$(loginctl list-sessions --no-legend | awk -v u="${user}" '$3 == u { print $1 }' | xargs)
+systemd-run --quiet --no-block --collect --unit="arkadeos-session-forget-${uid}" \
+    /usr/libexec/arkadeos/session-select --forget "${user}" "${sessions}"
+
+# Ending the graphical session makes the login manager log in again with the
+# session written above.
+for id in ${sessions}; do
+    if [[ "$(loginctl show-session "${id}" -p Type --value)" =~ ^(wayland|x11)$ ]]; then
+        loginctl terminate-session "${id}"
+    fi
+done

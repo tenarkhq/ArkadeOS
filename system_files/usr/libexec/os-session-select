@@ -1,0 +1,5 @@
+#!/usr/bin/bash
+# Steam's "Switch to Desktop" calls steamos-session-select, which hands over to
+# this hook.
+steam -shutdown || true
+exec /usr/bin/arkadeos-session desktop
