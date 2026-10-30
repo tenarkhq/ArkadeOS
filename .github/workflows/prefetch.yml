@@ -31,6 +31,26 @@ jobs:
           mkdir -p ~/arkadeos-cache
           podman images --format '{{.Repository}}:{{.Tag}} {{.Size}} {{.Created}}' | tee ~/arkadeos-cache/images.txt
 
+      - name: Base image contents
+        run: |
+          # Package and service lists of each base, for the cleanup list (T002)
+          # and for spotting what a Bazzite update changed (T048).
+          out=~/arkadeos-cache/bases
+          mkdir -p "$out"
+          for i in bazzite bazzite-nvidia bazzite-nvidia-open; do
+            podman run --rm ghcr.io/ublue-os/$i:stable bash -c '
+              rpm -qa --qf "%{NAME}\t%{VERSION}-%{RELEASE}\t%{SIZE}\t%{SUMMARY}\n" | sort
+            ' > "$out/$i.packages.tsv"
+            podman run --rm ghcr.io/ublue-os/$i:stable bash -c '
+              systemctl list-unit-files --no-legend --no-pager --state=enabled,static,indirect --type=service,socket,timer,path
+              echo "--- user"
+              systemctl --global list-unit-files --no-legend --no-pager --state=enabled --type=service,socket,timer
+              echo "--- flatpak preinstall"
+              cat /usr/share/ublue-os/bazzite/flatpak/install 2>/dev/null || true
+            ' > "$out/$i.units.txt"
+            wc -l "$out/$i.packages.tsv"
+          done
+
       - name: Apps, themes, installers
         env:
           GITHUB_TOKEN: ${{ github.token }}
