@@ -63,12 +63,13 @@ jobs:
           sudo truncate -s 60G /mnt/disk.raw
           start=$(date +%s)
           # The image installs itself, the same way a real install does.
+          # (/mnt is a symlink inside the image, so the disk goes to /output.)
           sudo podman run --rm --privileged --pid=host --security-opt label=type:unconfined_t \
-            -v /dev:/dev -v /var/lib/containers:/var/lib/containers -v /mnt:/mnt \
+            -v /dev:/dev -v /var/lib/containers:/var/lib/containers -v /mnt:/output \
             -v ./vm-key.pub:/vm-key.pub:ro \
             localhost/vm-test \
             bootc install to-disk --via-loopback --generic-image --wipe --filesystem btrfs \
-              --root-ssh-authorized-keys /vm-key.pub /mnt/disk.raw
+              --root-ssh-authorized-keys /vm-key.pub /output/disk.raw
           sudo chown "$USER" /mnt/disk.raw
           echo "disk image: $(( $(date +%s) - start )) s" >> "$GITHUB_STEP_SUMMARY"
 
