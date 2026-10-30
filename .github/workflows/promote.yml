@@ -1,0 +1,39 @@
+name: Promote to stable
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Tested tag to release as stable (testing or testing-<version>)"
+        default: testing
+        required: true
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  promote:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        image: [arkadeos, arkadeos-nvidia]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6 # v4.1.2
+        with:
+          cosign-release: v3.1.4
+      - name: Retag
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          TAG: ${{ inputs.tag }}
+        run: |
+          src=ghcr.io/tenarkhq/${{ matrix.image }}
+          echo "$GITHUB_TOKEN" | skopeo login ghcr.io -u "${{ github.actor }}" --password-stdin
+          digest=$(skopeo inspect --format '{{ .Digest }}' "docker://${src}:${TAG}")
+          # Only a signed image becomes stable.
+          cosign verify --key cosign.pub "${src}@${digest}" >/dev/null
+          version=$(skopeo inspect --format '{{ index .Labels "org.opencontainers.image.version" }}' "docker://${src}@${digest}")
+          for tag in stable stable-${version}; do
+            skopeo copy --preserve-digests "docker://${src}@${digest}" "docker://${src}:${tag}"
+          done
+          echo "${src}@${digest} → stable, stable-${version}" >> "$GITHUB_STEP_SUMMARY"

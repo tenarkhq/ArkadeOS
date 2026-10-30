@@ -1,0 +1,104 @@
+name: Build images
+on:
+  workflow_dispatch:
+  schedule:
+    # Daily, after the 01:30 UTC prefetch has pulled the newest Bazzite bases.
+    - cron: "0 3 * * *"
+  push:
+    branches: [main]
+    paths-ignore:
+      - "**.md"
+      - "tools/prefetch.py"
+      - ".github/workflows/prefetch.yml"
+
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: build
+  cancel-in-progress: false
+
+env:
+  REGISTRY: ghcr.io/tenarkhq
+
+jobs:
+  build:
+    name: ${{ matrix.image }}
+    # Self-hosted build server. Only main, schedule and manual runs reach it,
+    # never pull requests from forks.
+    runs-on: [self-hosted, arkadeos-build]
+    timeout-minutes: 180
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - image: arkadeos
+            base: ghcr.io/ublue-os/bazzite:stable
+          - image: arkadeos-nvidia
+            base: ghcr.io/ublue-os/bazzite-nvidia-open:stable
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Version
+        id: ver
+        run: |
+          podman pull -q ${{ matrix.base }} >/dev/null
+          base_version=$(podman image inspect --format '{{ index .Config.Labels "org.opencontainers.image.version" }}' ${{ matrix.base }})
+          fedora=${base_version%%.*}
+          version="${fedora}.$(date -u +%Y%m%d)"
+          echo "version=${version}" >> "$GITHUB_OUTPUT"
+          echo "${{ matrix.image }} ${version} on ${{ matrix.base }} ${base_version}" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Build
+        run: |
+          podman build \
+            --build-arg BASE_IMAGE=${{ matrix.base }} \
+            --build-arg IMAGE_NAME=${{ matrix.image }} \
+            --build-arg IMAGE_VERSION=${{ steps.ver.outputs.version }} \
+            --label org.opencontainers.image.title=ArkadeOS \
+            --label org.opencontainers.image.description="Fast, gaming-first Linux built on Fedora Atomic" \
+            --label org.opencontainers.image.source=https://github.com/${{ github.repository }} \
+            --label org.opencontainers.image.licenses=Apache-2.0 \
+            --label org.opencontainers.image.version=${{ steps.ver.outputs.version }} \
+            --label org.opencontainers.image.revision=${{ github.sha }} \
+            -t localhost/${{ matrix.image }}:build \
+            -f Containerfile .
+
+      - name: Push
+        id: push
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          echo "$GITHUB_TOKEN" | podman login ghcr.io -u "${{ github.actor }}" --password-stdin
+          dest=${REGISTRY}/${{ matrix.image }}
+          podman push --digestfile digest localhost/${{ matrix.image }}:build docker://${dest}:testing-${{ steps.ver.outputs.version }}
+          digest=$(cat digest)
+          for tag in testing sha-${GITHUB_SHA::7}; do
+            skopeo copy --preserve-digests docker://${dest}@${digest} docker://${dest}:${tag}
+          done
+          echo "digest=${digest}" >> "$GITHUB_OUTPUT"
+          echo "pushed ${dest}@${digest}: testing, testing-${{ steps.ver.outputs.version }}, sha-${GITHUB_SHA::7}" >> "$GITHUB_STEP_SUMMARY"
+
+      - uses: sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6 # v4.1.2
+        with:
+          cosign-release: v3.1.4
+
+      - name: Sign
+        env:
+          COSIGN_PRIVATE_KEY: ${{ secrets.SIGNING_SECRET }}
+          COSIGN_PASSWORD: ""
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          cosign sign -y --key env://COSIGN_PRIVATE_KEY \
+            --new-bundle-format=false --use-signing-config=false \
+            --registry-username "${{ github.actor }}" --registry-password "$GITHUB_TOKEN" \
+            ${REGISTRY}/${{ matrix.image }}@${{ steps.push.outputs.digest }}
+          cosign verify --key cosign.pub ${REGISTRY}/${{ matrix.image }}@${{ steps.push.outputs.digest }} >/dev/null
+
+      - name: Clean up
+        if: always()
+        run: |
+          podman logout ghcr.io || true
+          podman rmi -f localhost/${{ matrix.image }}:build || true
+          podman image prune -f
