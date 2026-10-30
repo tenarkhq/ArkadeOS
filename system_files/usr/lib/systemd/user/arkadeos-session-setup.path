@@ -1,0 +1,11 @@
+[Unit]
+Description=Rerun the ArkadeOS per-user setup when apps are installed or removed
+PartOf=graphical-session.target
+
+[Path]
+PathChanged=/var/lib/flatpak/exports/share/applications
+PathChanged=%h/.local/share/flatpak/exports/share/applications
+Unit=arkadeos-session-setup.service
+
+[Install]
+WantedBy=graphical-session.target

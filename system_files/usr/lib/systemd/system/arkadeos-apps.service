@@ -1,0 +1,14 @@
+[Unit]
+Description=Install the ArkadeOS apps (Firefox, Chrome, Discord, ...)
+Wants=network-online.target
+After=network-online.target bazzite-flatpak-manager.service
+StartLimitIntervalSec=0
+
+[Service]
+Type=oneshot
+ExecStart=/usr/libexec/arkadeos/apps-install
+Restart=on-failure
+RestartSec=60
+
+[Install]
+WantedBy=multi-user.target

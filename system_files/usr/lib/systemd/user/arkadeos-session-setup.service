@@ -1,0 +1,11 @@
+[Unit]
+Description=ArkadeOS per-user setup (Steam shortcuts, microphone filter, dock stores)
+After=plasma-plasmashell.service
+PartOf=graphical-session.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/libexec/arkadeos/session-setup
+
+[Install]
+WantedBy=graphical-session.target

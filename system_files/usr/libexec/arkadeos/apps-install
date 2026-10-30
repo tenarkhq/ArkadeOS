@@ -1,0 +1,20 @@
+#!/usr/bin/bash
+# Installs the apps of /usr/share/arkadeos/apps.list that should be on this
+# machine and are not yet. Apps are never removed here: what the user installed
+# or kept stays.
+set -euo pipefail
+
+chosen=/etc/arkadeos/apps
+want=()
+while IFS='|' read -r id ref default; do
+    [[ -z "${id}" || "${id}" == \#* ]] && continue
+    if [[ "${default}" == always ]] ||
+        { [[ -f "${chosen}" ]] && grep -qx "${id}" "${chosen}"; } ||
+        { [[ ! -f "${chosen}" && "${default}" == on ]]; }; then
+        flatpak info --system "${ref}" &>/dev/null || want+=("${ref}")
+    fi
+done < /usr/share/arkadeos/apps.list
+
+[[ ${#want[@]} -eq 0 ]] && exit 0
+flatpak remote-add --if-not-exists --system flathub /etc/flatpak/remotes.d/flathub.flatpakrepo
+flatpak install --system --noninteractive --or-update flathub "${want[@]}"

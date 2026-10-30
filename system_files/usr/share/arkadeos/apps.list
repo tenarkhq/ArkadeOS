@@ -1,0 +1,8 @@
+# id|Flathub app|default: always, on (unless the installer's choice screen,
+# T026, left it out of /etc/arkadeos/apps) or off (only when chosen there)
+firefox|org.mozilla.firefox|always
+chrome|com.google.Chrome|always
+discord|com.discordapp.Discord|on
+vesktop|dev.vencord.Vesktop|off
+easyeffects|com.github.wwmm.easyeffects|always
+heroic|com.heroicgameslauncher.hgl|off

@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=Easy Effects
+Comment=Microphone noise filter in the background
+Comment[hu]=Mikrofon-zajszűrés a háttérben
+Exec=flatpak run com.github.wwmm.easyeffects --service-mode --hide-window
+Icon=com.github.wwmm.easyeffects
+X-Flatpak=com.github.wwmm.easyeffects

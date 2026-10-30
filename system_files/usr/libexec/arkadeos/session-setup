@@ -1,0 +1,52 @@
+#!/usr/bin/bash
+# Per-user setup at each login, and again when apps are installed or removed
+# (arkadeos-session-setup.path): Steam Game Mode shortcuts, EasyEffects
+# microphone noise filter, stores on the dock.
+set -uo pipefail
+
+IFS=: read -ra app_dirs <<< "${XDG_DATA_HOME:-${HOME}/.local/share}:${XDG_DATA_DIRS:-/usr/local/share:/usr/share}"
+app_dirs+=(/var/lib/flatpak/exports/share "${HOME}/.local/share/flatpak/exports/share")
+has_app() {
+    local d
+    for d in "${app_dirs[@]}"; do
+        [[ -f "${d}/applications/$1" ]] && return 0
+    done
+    return 1
+}
+
+# Steam Game Mode shortcuts (T014); written only while Steam is closed.
+grep -v '^#' /usr/share/arkadeos/steam-shortcuts.list | while IFS='|' read -r name exe icon; do
+    /usr/libexec/arkadeos/steam-shortcut "${name}" "${exe}" "${icon}"
+done
+
+# EasyEffects (T016): noise filter on every microphone, running in the
+# background from login. Set up once; the user's own changes stay.
+ee=com.github.wwmm.easyeffects
+stamp="${XDG_STATE_HOME:-${HOME}/.local/state}/arkadeos/easyeffects"
+if has_app "${ee}.desktop" && [[ ! -e "${stamp}" ]]; then
+    data="${HOME}/.var/app/${ee}/data/easyeffects/input"
+    conf="${HOME}/.var/app/${ee}/config/easyeffects/db/easyeffectsrc"
+    mkdir -p "${data}" "$(dirname "${conf}")" "${HOME}/.config/autostart" "$(dirname "${stamp}")"
+    cp /usr/share/arkadeos/easyeffects/*.json "${data}/"
+    kwriteconfig6 --file "${conf}" --group Window --key inputAutoloadingUsesFallback true
+    kwriteconfig6 --file "${conf}" --group Window --key inputAutoloadingFallbackPreset "ArkadeOS mikrofon"
+    kwriteconfig6 --file "${conf}" --group Presets --key lastLoadedInputPreset "ArkadeOS mikrofon"
+    cp /usr/share/arkadeos/easyeffects/easyeffects-service.desktop "${HOME}/.config/autostart/${ee}.desktop"
+    touch "${stamp}"
+    flatpak run "${ee}" --service-mode --hide-window &>/dev/null &
+fi
+
+# Stores on the dock (T018): one appears when it gets installed and goes when
+# it is removed; one the user took off the dock is not put back.
+present=""
+for store in steam.desktop org.arkadeos.BattleNet.desktop com.heroicgameslauncher.hgl.desktop \
+    net.lutris.Lutris.desktop; do
+    has_app "${store}" && on=true || on=false
+    present+="\"applications:${store}\": ${on}, "
+done
+js=$(sed "s|@PRESENT@|{${present%, }}|" /usr/share/arkadeos/dock-stores.js)
+for _ in $(seq 30); do
+    busctl --user call org.kde.plasmashell /PlasmaShell org.kde.PlasmaShell evaluateScript s "${js}" \
+        &>/dev/null && break
+    sleep 2
+done
