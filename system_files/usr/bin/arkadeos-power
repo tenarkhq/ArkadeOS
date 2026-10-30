@@ -1,0 +1,42 @@
+#!/usr/bin/bash
+# ArkadeOS power profiles (T011).
+#   arkadeos-power status        profile=..., auto=game|battery|, on_battery=...
+#   arkadeos-power set PROFILE   battery | balanced | gaming | max (max: charger only)
+set -euo pipefail
+
+ppd() {
+    busctl get-property net.hadess.PowerProfiles /net/hadess/PowerProfiles net.hadess.PowerProfiles "$1"
+}
+
+case "${1:-status}" in
+    status)
+        on_battery=false
+        busctl get-property org.freedesktop.UPower /org/freedesktop/UPower org.freedesktop.UPower OnBattery 2>/dev/null |
+            grep -q true && on_battery=true
+        active=$(ppd ActiveProfile | cut -d'"' -f2)
+        holds=$(ppd ActiveProfileHolds | cut -d' ' -f2)
+        auto=
+        if [[ -e /run/arkadeos/power-max ]]; then
+            profile=max
+        else
+            case "${active}" in
+                power-saver) profile=battery ;;
+                performance) profile=gaming ;;
+                *) profile=balanced ;;
+            esac
+            if [[ "${holds}" != 0 && "${active}" == performance ]]; then
+                auto=game
+            elif [[ "${profile}" == balanced && "${on_battery}" == true ]]; then
+                profile=battery auto=battery
+            fi
+        fi
+        printf 'profile=%s\nauto=%s\non_battery=%s\n' "${profile}" "${auto}" "${on_battery}"
+        ;;
+    set)
+        exec pkexec /usr/libexec/arkadeos/power-set "${2:?profile}"
+        ;;
+    *)
+        echo "usage: arkadeos-power status | set <battery|balanced|gaming|max>" >&2
+        exit 2
+        ;;
+esac

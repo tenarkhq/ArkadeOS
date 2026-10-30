@@ -1,0 +1,12 @@
+[Unit]
+Description=ArkadeOS: Gaming power profile while a game runs
+PartOf=graphical-session.target
+After=graphical-session.target
+
+[Service]
+ExecStart=/usr/libexec/arkadeos/game-profile
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=graphical-session.target

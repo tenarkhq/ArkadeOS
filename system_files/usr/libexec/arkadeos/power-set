@@ -1,0 +1,31 @@
+#!/usr/bin/bash
+# Sets an ArkadeOS power profile as root (T011): battery, balanced and gaming
+# through the standard power profile service, max straight in TuneD and only
+# on the charger. /run/arkadeos/power-max marks Max while it is on.
+set -euo pipefail
+
+flag=/run/arkadeos/power-max
+
+on_battery() {
+    busctl get-property org.freedesktop.UPower /org/freedesktop/UPower org.freedesktop.UPower OnBattery 2>/dev/null |
+        grep -q true
+}
+
+case "${1:-}" in
+    battery) ppd=power-saver ;;
+    balanced) ppd=balanced ;;
+    gaming) ppd=performance ;;
+    max)
+        if on_battery; then
+            echo "Max only runs on the charger" >&2
+            exit 1
+        fi
+        mkdir -p /run/arkadeos
+        touch "${flag}"
+        exec tuned-adm profile arkadeos-max
+        ;;
+    *) echo "usage: $0 <battery|balanced|gaming|max>" >&2; exit 2 ;;
+esac
+
+rm -f "${flag}"
+busctl set-property net.hadess.PowerProfiles /net/hadess/PowerProfiles net.hadess.PowerProfiles ActiveProfile s "${ppd}"

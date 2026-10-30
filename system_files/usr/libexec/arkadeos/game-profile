@@ -1,0 +1,51 @@
+#!/usr/bin/python3
+"""Holds the Gaming power profile while a game runs (T011), and lets it go
+when the game exits, so the profile chosen before comes back.
+
+A game is running when Steam has launched one (its reaper process), when a
+Windows game runs under Wine or Proton (wineserver, Battle.net through umu
+too), or when a game asked GameMode for its tweaks. Max, set by hand, is left
+alone."""
+import os
+import subprocess
+import time
+
+import dbus
+
+MAX_FLAG = "/run/arkadeos/power-max"
+UID = str(os.getuid())
+
+
+def found(*args):
+    return subprocess.run(["pgrep", "-u", UID, *args], stdout=subprocess.DEVNULL).returncode == 0
+
+
+def game_running():
+    if found("-f", "SteamLaunch AppId=") or found("-x", "wineserver"):
+        return True
+    status = subprocess.run(["gamemoded", "-s"], capture_output=True, text=True)
+    return "is active" in status.stdout
+
+
+def main():
+    bus = dbus.SystemBus()
+    ppd = dbus.Interface(bus.get_object("net.hadess.PowerProfiles", "/net/hadess/PowerProfiles"),
+                         "net.hadess.PowerProfiles")
+    cookie = None
+    while True:
+        want = game_running() and not os.path.exists(MAX_FLAG)
+        try:
+            if want and cookie is None:
+                cookie = ppd.HoldProfile("performance", "Game running", "org.arkadeos.GameProfile")
+            elif not want and cookie is not None:
+                held, cookie = cookie, None
+                ppd.ReleaseProfile(held)
+        except dbus.exceptions.DBusException:
+            # The hold is gone already (Max cleared it, or the service
+            # restarted); start over on the next round.
+            cookie = None
+        time.sleep(3)
+
+
+if __name__ == "__main__":
+    main()

@@ -1,0 +1,11 @@
+#!/usr/bin/bash
+# The charger was plugged in or out (T011). Balanced and Akku follow the
+# charger by themselves; Max is charger-only, so on battery it goes back to
+# Balanced, which on battery runs as Akku.
+set -euo pipefail
+
+sleep 2  # UPower reads the new state after the kernel event
+if [[ -e /run/arkadeos/power-max ]] &&
+    busctl get-property org.freedesktop.UPower /org/freedesktop/UPower org.freedesktop.UPower OnBattery | grep -q true; then
+    exec /usr/libexec/arkadeos/power-set balanced
+fi

@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE policyconfig PUBLIC "-//freedesktop//DTD PolicyKit Policy Configuration 1.0//EN"
+ "http://www.freedesktop.org/standards/PolicyKit/1/policyconfig.dtd">
+<policyconfig>
+  <vendor>ArkadeOS</vendor>
+  <action id="org.arkadeos.power-set">
+    <description>Switch the power profile</description>
+    <description xml:lang="hu">Energiaprofil váltása</description>
+    <message>Switching the power profile</message>
+    <message xml:lang="hu">Energiaprofil váltása</message>
+    <defaults>
+      <allow_any>no</allow_any>
+      <allow_inactive>no</allow_inactive>
+      <allow_active>yes</allow_active>
+    </defaults>
+    <annotate key="org.freedesktop.policykit.exec.path">/usr/libexec/arkadeos/power-set</annotate>
+  </action>
+</policyconfig>

@@ -1,0 +1,2 @@
+# ArkadeOS power profiles (T011): check Max when the charger changes.
+SUBSYSTEM=="power_supply", ACTION=="change", RUN+="/usr/bin/systemctl start --no-block arkadeos-power-ac.service"

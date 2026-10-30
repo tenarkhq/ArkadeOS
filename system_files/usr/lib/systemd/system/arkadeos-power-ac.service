@@ -1,0 +1,6 @@
+[Unit]
+Description=ArkadeOS: leave Max when the charger is unplugged
+
+[Service]
+Type=oneshot
+ExecStart=/usr/libexec/arkadeos/power-ac
