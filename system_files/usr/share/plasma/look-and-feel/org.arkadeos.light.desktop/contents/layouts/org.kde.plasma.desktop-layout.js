@@ -17,7 +17,8 @@ bar.addWidget("org.arkadeos.power")  // power profile switch (T012)
 bar.addWidget("org.kde.plasma.systemtray")
 bar.addWidget("org.kde.plasma.digitalclock")
 
-// Dock: floating, centred, as wide as its icons. Always visible; the user can
+// Dock: floating, centred, as wide as its icons. Stores installed later
+// (Heroic) are added by session-setup (T018). Always visible; the user can
 // turn on hiding in the panel settings (Roland, 2026-10-30).
 var dock = new Panel
 dock.location = "bottom"
@@ -37,6 +38,7 @@ tasks.writeConfig("launchers", [
     "preferred://filemanager",
     "preferred://browser",
     "applications:steam.desktop",
+    "applications:org.arkadeos.BattleNet.desktop",
     "applications:org.arkadeos.GameMode.desktop",
     "applications:net.lutris.Lutris.desktop",
     "applications:io.github.kolunmi.Bazaar.desktop",
