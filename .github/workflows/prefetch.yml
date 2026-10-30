@@ -28,7 +28,8 @@ jobs:
             podman pull -q ghcr.io/ublue-os/$i:stable
           done
           podman image prune -f
-          podman images --format '{{.Repository}}:{{.Tag}} {{.Size}} {{.CreatedSince}}'
+          mkdir -p ~/arkadeos-cache
+          podman images --format '{{.Repository}}:{{.Tag}} {{.Size}} {{.Created}}' | tee ~/arkadeos-cache/images.txt
 
       - name: Apps, themes, installers
         env:
