@@ -36,6 +36,18 @@ jobs:
           GITHUB_TOKEN: ${{ github.token }}
         run: python3 tools/prefetch.py
 
+      - name: Fedora packages (COPR)
+        run: |
+          # Packages the Bazzite base lacks, resolved against the base's own Fedora
+          out=~/arkadeos-cache/rpms/asus
+          rm -rf "$out.new" && mkdir -p "$out.new"
+          podman run --rm -v "$out.new":/out ghcr.io/ublue-os/bazzite:stable bash -c '
+            dnf5 -y -q copr enable lukenukem/asus-linux &&
+            dnf5 -q download --destdir /out asusctl supergfxctl &&
+            { dnf5 -q download --destdir /out asusctl-rog-gui || echo "asusctl-rog-gui: not in the repo"; }'
+          rm -rf "$out" && mv "$out.new" "$out"
+          ls -1 "$out"
+
       - name: Cache size
         if: always()
         run: du -sh ~/arkadeos-cache ~/.local/share/containers 2>/dev/null || true
