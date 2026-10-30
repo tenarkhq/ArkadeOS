@@ -1,0 +1,26 @@
+#!/usr/bin/bash
+# Daily snapshots of the home folders (T025), kept for a week plus four
+# weekly ones. Runs at boot before anyone logs in. Snapper needs /var/home to
+# be a btrfs subvolume; an install that made it a plain folder gets it turned
+# into one here (the files are copied with reflinks, so nothing is duplicated).
+set -euo pipefail
+
+home=/var/home
+mkdir -p "${home}"
+[[ "$(stat -f -c %T "${home}")" == btrfs ]] || { echo "${home} is not on btrfs: no snapshots"; exit 0; }
+
+if ! btrfs subvolume show "${home}" &>/dev/null; then
+    old="${home}.arkadeos-old"
+    mv "${home}" "${old}"
+    btrfs subvolume create "${home}"
+    cp -a --reflink=always "${old}/." "${home}/"
+    rm -rf "${old}"
+    restorecon -R "${home}" || true
+fi
+
+snapper -c home create-config "${home}"
+snapper -c home set-config TIMELINE_CREATE=yes TIMELINE_CLEANUP=yes \
+    TIMELINE_LIMIT_HOURLY=0 TIMELINE_LIMIT_DAILY=7 TIMELINE_LIMIT_WEEKLY=4 \
+    TIMELINE_LIMIT_MONTHLY=0 TIMELINE_LIMIT_YEARLY=0 \
+    NUMBER_LIMIT=10 SPACE_LIMIT=0.2 FREE_LIMIT=0.2
+snapper -c home create -d "ArkadeOS: first snapshot"

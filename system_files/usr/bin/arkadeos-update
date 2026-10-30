@@ -1,0 +1,51 @@
+#!/usr/bin/bash
+# ArkadeOS updates (T025). The system, Flatpak apps and Homebrew update every
+# day by themselves (uupd, 04:00); a new system version starts at the next
+# reboot, and the previous one stays installed to go back to.
+#   arkadeos-update status     versions: running, waiting for reboot, previous
+#   arkadeos-update now        update now instead of waiting for 04:00
+#   arkadeos-update rollback   start the previous version at the next reboot
+set -euo pipefail
+
+hu() { [[ "${LANG:-}" == hu* || "${LANGUAGE:-}" == hu* ]]; }
+say() { if hu; then echo "$2"; else echo "$1"; fi; }
+
+version() {
+    bootc status --json 2>/dev/null | python3 -c '
+import json, sys
+s = json.load(sys.stdin).get("status", {})
+e = s.get(sys.argv[1]) or {}
+i = (e.get("image") or {})
+print(i.get("version") or (i.get("image") or {}).get("image") or "")' "$1"
+}
+
+case "${1:-status}" in
+    status)
+        say "Running:  $(version booted)" "Fut:            $(version booted)"
+        staged=$(version staged)
+        [[ -n "${staged}" ]] && say "At reboot: ${staged}" "Újraindításkor: ${staged}"
+        rollback=$(version rollback)
+        [[ -n "${rollback}" ]] && say "Previous: ${rollback}" "Előző:          ${rollback}"
+        ;;
+    now)
+        exec pkexec systemctl start --no-block uupd.service
+        ;;
+    rollback)
+        if [[ -z "$(version rollback)" ]]; then
+            say "There is no previous version to go back to." "Nincs előző verzió, amire vissza lehetne állni."
+            exit 1
+        fi
+        if [[ "${2:-}" != --yes && -n "${WAYLAND_DISPLAY:-}${DISPLAY:-}" ]]; then
+            msg=$(say "Start the previous version ($(version rollback)) at the next reboot?" \
+                "Az előző verzió ($(version rollback)) induljon a következő újraindításkor?")
+            kdialog --title ArkadeOS --yesno "${msg}" || exit 0
+        fi
+        pkexec bootc rollback
+        say "Done: the previous version starts at the next reboot." \
+            "Kész: a következő újraindításkor az előző verzió indul."
+        ;;
+    *)
+        sed -n '2,8p' "$0" | sed 's/^# \{0,1\}//'
+        exit 2
+        ;;
+esac

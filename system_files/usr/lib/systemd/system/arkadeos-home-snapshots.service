@@ -1,0 +1,12 @@
+[Unit]
+Description=Set up daily snapshots of the home folders
+ConditionPathExists=!/etc/snapper/configs/home
+After=local-fs.target systemd-tmpfiles-setup.service
+Before=systemd-user-sessions.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/libexec/arkadeos/home-snapshots
+
+[Install]
+WantedBy=multi-user.target

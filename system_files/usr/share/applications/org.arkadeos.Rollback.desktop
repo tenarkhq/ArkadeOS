@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=Go back to the previous version
+Name[hu]=Visszaállás az előző verzióra
+Comment=Start the previous ArkadeOS version at the next reboot
+Comment[hu]=A következő újraindításkor az előző ArkadeOS-verzió indul
+Exec=arkadeos-update rollback
+Icon=edit-undo
+Categories=System;

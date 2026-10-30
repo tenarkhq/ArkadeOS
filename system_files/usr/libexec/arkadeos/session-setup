@@ -1,7 +1,7 @@
 #!/usr/bin/bash
 # Per-user setup at each login, and again when apps are installed or removed
-# (arkadeos-session-setup.path): Steam Game Mode shortcuts, EasyEffects
-# microphone noise filter, stores on the dock.
+# (arkadeos-session-setup.path): game folders out of home snapshots, Steam
+# Game Mode shortcuts, EasyEffects microphone noise filter, stores on the dock.
 set -uo pipefail
 
 IFS=: read -ra app_dirs <<< "${XDG_DATA_HOME:-${HOME}/.local/share}:${XDG_DATA_DIRS:-/usr/local/share:/usr/share}"
@@ -13,6 +13,14 @@ has_app() {
     done
     return 1
 }
+
+# Game folders as their own btrfs subvolumes (T025): the daily home snapshots
+# then leave out games, which are large and can be downloaded again.
+if [[ "$(stat -f -c %T "${HOME}")" == btrfs ]]; then
+    for d in "${HOME}/Games" "${HOME}/.local/share/Steam"; do
+        [[ -e "${d}" ]] || { mkdir -p "$(dirname "${d}")"; btrfs subvolume create "${d}" >/dev/null; }
+    done
+fi
 
 # Steam Game Mode shortcuts (T014); written only while Steam is closed.
 grep -v '^#' /usr/share/arkadeos/steam-shortcuts.list | while IFS='|' read -r name exe icon; do
