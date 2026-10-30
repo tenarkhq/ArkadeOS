@@ -5,7 +5,9 @@
   <vendor>ArkadeOS</vendor>
   <action id="org.arkadeos.session-select">
     <description>Switch between the desktop and Game Mode</description>
+    <description xml:lang="hu">Váltás az asztal és a Játékmód között</description>
     <message>Switching between the desktop and Game Mode</message>
+    <message xml:lang="hu">Váltás az asztal és a Játékmód között</message>
     <defaults>
       <allow_any>no</allow_any>
       <allow_inactive>no</allow_inactive>

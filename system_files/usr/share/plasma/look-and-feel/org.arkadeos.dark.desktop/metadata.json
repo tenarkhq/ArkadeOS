@@ -7,11 +7,13 @@
             }
         ],
         "Category": "Global Themes (Plasma 6)",
-        "Description": "WhiteSur look for ArkadeOS",
+        "Description": "WhiteSur look for ArkadeOS, dark",
+        "Description[hu]": "WhiteSur-kinézet az ArkadeOS-hez, sötét",
         "EnabledByDefault": true,
         "Id": "org.arkadeos.dark.desktop",
         "License": "GPLv3",
         "Name": "ArkadeOS Dark",
+        "Name[hu]": "ArkadeOS Sötét",
         "Website": "https://github.com/tenarkhq/ArkadeOS"
     },
     "Keywords": "Desktop;Workspace;Appearance;Look and Feel;",

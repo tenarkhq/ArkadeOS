@@ -1,6 +1,6 @@
 [Plymouth Theme]
 Name=ArkadeOS
-Description=ArkadeOS boot screen (T009): the ArkadeOS mark on black, a spinner below.
+Description=ArkadeOS boot screen (T009): the ArkadeOS mark on black, a spinner below. No text titles, so it reads the same in every language (T010).
 ModuleName=two-step
 
 [two-step]
@@ -36,19 +36,13 @@ UseEndAnimation=false
 SuppressMessages=true
 ProgressBarShowPercentComplete=true
 UseProgressBar=true
-Title=Installing Updates...
-SubTitle=Do not turn off your computer
 
 [system-upgrade]
 SuppressMessages=true
 ProgressBarShowPercentComplete=true
 UseProgressBar=true
-Title=Upgrading System...
-SubTitle=Do not turn off your computer
 
 [firmware-upgrade]
 SuppressMessages=true
 ProgressBarShowPercentComplete=true
 UseProgressBar=true
-Title=Upgrading Firmware...
-SubTitle=Do not turn off your computer

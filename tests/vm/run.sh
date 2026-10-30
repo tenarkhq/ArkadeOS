@@ -135,6 +135,11 @@ check "ArkadeOS boot screen" "plymouth-set-default-theme | grep -qx arkadeos && 
 check "Ark wallpaper and launcher logo" "f=${home}/plasma-org.kde.plasma.desktop-appletsrc &&
     grep -qx 'Image=file:///usr/share/wallpapers/ArkadeOS/' \$f && grep -qx icon=arkadeos-launcher \$f"
 check "dark lock screen" "${session} kreadconfig6 --file kscreenlockerrc --group Greeter --group Wallpaper --group org.kde.image --group General --key Image | grep -q ArkadeOS-Lock"
+# T010: Hungarian is complete, our own texts included.
+check "Hungarian language" "rpm -q hunspell-hu && test -f /usr/share/locale/hu/LC_MESSAGES/dolphin.mo &&
+    grep -q '^Name\\[hu\\]=' /usr/share/applications/org.arkadeos.GameMode.desktop &&
+    grep -q 'xml:lang=\"hu\"' /usr/share/polkit-1/actions/org.arkadeos.session.policy &&
+    grep -q 'Name\\[hu\\]' /usr/share/plasma/look-and-feel/org.arkadeos.light.desktop/metadata.json"
 check "window buttons on the left" "test \"\$(${session} kreadconfig6 --file kwinrc --group org.kde.kdecoration2 --key ButtonsOnLeft)\" = XIA"
 # Apps get the Plasma session variables, as when started from the menu.
 # Both themes with Dolphin open in front: the day/night switch must restyle
@@ -151,6 +156,12 @@ for variant in light dark; do
 done
 check "dark theme applied" "grep -qx ColorScheme=WhiteSurDark ${home}/kdedefaults/kdeglobals &&
     grep -A3 '^\\[Colors:Window\\]' ${home}/kdeglobals | grep -qx BackgroundNormal=54,54,54"
+
+# T010: the same Dolphin in Hungarian.
+ssh_vm "pkill -u arkade -x dolphin" || true
+ssh_vm "nohup ${session} LANG=hu_HU.UTF-8 LANGUAGE=hu dolphin >/dev/null 2>&1 &"
+sleep 10
+shot hungarian
 
 step "windows keys"
 # T008: the Windows shortcuts, pressed on the VM keyboard with Dolphin in front.
