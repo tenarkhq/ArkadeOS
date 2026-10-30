@@ -2,13 +2,15 @@
 // Plasma runs this once, when a user first logs in. ArkadeOS Dark falls back
 // to this package, so both global themes give the same layout.
 
-// Top bar: launcher logo, the active app's menu, tray, clock (the calendar
-// opens from the clock).
+// Top bar: Ark logo (opens the launcher), the active app's menu, tray, clock
+// (the calendar opens from the clock).
 var bar = new Panel
 bar.location = "top"
 bar.floating = false
 bar.height = 2 * Math.ceil(gridUnit * 1.5 / 2)
-bar.addWidget("org.kde.plasma.kickoff")
+var launcher = bar.addWidget("org.kde.plasma.kickoff")
+launcher.currentConfigGroup = ["General"]
+launcher.writeConfig("icon", "arkadeos-launcher")
 bar.addWidget("org.kde.plasma.appmenu")
 bar.addWidget("org.kde.plasma.panelspacer")
 bar.addWidget("org.kde.plasma.systemtray")
@@ -44,7 +46,10 @@ tasks.writeConfig("launchers", [
 dock.addWidget("org.kde.plasma.marginsseparator")
 dock.addWidget("org.kde.plasma.trash")
 
+// ArkadeOS wallpaper (T009); Plasma picks the dark images with a dark theme.
 var desktopsArray = desktopsForActivity(currentActivity())
 for (var j = 0; j < desktopsArray.length; j++) {
     desktopsArray[j].wallpaperPlugin = "org.kde.image"
+    desktopsArray[j].currentConfigGroup = ["Wallpaper", "org.kde.image", "General"]
+    desktopsArray[j].writeConfig("Image", "file:///usr/share/wallpapers/ArkadeOS/")
 }

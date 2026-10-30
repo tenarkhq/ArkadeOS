@@ -1,0 +1,12 @@
+{
+    "KPlugin": {
+        "Authors": [
+            {
+                "Name": "ArkadeOS"
+            }
+        ],
+        "Id": "ArkadeOS",
+        "License": "CC-BY-SA-4.0",
+        "Name": "ArkadeOS"
+    }
+}

@@ -1,0 +1,2 @@
+# Quiet boot with the ArkadeOS boot screen (T009).
+kargs = ["rhgb", "quiet", "splash"]

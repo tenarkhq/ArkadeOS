@@ -61,6 +61,12 @@ wait_ssh() {
     return 1
 }
 
+# T009: the boot screen, caught while the system starts.
+for n in 1 2 3 4; do
+    sleep 5
+    shot "boot-${n}"
+done
+
 step "waiting for ssh"
 wait_ssh
 
@@ -123,6 +129,12 @@ check "GTK WhiteSur" "grep -qx gtk-theme-name=WhiteSur-Light ${home}/gtk-3.0/set
 # T007: the first login built the bar and the dock from our layout.
 check "top bar and dock" "f=${home}/plasma-org.kde.plasma.desktop-appletsrc &&
     for w in kickoff appmenu systemtray digitalclock kickerdash icontasks trash; do grep -qx plugin=org.kde.plasma.\$w \$f || exit 1; done"
+# T009: ArkadeOS name, boot screen, wallpaper, launcher logo, lock screen.
+check "ArkadeOS name" "grep -qx 'PRETTY_NAME=\"ArkadeOS\"' /usr/lib/os-release"
+check "ArkadeOS boot screen" "plymouth-set-default-theme | grep -qx arkadeos && grep -qw splash /proc/cmdline"
+check "Ark wallpaper and launcher logo" "f=${home}/plasma-org.kde.plasma.desktop-appletsrc &&
+    grep -qx 'Image=file:///usr/share/wallpapers/ArkadeOS/' \$f && grep -qx icon=arkadeos-launcher \$f"
+check "dark lock screen" "${session} kreadconfig6 --file kscreenlockerrc --group Greeter --group Wallpaper --group org.kde.image --group General --key Image | grep -q ArkadeOS-Lock"
 check "window buttons on the left" "test \"\$(${session} kreadconfig6 --file kwinrc --group org.kde.kdecoration2 --key ButtonsOnLeft)\" = XIA"
 # Apps get the Plasma session variables, as when started from the menu.
 # Both themes with Dolphin open in front: the day/night switch must restyle

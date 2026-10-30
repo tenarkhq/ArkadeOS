@@ -1,0 +1,8 @@
+# ArkadeOS lock screen (T009): the dark Ark wallpaper, so an OLED panel stays
+# mostly off. Fedora's defaults sit below this in /usr/share/kde-settings.
+[Greeter]
+WallpaperPlugin=org.kde.image
+
+[Greeter][Wallpaper][org.kde.image][General]
+Image=file:///usr/share/wallpapers/ArkadeOS-Lock/
+PreviewImage=file:///usr/share/wallpapers/ArkadeOS-Lock/
