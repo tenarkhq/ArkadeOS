@@ -1,49 +1,147 @@
 #!/usr/bin/python3
-"""Holds the Gaming power profile while a game runs (T011), and lets it go
+"""Sets the power profile of the running game (T011, T034), and lets it go
 when the game exits, so the profile chosen before comes back.
 
 A game is running when Steam has launched one (its reaper process), when a
 Windows game runs under Wine or Proton (wineserver, Battle.net through umu
-too), or when a game asked GameMode for its tweaks. Max, set by hand, is left
-alone."""
+too), or when a game asked GameMode for its tweaks.
+
+Its profile, first match wins:
+  1. ARKADEOS_PROFILE in the game's environment; in Steam's launch options:
+     ARKADEOS_PROFILE=battery %command%
+  2. ~/.config/arkadeos/game-profiles.conf, then /usr/share/arkadeos/game-profiles.conf:
+     lines of <Steam AppId or program name>=<profile>, e.g. Wow.exe=gaming
+     (arkadeos-power game writes the first)
+  3. gaming
+Profiles: battery, balanced, gaming, max (max only on the charger, else
+gaming). Max set by hand is left alone."""
 import os
+import re
 import subprocess
 import time
+from pathlib import Path
 
 import dbus
 
 MAX_FLAG = "/run/arkadeos/power-max"
-UID = str(os.getuid())
+UID = os.getuid()
+PROFILES = ("battery", "balanced", "gaming", "max")
+CONFS = [Path(os.environ.get("XDG_CONFIG_HOME", Path.home() / ".config")) / "arkadeos/game-profiles.conf",
+         Path("/usr/share/arkadeos/game-profiles.conf")]
 
 
-def found(*args):
-    return subprocess.run(["pgrep", "-u", UID, *args], stdout=subprocess.DEVNULL).returncode == 0
+def user_processes():
+    for p in Path("/proc").iterdir():
+        if p.name.isdigit():
+            try:
+                if p.stat().st_uid == UID:
+                    yield p
+            except OSError:
+                pass
 
 
-def game_running():
-    if found("-f", "SteamLaunch AppId=") or found("-x", "wineserver"):
-        return True
-    status = subprocess.run(["gamemoded", "-s"], capture_output=True, text=True)
-    return "is active" in status.stdout
+def read(p, name):
+    try:
+        return (p / name).read_bytes().split(b"\0")
+    except OSError:
+        return []
+
+
+def table():
+    out = {}
+    for conf in reversed(CONFS):  # the user's file wins
+        try:
+            for line in conf.read_text().splitlines():
+                key, _, value = line.partition("=")
+                if key.strip() and not key.startswith("#") and value.strip() in PROFILES:
+                    out[key.strip().lower()] = value.strip()
+        except OSError:
+            pass
+    return out
+
+
+def running_game():
+    """None when no game runs, else the profile the game wants."""
+    names, env_profile, game = table(), None, False
+    keys = []
+    for p in user_processes():
+        cmd = [c.decode(errors="replace") for c in read(p, "cmdline") if c]
+        if not cmd:
+            continue
+        line = " ".join(cmd)
+        appid = re.search(r"SteamLaunch AppId=(\d+)", line)
+        if appid:
+            game = True
+            keys.append(appid.group(1))
+        if os.path.basename(cmd[0]) == "wineserver":
+            game = True
+        for c in cmd:
+            if c.lower().endswith(".exe"):
+                keys.append(re.split(r"[\\/]", c)[-1].lower())
+        for e in read(p, "environ"):
+            if e.startswith(b"ARKADEOS_PROFILE="):
+                value = e.split(b"=", 1)[1].decode(errors="replace")
+                if value in PROFILES:
+                    env_profile = value
+    if not game:
+        status = subprocess.run(["gamemoded", "-s"], capture_output=True, text=True)
+        game = "is active" in status.stdout
+    if not game:
+        return None
+    if env_profile:
+        return env_profile
+    for k in keys:
+        if k.lower() in names:
+            return names[k.lower()]
+    return "gaming"
+
+
+def on_battery(bus):
+    up = bus.get_object("org.freedesktop.UPower", "/org/freedesktop/UPower")
+    return bool(up.Get("org.freedesktop.UPower", "OnBattery", dbus_interface="org.freedesktop.DBus.Properties"))
+
+
+def power_set(profile):
+    subprocess.run(["pkexec", "/usr/libexec/arkadeos/power-set", profile], check=False)
 
 
 def main():
     bus = dbus.SystemBus()
     ppd = dbus.Interface(bus.get_object("net.hadess.PowerProfiles", "/net/hadess/PowerProfiles"),
                          "net.hadess.PowerProfiles")
-    cookie = None
+    cookie = None    # our PPD hold (battery or gaming)
+    our_max = False  # we switched Max on for the game
+    current = None   # profile we applied for the running game
     while True:
-        want = game_running() and not os.path.exists(MAX_FLAG)
-        try:
-            if want and cookie is None:
-                cookie = ppd.HoldProfile("performance", "Game running", "org.arkadeos.GameProfile")
-            elif not want and cookie is not None:
-                held, cookie = cookie, None
-                ppd.ReleaseProfile(held)
-        except dbus.exceptions.DBusException:
-            # The hold is gone already (Max cleared it, or the service
-            # restarted); start over on the next round.
-            cookie = None
+        want = running_game()
+        if want == "max":
+            try:
+                if on_battery(bus):
+                    want = "gaming"
+            except dbus.exceptions.DBusException:
+                want = "gaming"
+        if os.path.exists(MAX_FLAG) and not our_max:
+            want = None  # Max by hand: leave it alone
+        if want != current:
+            try:
+                if cookie is not None:
+                    held, cookie = cookie, None
+                    ppd.ReleaseProfile(held)
+            except dbus.exceptions.DBusException:
+                pass
+            if our_max and want != "max":
+                power_set("balanced")
+                our_max = False
+            if want in ("battery", "gaming"):
+                try:
+                    cookie = ppd.HoldProfile("power-saver" if want == "battery" else "performance",
+                                             "Game running", "org.arkadeos.GameProfile")
+                except dbus.exceptions.DBusException:
+                    cookie = None
+            elif want == "max":
+                power_set("max")
+                our_max = True
+            current = want
         time.sleep(3)
 
 

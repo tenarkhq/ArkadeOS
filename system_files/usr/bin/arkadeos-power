@@ -2,6 +2,10 @@
 # ArkadeOS power profiles (T011).
 #   arkadeos-power status        profile=..., auto=game|battery|, on_battery=...
 #   arkadeos-power set PROFILE   battery | balanced | gaming | max (max: charger only)
+#   arkadeos-power game GAME PROFILE   profile while a game runs (T034); GAME is
+#                                a Steam AppId or a program name (Wow.exe)
+#   arkadeos-power game GAME default   back to the default (gaming)
+#   arkadeos-power games         the per-game list
 set -euo pipefail
 
 ppd() {
@@ -35,8 +39,24 @@ case "${1:-status}" in
     set)
         exec pkexec /usr/libexec/arkadeos/power-set "${2:?profile}"
         ;;
+    game)
+        conf="${XDG_CONFIG_HOME:-${HOME}/.config}/arkadeos/game-profiles.conf"
+        game=${2:?game} profile=${3:?profile}
+        mkdir -p "$(dirname "${conf}")"
+        touch "${conf}"
+        sed -i "/^$(printf '%s' "${game}" | sed 's/[][\\.*^$/]/\\&/g')=/Id" "${conf}"
+        case "${profile}" in
+            battery|balanced|gaming|max) echo "${game}=${profile}" >> "${conf}" ;;
+            default) ;;
+            *) echo "profile: battery | balanced | gaming | max | default" >&2; exit 2 ;;
+        esac
+        ;;
+    games)
+        grep -hv '^#' /usr/share/arkadeos/game-profiles.conf \
+            "${XDG_CONFIG_HOME:-${HOME}/.config}/arkadeos/game-profiles.conf" 2>/dev/null || true
+        ;;
     *)
-        echo "usage: arkadeos-power status | set <battery|balanced|gaming|max>" >&2
+        echo "usage: arkadeos-power status | set <battery|balanced|gaming|max> | game <game> <profile> | games" >&2
         exit 2
         ;;
 esac

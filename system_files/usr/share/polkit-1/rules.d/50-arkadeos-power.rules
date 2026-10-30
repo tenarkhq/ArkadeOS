@@ -1,0 +1,8 @@
+// The per-game profile (T034) switches Max from the game watcher, a user
+// service outside the login session, so the active-session default does not
+// cover it: the machine's admin users may set power profiles without asking.
+polkit.addRule(function (action, subject) {
+    if (action.id == "org.arkadeos.power-set" && subject.isInGroup("wheel")) {
+        return polkit.Result.YES;
+    }
+});
