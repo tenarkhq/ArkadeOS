@@ -111,14 +111,20 @@ check "WhiteSur global theme" "grep -qE '^org\.arkadeos\.(light|dark)\.desktop' 
 check "day/night switch on" "test \"\$(${session} kreadconfig6 --group KDE --key AutomaticLookAndFeel)\" = true"
 check "Inter font" "fc-list : family | grep -qx Inter"
 check "GTK WhiteSur" "grep -qx gtk-theme-name=WhiteSur-Light ${home}/gtk-3.0/settings.ini && test -f /usr/share/themes/WhiteSur-Light/gtk-3.0/gtk.css"
-# Both themes with the apps still open: the day/night switch must restyle
-# running apps, not only new ones.
+# Both themes with Dolphin open in front: the day/night switch must restyle
+# running apps, not only new ones. (System Settings is left out: Plasma does
+# not restyle it on the fly.)
+ssh_vm "pkill -u arkade -x konsole; pkill -u arkade -x systemsettings; pkill -u arkade -x dolphin" || true
+ssh_vm "nohup ${session} dolphin >/dev/null 2>&1 &"
+sleep 10
 for variant in light dark; do
-    ssh_vm "${session} plasma-apply-lookandfeel -a org.arkadeos.${variant}.desktop" >/dev/null 2>&1 || true
+    ssh_vm "${session} plasma-apply-lookandfeel -a org.arkadeos.${variant}.desktop" > "${out}/look-${variant}.log" 2>&1 || true
     sleep 10
     shot "look-${variant}"
+    ssh_vm "grep -A3 '^\\[Colors:Window\\]' ${home}/kdeglobals; cat ${home}/kdedefaults/kdeglobals" >> "${out}/look-${variant}.log" 2>&1 || true
 done
-check "dark theme applied" "grep -qx ColorScheme=WhiteSurDark ${home}/kdeglobals"
+check "dark theme applied" "grep -qx ColorScheme=WhiteSurDark ${home}/kdedefaults/kdeglobals &&
+    grep -A3 '^\\[Colors:Window\\]' ${home}/kdeglobals | grep -qx BackgroundNormal=54,54,54"
 
 step "gaming features"
 check "scx_lavd scheduler running" 'grep -qx lavd /sys/kernel/sched_ext/root/ops || grep -q lavd /sys/kernel/sched_ext/root/ops'
