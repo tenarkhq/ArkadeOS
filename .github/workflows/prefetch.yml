@@ -43,8 +43,8 @@ jobs:
           rm -rf "$out.new" && mkdir -p "$out.new"
           podman run --rm -v "$out.new":/out ghcr.io/ublue-os/bazzite:stable bash -c '
             dnf5 -y -q copr enable lukenukem/asus-linux &&
-            dnf5 -q download --destdir /out asusctl supergfxctl &&
-            { dnf5 -q download --destdir /out asusctl-rog-gui || echo "asusctl-rog-gui: not in the repo"; }'
+            dnf5 -q download --arch x86_64 --arch noarch --destdir /out asusctl supergfxctl &&
+            { dnf5 -q download --arch x86_64 --arch noarch --destdir /out asusctl-rog-gui || echo "asusctl-rog-gui: not in the repo"; }'
           rm -rf "$out" && mv "$out.new" "$out"
           ls -1 "$out"
 
