@@ -113,8 +113,9 @@ step "running a Windows program with GE-Proton"
 # umu-launcher is how ArkadeOS starts non-Steam games (Battle.net). The first
 # run downloads the Steam Linux Runtime.
 proton=$(ssh_vm 'ls -d /usr/share/steam/compatibilitytools.d/GE-Proton* | sort -V | tail -1')
-ssh_vm "${session} DISPLAY=:0 GAMEID=umu-default PROTONPATH=${proton} WINEPREFIX=/home/arkade/proton-test \
-    timeout 900 umu-run cmd /c 'echo ArkadeOS> C:\\proton-ok.txt'" > "${out}/proton.log" 2>&1 || true
+ssh_vm "echo $(base64 -w0 "${here}/proton-test.bat") | base64 -d > /home/arkade/proton-test.bat && chown arkade: /home/arkade/proton-test.bat"
+ssh_vm "cd /home/arkade && ${session} DISPLAY=:0 GAMEID=umu-default PROTONPATH=${proton} WINEPREFIX=/home/arkade/proton-test \
+    timeout 900 umu-run /home/arkade/proton-test.bat" > "${out}/proton.log" 2>&1 || true
 shot proton
 check "Windows program ran with GE-Proton" 'grep -q ArkadeOS /home/arkade/proton-test/drive_c/proton-ok.txt'
 
