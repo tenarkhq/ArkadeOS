@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<zone>
+  <short>ArkadeOS</short>
+  <description>Incoming connections are refused, except for local name lookup, Steam streaming and game transfer on the home network, and SSH (whose server is off unless switched on). Outgoing connections are allowed.</description>
+  <service name="dhcpv6-client"/>
+  <service name="mdns"/>
+  <service name="samba-client"/>
+  <service name="ssh"/>
+  <service name="steam-streaming"/>
+  <service name="steam-lan-transfer"/>
+  <forward/>
+</zone>
