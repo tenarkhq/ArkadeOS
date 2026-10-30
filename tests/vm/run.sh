@@ -176,13 +176,15 @@ sleep 3
 shot win-v
 check "Meta+V clipboard" "${session} kreadconfig6 --file kglobalshortcutsrc --group plasmashell --key show-on-mouse-pos | grep -q '^Meta+V'"
 key esc
-HOLD=4000 key alt tab &
+HOLD=6000 key alt tab &
+sleep 1
+shot alt-tab-1
 sleep 2
-shot alt-tab
+shot alt-tab-2
 wait
 sleep 2
 key ctrl shift esc
-sleep 10
+sleep 25
 shot ctrl-shift-esc
 check "Ctrl+Shift+Esc System Monitor" 'pgrep -u arkade -f plasma-systemmonitor'
 ssh_vm "pkill -u arkade -f plasma-systemmonitor" || true
@@ -198,7 +200,31 @@ check "scx_lavd scheduler running" 'grep -qx lavd /sys/kernel/sched_ext/root/ops
 check "NTSYNC device" 'test -c /dev/ntsync'
 check "GameMode installed" 'command -v gamemoded'
 check "GE-Proton for every user" 'ls -d /usr/share/steam/compatibilitytools.d/GE-Proton*/proton'
+check "ASUS tools (start only on ASUS)" 'rpm -q asusctl asusctl-rog-gui && systemctl is-enabled arkadeos-asus-defaults.service'
 check "controller drivers" 'for m in xpad hid_playstation hid_nintendo xone_gip; do modinfo -F filename $m || exit 1; done'
+
+step "power profiles"
+# T011: the standard switch drives our profiles, Max is set by hand.
+ppd_set() {
+    ssh_vm "busctl set-property net.hadess.PowerProfiles /net/hadess/PowerProfiles net.hadess.PowerProfiles ActiveProfile s $1"
+    sleep 4
+}
+ppd_set power-saver
+check "Akku profile" 'tuned-adm active | grep -q arkadeos-battery'
+ppd_set balanced
+check "Balanced profile" 'tuned-adm active | grep -q arkadeos-balanced'
+ssh_vm /usr/libexec/arkadeos/power-set max || true
+sleep 4
+check "Max profile" 'tuned-adm active | grep -q arkadeos-max'
+ssh_vm /usr/libexec/arkadeos/power-set balanced || true
+sleep 4
+check "back to Balanced" 'tuned-adm active | grep -q arkadeos-balanced && test ! -e /run/arkadeos/power-max'
+# T012: the switch sits in the top bar and reads the profile.
+check "power switch in the top bar" "grep -qx plugin=org.arkadeos.power ${home}/plasma-org.kde.plasma.desktop-appletsrc &&
+    ${session} arkadeos-power status | grep -qx profile=balanced"
+check "game watcher running" 'systemctl --user -M arkade@ is-active arkadeos-game-profile.service'
+# Profile log while the Windows program below runs: Gaming must be held.
+ssh_vm "nohup sh -c 'for i in \$(seq 400); do tuned-adm active; sleep 3; done' > /tmp/profiles.log 2>&1 &"
 
 step "running a Windows program with GE-Proton"
 # umu-launcher is how ArkadeOS starts non-Steam games (Battle.net). The first
@@ -209,6 +235,9 @@ ssh_vm "cd /home/arkade && ${session} DISPLAY=:0 GAMEID=umu-default PROTONPATH=$
     timeout 900 umu-run /home/arkade/proton-test.bat" > "${out}/proton.log" 2>&1 || true
 shot proton
 check "Windows program ran with GE-Proton" 'grep -q ArkadeOS /home/arkade/proton-test/drive_c/proton-ok.txt'
+check "Gaming while a game runs" 'grep -q arkadeos-gaming /tmp/profiles.log'
+sleep 20
+check "Balanced after the game" 'tuned-adm active | grep -q arkadeos-balanced'
 
 step "switching to Game Mode"
 ssh_vm "PKEXEC_UID=${uid} /usr/libexec/arkadeos/session-select game"
