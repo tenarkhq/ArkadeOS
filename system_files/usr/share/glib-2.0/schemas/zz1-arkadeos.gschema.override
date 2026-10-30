@@ -1,0 +1,7 @@
+# GTK apps on Wayland read these; KDE keeps them in step once a user changes
+# the theme (T006).
+[org.gnome.desktop.interface]
+gtk-theme='WhiteSur-Light'
+icon-theme='WhiteSur'
+cursor-theme='WhiteSur-cursors'
+font-name='Inter 10'

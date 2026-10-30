@@ -1,0 +1,21 @@
+{
+    "KPackageStructure": "Plasma/LookAndFeel",
+    "KPlugin": {
+        "Authors": [
+            {
+                "Name": "ArkadeOS"
+            }
+        ],
+        "Category": "Global Themes (Plasma 6)",
+        "Description": "WhiteSur look for ArkadeOS",
+        "EnabledByDefault": true,
+        "Id": "org.arkadeos.dark.desktop",
+        "License": "GPLv3",
+        "Name": "ArkadeOS Dark",
+        "Website": "https://github.com/tenarkhq/ArkadeOS"
+    },
+    "Keywords": "Desktop;Workspace;Appearance;Look and Feel;",
+    "X-KDE-fallbackPackage": "org.kde.breeze.desktop",
+    "X-Plasma-APIVersion": "2",
+    "X-Plasma-MainScript": "defaults"
+}

@@ -16,6 +16,11 @@ RUN --mount=type=bind,from=ctx,source=/,target=/ctx \
     --mount=type=tmpfs,dst=/tmp \
     /ctx/build_files/proton-ge.sh "${PROTON_GE_VERSION}"
 
+# WhiteSur theme files (T006), pinned upstream commits; cached the same way.
+RUN --mount=type=bind,from=ctx,source=/,target=/ctx \
+    --mount=type=tmpfs,dst=/tmp \
+    /ctx/build_files/whitesur.sh
+
 ARG IMAGE_NAME=arkadeos
 ARG IMAGE_VENDOR=tenarkhq
 ARG IMAGE_VERSION=dev
