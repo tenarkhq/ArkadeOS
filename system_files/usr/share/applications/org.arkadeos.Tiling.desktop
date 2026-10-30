@@ -1,0 +1,15 @@
+[Desktop Entry]
+Type=Application
+Name=Automatic tiling
+Name[hu]=Automatikus csempézés
+Comment=Arrange new windows side by side by themselves
+Comment[hu]=Az új ablakok maguktól egymás mellé rendeződnek
+Exec=arkadeos-tiling on
+Icon=view-split-left-right
+Categories=Settings;DesktopSettings;
+Actions=Off;
+
+[Desktop Action Off]
+Name=Turn off
+Name[hu]=Kikapcsolás
+Exec=arkadeos-tiling off

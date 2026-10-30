@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<service>
+  <short>AirPlay (ArkadeOS)</short>
+  <description>Receiving AirPlay screen and sound (UxPlay on its fixed ports, Shairport Sync).</description>
+  <port protocol="tcp" port="7000-7001"/>
+  <port protocol="tcp" port="7100"/>
+  <port protocol="udp" port="7011"/>
+  <port protocol="tcp" port="5000"/>
+  <port protocol="udp" port="6000-6011"/>
+</service>

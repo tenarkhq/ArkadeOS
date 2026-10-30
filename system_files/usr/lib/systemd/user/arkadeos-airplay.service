@@ -1,0 +1,13 @@
+[Unit]
+Description=AirPlay receiver: iPhone/Mac screen and sound on this computer (UxPlay)
+After=graphical-session.target pipewire.service
+PartOf=graphical-session.target
+
+[Service]
+# Fixed ports, so the firewall opens only these (arkadeos-airplay firewalld service).
+ExecStart=/usr/bin/uxplay -n %H -nh -p
+Restart=on-failure
+RestartSec=10
+
+[Install]
+WantedBy=graphical-session.target

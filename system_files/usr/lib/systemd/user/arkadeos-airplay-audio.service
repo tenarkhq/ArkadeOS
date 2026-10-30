@@ -1,0 +1,12 @@
+[Unit]
+Description=AirPlay sound receiver: music from iPhone/Mac on this computer (Shairport Sync)
+After=graphical-session.target pipewire.service
+PartOf=graphical-session.target
+
+[Service]
+ExecStart=/usr/bin/shairport-sync -a "%H (hang)" -o pw
+Restart=on-failure
+RestartSec=10
+
+[Install]
+WantedBy=graphical-session.target

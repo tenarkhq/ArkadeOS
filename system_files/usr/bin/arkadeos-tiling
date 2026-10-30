@@ -1,0 +1,16 @@
+#!/usr/bin/bash
+# Automatic tiling of windows (T038, Polonium), off by default.
+#   arkadeos-tiling on | off | status
+set -euo pipefail
+
+reload() { busctl --user call org.kde.KWin /KWin org.kde.KWin reconfigure &>/dev/null || true; }
+case "${1:-status}" in
+    on|off)
+        kwriteconfig6 --file kwinrc --group Plugins --key poloniumEnabled "$([[ $1 == on ]] && echo true || echo false)"
+        reload
+        ;;
+    status)
+        [[ "$(kreadconfig6 --file kwinrc --group Plugins --key poloniumEnabled)" == true ]] && echo on || echo off
+        ;;
+    *) echo "usage: arkadeos-tiling on|off|status" >&2; exit 2 ;;
+esac
