@@ -1,0 +1,14 @@
+[Desktop Entry]
+Type=Application
+Name=Battle.net
+Comment=Blizzard games (World of Warcraft) through Proton
+Comment[hu]=Blizzard-játékok (World of Warcraft) Protonnal
+Exec=arkadeos-battlenet
+Icon=battlenet
+Categories=Game;
+Actions=ChooseProton;
+
+[Desktop Action ChooseProton]
+Name=Choose another Proton
+Name[hu]=Másik Proton választása
+Exec=arkadeos-battlenet --choose-proton

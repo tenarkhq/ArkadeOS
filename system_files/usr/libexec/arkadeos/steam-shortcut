@@ -1,0 +1,83 @@
+#!/usr/bin/python3
+"""Add a non-Steam shortcut to every Steam account on this machine, so the app
+shows up in Steam Game Mode. Steam rewrites shortcuts.vdf on exit, so this
+only writes while Steam is closed and skips accounts that already have it.
+Usage: steam-shortcut <name> <exe> [icon]"""
+import os
+import struct
+import subprocess
+import sys
+import zlib
+from pathlib import Path
+
+
+def read_map(b, i):
+    out = {}
+    while True:
+        t = b[i]
+        i += 1
+        if t == 0x08:
+            return out, i
+        end = b.index(0, i)
+        key = b[i:end].decode("utf-8", "replace")
+        i = end + 1
+        if t == 0x00:
+            out[key], i = read_map(b, i)
+        elif t == 0x01:
+            end = b.index(0, i)
+            out[key] = b[i:end].decode("utf-8", "replace")
+            i = end + 1
+        elif t == 0x02:
+            out[key] = struct.unpack_from("<i", b, i)[0]
+            i += 4
+        else:
+            raise ValueError(f"unknown vdf type {t}")
+
+
+def write_map(m):
+    out = b""
+    for k, v in m.items():
+        key = k.encode() + b"\0"
+        if isinstance(v, dict):
+            out += b"\x00" + key + write_map(v)
+        elif isinstance(v, int):
+            out += b"\x02" + key + struct.pack("<i", v)
+        else:
+            out += b"\x01" + key + str(v).encode() + b"\0"
+    return out + b"\x08"
+
+
+def main():
+    name, exe = sys.argv[1], sys.argv[2]
+    icon = sys.argv[3] if len(sys.argv) > 3 else ""
+    if subprocess.run(["pgrep", "-x", "steam"], capture_output=True).returncode == 0:
+        return
+    steam = Path.home() / ".local/share/Steam/userdata"
+    quoted = f'"{exe}"'
+    appid = struct.unpack("<i", struct.pack("<I", (zlib.crc32((quoted + name).encode()) | 0x80000000)))[0]
+    for cfg in steam.glob("[0-9]*/config"):
+        if cfg.parent.name == "0":
+            continue
+        path = cfg / "shortcuts.vdf"
+        root = {"shortcuts": {}}
+        if path.exists() and path.stat().st_size > 0:
+            data = path.read_bytes()
+            root, _ = read_map(data, 0)
+        shortcuts = root.setdefault("shortcuts", {})
+        if any(s.get("Exe") == quoted or s.get("exe") == quoted for s in shortcuts.values()):
+            continue
+        shortcuts[str(len(shortcuts))] = {
+            "appid": appid, "AppName": name, "Exe": quoted,
+            "StartDir": f'"{os.path.dirname(exe)}/"', "icon": icon,
+            "ShortcutPath": "", "LaunchOptions": "", "IsHidden": 0,
+            "AllowDesktopConfig": 1, "AllowOverlay": 1, "OpenVR": 0,
+            "Devkit": 0, "DevkitGameID": "", "DevkitOverrideAppID": 0,
+            "LastPlayTime": 0, "FlatpakAppID": "", "tags": {},
+        }
+        tmp = path.with_suffix(".vdf.arkadeos")
+        tmp.write_bytes(write_map(root))
+        tmp.replace(path)
+
+
+if __name__ == "__main__":
+    main()
