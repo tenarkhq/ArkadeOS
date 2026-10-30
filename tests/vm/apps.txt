@@ -1,0 +1,5 @@
+# Programs the VM test starts in the desktop session: one command per line.
+# Each one must still be running 15 seconds after it starts.
+konsole
+dolphin
+systemsettings

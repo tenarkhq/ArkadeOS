@@ -1,0 +1,94 @@
+name: VM test
+on:
+  workflow_run:
+    workflows: [Build images]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Image tag to test"
+        default: testing
+        required: true
+
+permissions:
+  contents: read
+  packages: read
+
+jobs:
+  vm-test:
+    name: ${{ matrix.image }}
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
+    # GitHub-hosted: these machines have KVM, the build server does not.
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        image: [arkadeos, arkadeos-nvidia]
+    env:
+      IMAGE: ghcr.io/tenarkhq/${{ matrix.image }}:${{ inputs.tag || 'testing' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+          test -w /dev/kvm || { echo "no KVM on this runner" >&2; exit 1; }
+
+      - name: Disk space and tools
+        run: |
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache /usr/local/share/boost
+          sudo mkdir -p /mnt/containers /var/lib/containers
+          sudo mount --bind /mnt/containers /var/lib/containers
+          sudo apt-get update -q
+          sudo apt-get install -y -q qemu-system-x86 ovmf socat imagemagick
+          df -h / /mnt
+
+      - name: Pull image
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          echo "$GITHUB_TOKEN" | sudo podman login ghcr.io -u "${{ github.actor }}" --password-stdin
+          start=$(date +%s)
+          sudo podman pull -q "$IMAGE"
+          echo "pull: $(( $(date +%s) - start )) s" >> "$GITHUB_STEP_SUMMARY"
+          # The test reaches the VM over SSH, which ArkadeOS keeps off.
+          printf 'FROM %s\nRUN systemctl enable sshd.service\n' "$IMAGE" | sudo podman build -q -t localhost/vm-test -f - .
+
+      - name: Disk image
+        run: |
+          ssh-keygen -q -t ed25519 -N '' -f vm-key
+          # Test-only VM user; the disk image never leaves this job.
+          cat > config.toml <<EOT
+          [[customizations.user]]
+          name = "arkade"
+          password = "arkade"
+          key = "$(cat vm-key.pub)"
+          groups = ["wheel"]
+          EOT
+          mkdir -p /mnt/output
+          start=$(date +%s)
+          sudo podman run --rm --privileged --security-opt label=type:unconfined_t \
+            -v ./config.toml:/config.toml:ro -v /mnt/output:/output \
+            -v /var/lib/containers/storage:/var/lib/containers/storage \
+            quay.io/centos-bootc/bootc-image-builder:latest \
+            --type qcow2 --rootfs btrfs localhost/vm-test
+          sudo chown -R "$USER" /mnt/output
+          echo "disk image: $(( $(date +%s) - start )) s" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Boot, desktop, apps
+        run: |
+          start=$(date +%s)
+          tests/vm/run.sh /mnt/output/qcow2/disk.qcow2 vm-key vm-out
+          echo "VM test: $(( $(date +%s) - start )) s" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: vm-test-${{ matrix.image }}
+          path: vm-out/
+          if-no-files-found: ignore
