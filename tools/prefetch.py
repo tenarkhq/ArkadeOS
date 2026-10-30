@@ -44,9 +44,9 @@ def get(url, accept="application/vnd.github+json"):
     return urllib.request.urlopen(req, timeout=120)
 
 
-def download(url, dest):
+def download(url, dest, accept="application/octet-stream"):
     tmp = dest.with_suffix(dest.suffix + ".part")
-    with get(url, "application/octet-stream") as r, open(tmp, "wb") as f:
+    with get(url, accept) as r, open(tmp, "wb") as f:
         shutil.copyfileobj(r, f)
     tmp.replace(dest)
 
@@ -78,8 +78,11 @@ def main():
             rel = json.load(get(f"https://api.github.com/repos/{repo}/releases/latest"))
             keep = []
             for p in patterns:
+                accept = "application/octet-stream"
                 if p == "SOURCE":
+                    # the API tarball endpoint refuses octet-stream (HTTP 415)
                     fname, url = f"{name}-{rel['tag_name']}.tar.gz", rel["tarball_url"]
+                    accept = "application/vnd.github+json"
                 else:
                     a = pick(rel["assets"], p, fc)
                     if not a:
@@ -87,7 +90,7 @@ def main():
                         continue
                     fname, url = a["name"], a["browser_download_url"]
                 if not (d / fname).exists():
-                    download(url, d / fname)
+                    download(url, d / fname, accept)
                 keep.append(fname)
             for old in d.iterdir():
                 if old.name not in keep:
