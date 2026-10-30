@@ -1,0 +1,40 @@
+name: Prefetch build inputs
+
+# Keeps the newest base images and app downloads on the build server, so
+# image builds do not wait for downloads. Runs only on the self-hosted build
+# runner, by hand or nightly; never on pull requests.
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "30 1 * * *"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: prefetch
+  cancel-in-progress: false
+
+jobs:
+  prefetch:
+    runs-on: [self-hosted, arkadeos-build]
+    timeout-minutes: 240
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Base images
+        run: |
+          for i in bazzite bazzite-nvidia bazzite-nvidia-open; do
+            podman pull -q ghcr.io/ublue-os/$i:stable
+          done
+          podman image prune -f
+          podman images --format '{{.Repository}}:{{.Tag}} {{.Size}} {{.CreatedSince}}'
+
+      - name: Apps, themes, installers
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: python3 tools/prefetch.py
+
+      - name: Cache size
+        if: always()
+        run: du -sh ~/arkadeos-cache ~/.local/share/containers 2>/dev/null || true
