@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=WowUp
+Comment=World of Warcraft addon manager
+Comment[hu]=World of Warcraft addon-kezelő
+Exec=arkadeos-wowup %U
+Icon=arkadeos-wowup
+Categories=Game;
+MimeType=x-scheme-handler/wowup;

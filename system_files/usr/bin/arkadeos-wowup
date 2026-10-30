@@ -1,0 +1,29 @@
+#!/usr/bin/bash
+# WowUp addon manager (T015). The first start downloads the latest WowUp
+# AppImage from its GitHub releases; WowUp then updates itself. WowUp finds WoW
+# through Lutris's game folder, so ~/Games (where Battle.net installs, T014)
+# is set as that folder when Lutris has none yet.
+set -euo pipefail
+
+dir="${XDG_DATA_HOME:-${HOME}/.local/share}/arkadeos"
+app="${dir}/WowUp.AppImage"
+
+lutris="${XDG_CONFIG_HOME:-${HOME}/.config}/lutris/system.yml"
+if ! grep -qs '^ *game_path:' "${lutris}"; then
+    mkdir -p "$(dirname "${lutris}")" "${HOME}/Games"
+    if [[ -s "${lutris}" ]] && grep -q '^system:' "${lutris}"; then
+        sed -i "/^system:/a\\  game_path: ${HOME}/Games" "${lutris}"
+    else
+        printf 'system:\n  game_path: %s\n' "${HOME}/Games" >> "${lutris}"
+    fi
+fi
+
+if [[ ! -x "${app}" ]]; then
+    mkdir -p "${dir}"
+    url=$(curl -fsSL https://api.github.com/repos/WowUp/WowUp/releases/latest |
+        grep -o '"browser_download_url": *"[^"]*\.AppImage"' | grep -o 'https://[^"]*')
+    curl -fL --retry 3 -o "${app}.part" "${url}"
+    chmod +x "${app}.part"
+    mv "${app}.part" "${app}"
+fi
+exec "${app}" "$@"
