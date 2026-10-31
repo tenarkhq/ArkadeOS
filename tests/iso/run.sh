@@ -101,6 +101,8 @@ check "updates from the registry, signature checked" "bootc status --json | jq -
 check "user account" 'id arkade && id -nG arkade | grep -qw wheel'
 check "home on its own subvolume" 'btrfs subvolume show /var/home'
 [[ -n "${LUKS_PASSWORD:-}" ]] && check "disk encrypted (LUKS)" 'lsblk -nro FSTYPE | grep -qx crypto_LUKS'
+check "boot screen arguments, as in the image" 'for a in $(grep ^kargs /usr/lib/bootc/kargs.d/10-arkadeos.toml | grep -o "[a-z0-9_.=-]*" | grep -vx -e kargs -e =);
+    do grep -qw -- "$a" /proc/cmdline || exit 1; done'
 check "firewall on, ArkadeOS zone" 'firewall-cmd --state && test "$(firewall-cmd --get-default-zone)" = ArkadeOS'
 ssh_vm 'journalctl -b --no-pager -p warning' > "${out}/journal-warnings.txt" 2>&1 || true
 kill "$(cat "${out}/qemu.pid")" || true

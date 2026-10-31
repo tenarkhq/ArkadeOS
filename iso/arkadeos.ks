@@ -114,6 +114,10 @@ echo "${ref}" > "${ARKADEOS_TMP:-/tmp}/arkadeos-image"
 # The installer pulls with Fedora's trust settings; the installed system
 # checks ArkadeOS's signature from then on (bootc switch below).
 echo "ostreecontainer --url=${ref} --transport=registry --no-signature-verification" > "${ARKADEOS_TMP:-/tmp}/arkadeos-image.ks"
+# The installer does not read the image's kernel arguments
+# (/usr/lib/bootc/kargs.d/10-arkadeos.toml): the boot screen and its disk
+# password prompt need them from the first start on.
+echo 'bootloader --append="rhgb quiet splash"' >> "${ARKADEOS_TMP:-/tmp}/arkadeos-image.ks"
 # The installed system learns the image and the hardware check's findings
 # here: a %post inside the new system cannot read the installer's /tmp, and
 # outside it the deployment's /etc is elsewhere.
