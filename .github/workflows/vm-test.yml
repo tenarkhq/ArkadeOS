@@ -44,7 +44,7 @@ jobs:
       - name: Tools
         run: |
           sudo apt-get update -q
-          sudo apt-get install -y -q qemu-system-x86 ovmf socat imagemagick dosfstools mtools
+          sudo apt-get install -y -q qemu-system-x86 ovmf socat imagemagick dosfstools mtools btrfs-progs
 
       - name: Pull image
         env:
@@ -73,18 +73,10 @@ jobs:
       - name: Disk image
         run: |
           ssh-keygen -q -t ed25519 -N '' -f vm-key
-          sudo truncate -s 60G /mnt/disk.raw
           start=$(date +%s)
-          # The image installs itself, the same way a real install does.
-          # (/mnt is a symlink inside the image, so the disk goes to /output.)
-          sudo podman run --rm --privileged --pid=host --net=host --security-opt label=type:unconfined_t \
-            -v /dev:/dev -v /var/lib/containers:/var/lib/containers -v /mnt:/output \
-            -v ./vm-key.pub:/vm-key.pub:ro \
-            localhost/vm-test \
-            bootc install to-disk --via-loopback --generic-image --wipe --filesystem btrfs \
-              --source-imgref registry:127.0.0.1:5000/arkadeos:test --target-imgref 10.0.2.2:5000/arkadeos:test \
-              --karg console=ttyS0,115200 \
-              --root-ssh-authorized-keys /vm-key.pub /output/disk.raw
+          # The layout a real install gets: EFI, ext4 /boot, btrfs root.
+          sudo tests/vm/make-disk.sh /mnt/disk.raw localhost/vm-test "$PWD/vm-key.pub" \
+            registry:127.0.0.1:5000/arkadeos:test 10.0.2.2:5000/arkadeos:test
           sudo chown "$USER" /mnt/disk.raw
           echo "disk image: $(( $(date +%s) - start )) s" >> "$GITHUB_STEP_SUMMARY"
 
@@ -127,7 +119,7 @@ jobs:
       - name: Tools
         run: |
           sudo apt-get update -q
-          sudo apt-get install -y -q qemu-system-x86 ovmf socat imagemagick
+          sudo apt-get install -y -q qemu-system-x86 ovmf socat imagemagick dosfstools btrfs-progs
 
       - name: Previous and new build
         id: builds
@@ -160,15 +152,8 @@ jobs:
         if: steps.builds.outputs.skip != 'true'
         run: |
           ssh-keygen -q -t ed25519 -N '' -f vm-key
-          sudo truncate -s 60G /mnt/disk.raw
-          sudo podman run --rm --privileged --pid=host --net=host --security-opt label=type:unconfined_t \
-            -v /dev:/dev -v /var/lib/containers:/var/lib/containers -v /mnt:/output \
-            -v ./vm-key.pub:/vm-key.pub:ro \
-            localhost/vm-old \
-            bootc install to-disk --via-loopback --generic-image --wipe --filesystem btrfs \
-              --source-imgref registry:127.0.0.1:5000/arkadeos:test --target-imgref 10.0.2.2:5000/arkadeos:test \
-              --karg console=ttyS0,115200 \
-              --root-ssh-authorized-keys /vm-key.pub /output/disk.raw
+          sudo tests/vm/make-disk.sh /mnt/disk.raw localhost/vm-old "$PWD/vm-key.pub" \
+            registry:127.0.0.1:5000/arkadeos:test 10.0.2.2:5000/arkadeos:test
           sudo chown "$USER" /mnt/disk.raw
 
       - name: Update to the new build
