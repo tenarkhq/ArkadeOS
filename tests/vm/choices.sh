@@ -168,8 +168,6 @@ install claude-code 600
 check "Claude Code starts" "${user} claude --version"
 install codex 900
 check "Codex starts" "${user} codex --version"
-install gemini 900
-check "Gemini CLI starts" "${user} gemini --version"
 install gh 600
 check "GitHub CLI starts" "${user} gh --version"
 

@@ -22,7 +22,6 @@ ollama	ai	quadlet	ollama	Ollama (local AI models)	Ollama (helyi AI modellek)
 open-webui	ai	quadlet	open-webui	Open WebUI (chat for local AI)	Open WebUI (csevegés a helyi AI-val)
 claude-code	ai	script	claude-code	Claude Code	Claude Code
 codex	ai	brew	codex	Codex CLI	Codex CLI
-gemini	ai	brew	gemini-cli	Gemini CLI	Gemini CLI
 gh	dev	brew	gh	GitHub CLI	GitHub CLI
 asus	vendor	switch	arkadeos-vendor asus	ASUS (Armoury Crate features: asusctl, ROG Control Center)	ASUS (Armoury Crate funkciók: asusctl, ROG Control Center)
 msi	vendor	switch	arkadeos-vendor msi	MSI (performance modes, Cooler Boost)	MSI (teljesítménymódok, Cooler Boost)
