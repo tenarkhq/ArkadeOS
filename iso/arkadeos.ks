@@ -83,6 +83,28 @@ if echo "${fs}" | grep -qx BitLocker; then
     note "Windows is encrypted with BitLocker: save its recovery key before installing next to it." \
         "A Windows BitLockerrel titkosított: a mellé telepítés előtt mentsd el a helyreállító kulcsát."
 fi
+# Windows Fast Startup (T063): Windows' "Shut down" leaves it half hibernated,
+# so its disk stays in use: Linux can only read it, and writing to it could
+# damage files. Its hiberfil.sys then starts with HIBR. Looked at read-only.
+hibernated=0
+if [ -n "${ARKADEOS_NTFS:-}" ]; then
+    for f in "${ARKADEOS_NTFS}"/*/hiberfil.sys; do
+        [ -f "${f}" ] && head -c 4 "${f}" | grep -qi '^hibr' && hibernated=1
+    done
+else
+    m=$(mktemp -d)
+    for dev in $(lsblk -nrpo NAME,FSTYPE 2>/dev/null | awk '$2 == "ntfs" {print $1}'); do
+        if mount -t ntfs-3g -o ro "${dev}" "${m}" 2>/dev/null; then
+            [ -f "${m}/hiberfil.sys" ] && head -c 4 "${m}/hiberfil.sys" | grep -qi '^hibr' && hibernated=1
+            umount "${m}"
+        fi
+    done
+    rmdir "${m}"
+fi
+if [ "${hibernated}" = 1 ]; then
+    note "Windows Fast Startup is on: Windows is not fully shut down, so ArkadeOS can only read its disk. Turn it off in Windows: Control Panel > Power Options > Choose what the power buttons do > Change settings that are currently unavailable > untick Turn on fast startup." \
+        "A Windows gyors rendszerindítása be van kapcsolva: a Windows nem áll le teljesen, ezért az ArkadeOS csak olvasni tudja a lemezét. Kapcsold ki Windowsban: Vezérlőpult > Energiagazdálkodási lehetőségek > A főkapcsolók funkciójának megadása > A jelenleg nem elérhető beállítások módosítása > Gyors rendszerindítás bekapcsolása pipa ki."
+fi
 cat "${out}"
 %end
 

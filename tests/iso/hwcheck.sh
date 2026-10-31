@@ -11,7 +11,7 @@ sed -n '/^%pre.*arkadeos-hwcheck.log/,/^%end/p' "${ks}" | sed '1d;$d' > "${pre}/
 failed=0
 
 # name, expected exit code, text the output must have ("" = no findings),
-# cmdline, extra (secureboot, notpm, bitlocker), then class:vendor:device[:nodriver]
+# cmdline, extra (secureboot, notpm, bitlocker, faststartup), then class:vendor:device[:nodriver]
 case_() {
     local name=$1 want_rc=$2 want=$3 cmdline=$4 extra=$5 root="${pre}/$1" n=0 rc=0
     shift 5
@@ -27,8 +27,11 @@ case_() {
     [[ "${extra}" == *secureboot* ]] && printf '\x07\x00\x00\x00\x01' > "${root}/sys/firmware/efi/efivars/SecureBoot-8be4df61-93ca-11d2-aa0d-00e098032b8c"
     [[ "${extra}" == *notpm* ]] && rm -rf "${root}/sys/class/tpm/tpm0"
     if [[ "${extra}" == *bitlocker* ]]; then printf 'vfat\nBitLocker\nntfs\n' > "${root}/lsblk"; else printf 'vfat\nntfs\n' > "${root}/lsblk"; fi
+    mkdir -p "${root}/ntfs/c"
+    [[ "${extra}" == *faststartup* ]] && printf 'HIBR\0\0\0\0' > "${root}/ntfs/c/hiberfil.sys"
+    [[ "${extra}" == *shutdown* ]] && printf '\0\0\0\0\0\0\0\0' > "${root}/ntfs/c/hiberfil.sys"
     echo "${cmdline}" > "${root}/cmdline"
-    ARKADEOS_SYSFS="${root}/sys" ARKADEOS_CMDLINE="${root}/cmdline" ARKADEOS_TMP="${root}" ARKADEOS_LSBLK="${root}/lsblk" \
+    ARKADEOS_SYSFS="${root}/sys" ARKADEOS_CMDLINE="${root}/cmdline" ARKADEOS_TMP="${root}" ARKADEOS_LSBLK="${root}/lsblk" ARKADEOS_NTFS="${root}/ntfs" \
         bash "${pre}/check.sh" > "${root}/out" 2>&1 || rc=$?
     if [[ "${rc}" == "${want_rc}" ]] && { [[ -z "${want}" && ! -s "${root}/arkadeos-hwcheck.txt" ]] ||
         { [[ -n "${want}" ]] && grep -q -- "${want}" "${root}/out"; }; }; then
@@ -50,4 +53,6 @@ case_ unknown-wifi 0 "14c3:7927 hálózati chiphez még nincs driver" "" "" 0x02
 case_ secure-boot 0 "universalblue" "" secureboot 0x010601:0x8086
 case_ no-tpm 0 "Nincs TPM" "" notpm 0x010601:0x8086
 case_ bitlocker 0 "BitLocker" "" bitlocker 0x010601:0x8086
+case_ windows-fast-startup 0 "Gyors rendszerindítás" "" faststartup 0x010601:0x8086
+case_ windows-shut-down 0 "" "" shutdown 0x010601:0x8086
 exit "${failed}"
