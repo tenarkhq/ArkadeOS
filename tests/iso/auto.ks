@@ -30,7 +30,10 @@ firefox heroic qbittorrent msi
 %pre --log=/tmp/arkadeos-rst-pre.log
 # The two SATA disks (sda, sdb; the install disk is virtio) become an RST
 # mirror, as made in the firmware's RST setup, before the installer scans.
+# IMSM_NO_PLATFORM: QEMU's SATA controller has no RST capabilities, which the
+# volume needs; mdmon is started straight, so it keeps the setting too.
 if grep -qw mdadm.imsm.test=1 /proc/cmdline && [ -b /dev/sda ] && [ -b /dev/sdb ]; then
+    export IMSM_NO_PLATFORM=1 MDADM_NO_SYSTEMCTL=1
     mdadm --create /dev/md/imsm0 --run -e imsm -n 2 /dev/sda /dev/sdb
     mdadm --create /dev/md/Volume0 --run --assume-clean -l 1 -n 2 /dev/md/imsm0
     udevadm settle

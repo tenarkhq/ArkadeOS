@@ -127,7 +127,7 @@ check "chosen apps installed, the rest not" 'for i in $(seq 90); do
 if [[ "${RST:-}" == 1 ]]; then
     ssh_vm 'cat /etc/arkadeos-rst.txt' > "${out}/rst.txt" 2>&1 || true
     check "installer sees the Intel RST array" 'grep -q imsm /etc/arkadeos-rst.txt &&
-        grep -A3 "== installer storage" /etc/arkadeos-rst.txt | grep -qi -E "volume0|md12[0-9]"'
+        sed -n "/== installer storage/,/== now/p" /etc/arkadeos-rst.txt | grep -qi -E "Volume0|mdbiosraidarray"'
 fi
 check "firewall on, ArkadeOS zone" 'firewall-cmd --state && test "$(firewall-cmd --get-default-zone)" = ArkadeOS'
 ssh_vm 'journalctl -b --no-pager -p warning' > "${out}/journal-warnings.txt" 2>&1 || true
