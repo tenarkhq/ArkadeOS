@@ -505,21 +505,12 @@ if [[ -n "${UPDATE_PUSH:-}" ]]; then
 else
     echo "info update and rollback: no registry (UPDATE_PUSH unset)" >> "${out}/apps.txt"
 fi
-# T023: Windows starts from the menu. It is the last entry: once the system
-# is down, End is pressed for a minute (it also stops the countdown, so the
-# menu waits), then Enter, and the stand-in says on the serial line that it
-# started.
-ssh_vm 'systemctl reboot --check-inhibitors=no' || true
-down=0
-for _ in $(seq 60); do
-    ssh_vm true 2>/dev/null || { down=1; break; }
-    sleep 2
-done
-if (( ! down )); then
-    echo "info Windows boot: no reboot after 2 minutes, reset" >> "${out}/apps.txt"
-    printf '%s\n' '{"execute":"qmp_capabilities"}' '{"execute":"system_reset"}' |
-        socat - "UNIX-CONNECT:${qmp}" >/dev/null
-fi
+# T023: Windows starts from the menu. The machine is reset (as by its button,
+# so it surely comes back to the menu); End is pressed for a minute (it also
+# stops the countdown, so the menu waits), then Enter, and the stand-in says
+# on the serial line that it started.
+printf '%s\n' '{"execute":"qmp_capabilities"}' '{"execute":"system_reset"}' |
+    socat - "UNIX-CONNECT:${qmp}" >/dev/null
 for _ in $(seq 120); do
     key end
     sleep 0.5

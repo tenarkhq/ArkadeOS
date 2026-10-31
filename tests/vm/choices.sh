@@ -67,12 +67,15 @@ wait_ssh
 ssh_vm "timeout 600 systemctl is-system-running --wait" || true
 
 step "logging in to the desktop"
-# Test-only user with automatic login, and sudo and polkit without a password
-# in place of the password prompts the installers show; the disk never leaves
-# the test job.
+# Test-only user with automatic login, no screen lock (the dialogs below must
+# stay in front), and sudo and polkit without a password in place of the
+# password prompts the installers show; the disk never leaves the test job.
 ssh_vm 'useradd -m -G wheel arkade &&
     echo "arkade ALL=(ALL) NOPASSWD: ALL" > /etc/sudoers.d/00-vm-test &&
     printf "polkit.addRule(function(action, subject) { if (subject.user == \"arkade\") return polkit.Result.YES; });\n" > /etc/polkit-1/rules.d/00-vm-test.rules &&
+    mkdir -p /home/arkade/.config &&
+    printf "[Daemon]\nAutolock=false\nLockOnResume=false\n" > /home/arkade/.config/kscreenlockerrc &&
+    chown -R arkade: /home/arkade/.config &&
     mkdir -p /etc/plasmalogin.conf.d &&
     printf "[Autologin]\nUser=arkade\nSession=plasma.desktop\n" > /etc/plasmalogin.conf.d/00-vm-test.conf &&
     systemctl restart plasmalogin'
