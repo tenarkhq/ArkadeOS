@@ -32,6 +32,13 @@ wait_ssh() {
     echo "no SSH answer from the VM" >&2
     return 1
 }
+key() {
+    local keys
+    keys=$(printf '{"type":"qcode","data":"%s"},' "$@")
+    printf '%s\n' '{"execute":"qmp_capabilities"}' \
+        "{\"execute\":\"send-key\",\"arguments\":{\"keys\":[${keys%,}]}}" |
+        socat - "UNIX-CONNECT:${qmp}" >/dev/null
+}
 step() { echo "$(date -u +%T) $*"; }
 failed=0
 check() {
@@ -97,6 +104,13 @@ sleep 10
 shot obs
 ssh_vm 'pkill -u arkade -f com.obsproject.Studio' || true
 install sunshine 900
+# Sunshine asks once to share the screen (the desktop's own dialog); the
+# user says yes.
+sleep 20
+shot sunshine-ask
+key ret
+sleep 5
+shot sunshine-after
 check_wait "Sunshine running, its page answers" "systemctl --user -M arkade@ is-active app-dev.lizardbyte.app.Sunshine &&
     curl -ks -o /dev/null https://127.0.0.1:47990/" 180
 ssh_vm "${user} systemctl --user status --no-pager app-dev.lizardbyte.app.Sunshine; journalctl _UID=${uid} --no-pager | grep -i sunshine | tail -80; tail -80 /home/arkade/.var/app/dev.lizardbyte.app.Sunshine/config/sunshine/sunshine.log; ss -ltnp" > "${out}/sunshine.txt" 2>&1 || true

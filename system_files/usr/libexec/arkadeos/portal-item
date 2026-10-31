@@ -66,7 +66,7 @@ case "${kind}:${action}" in
         else rm -f "${apps}/${ref}"; fi
         ;;
 
-    brew:status) status "${brew}" list --formula "${ref}" ;;
+    brew:status) status "${brew}" list "${ref}" ;;
     brew:install) "${brew}" install "${ref}" ;;
     brew:remove) "${brew}" uninstall "${ref}" ;;
 
