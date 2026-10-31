@@ -3,7 +3,8 @@
 #   arkadeos-power status        profile=..., auto=game|battery|, on_battery=..., rgb=on|off,
 #                                has_battery=true|false, charge=on|off|none
 #   arkadeos-power charge on|off battery care: charging stops at 80%
-#   arkadeos-power set PROFILE   battery | balanced | gaming | max (max: charger only)
+#   arkadeos-power set PROFILE   battery | balanced | gaming | max | wow (max: charger only;
+#                                wow: full CPU, held-back GPU, T055)
 #   arkadeos-power game GAME PROFILE   profile while a game runs (T034); GAME is
 #                                a Steam AppId or a program name (Wow.exe)
 #   arkadeos-power game GAME default   back to the default (gaming)
@@ -22,8 +23,10 @@ case "${1:-status}" in
         active=$(ppd ActiveProfile | cut -d'"' -f2)
         holds=$(ppd ActiveProfileHolds | cut -d' ' -f2)
         auto=
-        if [[ -e /run/arkadeos/power-max ]]; then
-            profile=max
+        if [[ -e /run/arkadeos/power-max || -e /run/arkadeos/power-wow ]]; then
+            [[ -e /run/arkadeos/power-max ]] && profile=max || profile=wow
+            # The game watcher set it for a running game.
+            compgen -G '/run/user/*/arkadeos-game-max' >/dev/null && auto=game
         else
             case "${active}" in
                 power-saver) profile=battery ;;
@@ -65,9 +68,9 @@ case "${1:-status}" in
         touch "${conf}"
         sed -i "/^$(printf '%s' "${game}" | sed 's/[][\\.*^$/]/\\&/g')=/Id" "${conf}"
         case "${profile}" in
-            battery|balanced|gaming|max) echo "${game}=${profile}" >> "${conf}" ;;
+            battery|balanced|gaming|max|wow) echo "${game}=${profile}" >> "${conf}" ;;
             default) ;;
-            *) echo "profile: battery | balanced | gaming | max | default" >&2; exit 2 ;;
+            *) echo "profile: battery | balanced | gaming | max | wow | default" >&2; exit 2 ;;
         esac
         ;;
     games)
@@ -75,7 +78,7 @@ case "${1:-status}" in
             "${XDG_CONFIG_HOME:-${HOME}/.config}/arkadeos/game-profiles.conf" 2>/dev/null || true
         ;;
     *)
-        echo "usage: arkadeos-power status | set <battery|balanced|gaming|max> | charge <on|off> | game <game> <profile> | games" >&2
+        echo "usage: arkadeos-power status | set <battery|balanced|gaming|max|wow> | charge <on|off> | game <game> <profile> | games" >&2
         exit 2
         ;;
 esac

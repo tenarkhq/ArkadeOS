@@ -32,13 +32,15 @@ PlasmoidItem {
         battery: hasBattery ? tr("Battery", "Akku") : tr("Quiet", "Csendes"),
         balanced: tr("Balanced", "Kiegyensúlyozott"),
         gaming: "Gaming",
-        max: "Max"
+        max: "Max",
+        wow: "WoW"
     })
     readonly property var icons: ({
         battery: "power-profile-power-saver-symbolic",
         balanced: "power-profile-balanced-symbolic",
         gaming: "power-profile-performance-symbolic",
-        max: "power-profile-performance-symbolic"
+        max: "power-profile-performance-symbolic",
+        wow: "power-profile-performance-symbolic"
     })
     readonly property string autoText: auto === "game" ? tr("Automatic: a game is running", "Automatikus: játék fut")
         : auto === "battery" ? tr("Automatic: running on battery", "Automatikus: akkuról megy")
@@ -103,12 +105,13 @@ PlasmoidItem {
             wrapMode: Text.Wrap
         }
         Repeater {
-            model: ["battery", "balanced", "gaming", "max"]
+            model: ["battery", "balanced", "gaming", "max", "wow"]
             PlasmaComponents3.RadioDelegate {
                 required property string modelData
                 Layout.fillWidth: true
                 icon.name: root.icons[modelData]
-                text: root.names[modelData] + (modelData === "max" ? root.tr(" (charger only)", " (csak töltőn)") : "")
+                text: root.names[modelData] + (modelData === "max" ? root.tr(" (charger only)", " (csak töltőn)")
+                    : modelData === "wow" ? root.tr(" (full CPU, GPU held back)", " (teljes CPU, visszafogott GPU)") : "")
                 checked: root.profile === modelData
                 enabled: modelData !== "max" || !root.onBattery
                 onClicked: root.setProfile(modelData)

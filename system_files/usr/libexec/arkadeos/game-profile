@@ -10,11 +10,12 @@ Its profile, first match wins:
   1. ARKADEOS_PROFILE in the game's environment; in Steam's launch options:
      ARKADEOS_PROFILE=battery %command%
   2. ~/.config/arkadeos/game-profiles.conf, then /usr/share/arkadeos/game-profiles.conf:
-     lines of <Steam AppId or program name>=<profile>, e.g. Wow.exe=gaming
+     lines of <Steam AppId or program name>=<profile>, e.g. Wow.exe=wow
      (arkadeos-power game writes the first)
   3. gaming
 Profiles: battery, balanced, gaming, max (max only on the charger, else
-gaming). Max set by hand is left alone.
+gaming), wow (full CPU, held-back GPU, T055). Max or WoW set by hand is left
+alone.
 
 It also sets the lighting of the profile in force whenever that changes, by
 hand or by itself (arkadeos-rgb, T042), and when a game starts, a model the
@@ -30,9 +31,10 @@ import urllib.request
 
 import dbus
 
-MAX_FLAG = "/run/arkadeos/power-max"
+FLAGS = {"max": "/run/arkadeos/power-max", "wow": "/run/arkadeos/power-wow"}
+DIRECT = tuple(FLAGS)  # set straight in TuneD by power-set, not held through PPD
 UID = os.getuid()
-PROFILES = ("battery", "balanced", "gaming", "max")
+PROFILES = ("battery", "balanced", "gaming", "max", "wow")
 CONFS = [Path(os.environ.get("XDG_CONFIG_HOME", Path.home() / ".config")) / "arkadeos/game-profiles.conf",
          Path("/usr/share/arkadeos/game-profiles.conf")]
 
@@ -113,9 +115,10 @@ def power_set(profile):
 
 
 def profile_in_force(bus):
-    """battery | balanced | gaming | max, as arkadeos-power status shows it."""
-    if os.path.exists(MAX_FLAG):
-        return "max"
+    """battery | balanced | gaming | max | wow, as arkadeos-power status shows it."""
+    for name, flag in FLAGS.items():
+        if os.path.exists(flag):
+            return name
     props = dbus.Interface(bus.get_object("net.hadess.PowerProfiles", "/net/hadess/PowerProfiles"),
                            "org.freedesktop.DBus.Properties")
     active = str(props.Get("net.hadess.PowerProfiles", "ActiveProfile"))
@@ -145,7 +148,7 @@ def main():
     ppd = dbus.Interface(bus.get_object("net.hadess.PowerProfiles", "/net/hadess/PowerProfiles"),
                          "net.hadess.PowerProfiles")
     cookie = None    # our PPD hold (battery or gaming)
-    our_max = False  # we switched Max on for the game
+    ours = None      # Max or WoW we switched on for the game
     current = None   # profile we applied for the running game
     lit = None       # profile whose lighting is set
     while True:
@@ -164,8 +167,8 @@ def main():
                     want = "gaming"
             except dbus.exceptions.DBusException:
                 want = "gaming"
-        if os.path.exists(MAX_FLAG) and not our_max:
-            want = None  # Max by hand: leave it alone
+        if ours is None and any(os.path.exists(f) for f in FLAGS.values()):
+            want = None  # Max or WoW by hand: leave it alone
         if want != current:
             try:
                 if cookie is not None:
@@ -173,21 +176,23 @@ def main():
                     ppd.ReleaseProfile(held)
             except dbus.exceptions.DBusException:
                 pass
-            if our_max and want != "max":
-                power_set("balanced")
-                our_max = False
+            if ours is not None and want != ours:
+                if want not in DIRECT:
+                    power_set("balanced")
+                ours = None
             if want in ("battery", "gaming"):
                 try:
                     cookie = ppd.HoldProfile("power-saver" if want == "battery" else "performance",
                                              "Game running", "org.arkadeos.GameProfile")
                 except dbus.exceptions.DBusException:
                     cookie = None
-            elif want == "max":
-                power_set("max")
-                our_max = True
-            # Marks a game on Max for no-game-running (no PPD hold then).
+            elif want in DIRECT:
+                power_set(want)
+                ours = want
+            # Marks a game on Max or WoW for no-game-running and
+            # arkadeos-power status (no PPD hold then).
             mark = Path(f"/run/user/{UID}/arkadeos-game-max")
-            if want == "max":
+            if want in DIRECT:
                 mark.touch()
             else:
                 mark.unlink(missing_ok=True)

@@ -265,6 +265,25 @@ check "Max profile" 'tuned-adm active | grep -q arkadeos-max'
 ssh_vm /usr/libexec/arkadeos/power-set balanced || true
 sleep 4
 check "back to Balanced" 'tuned-adm active | grep -q arkadeos-balanced && test ! -e /run/arkadeos/power-max'
+# T055: WoW, full CPU with the graphics card held back. The VM has no
+# separate card, so the limit runs on a stand-in Intel and AMD tree.
+ssh_vm 'mkdir -p /run/gpu-test/card0/device/hwmon/hwmon0 /run/gpu-test/card1 && cd /run/gpu-test &&
+    echo PPT > card0/device/hwmon/hwmon0/power1_label && echo 150000000 > card0/device/hwmon/hwmon0/power1_cap &&
+    echo 150000000 > card0/device/hwmon/hwmon0/power1_cap_default && echo 1500 > card1/gt_max_freq_mhz &&
+    echo 1500 > card1/gt_RP0_freq_mhz && echo 300 > card1/gt_min_freq_mhz'
+check "GPU held back to 60% and let go" 'ARKADEOS_DRM=/run/gpu-test /usr/libexec/arkadeos/gpu-cap start &&
+    test "$(cat /run/gpu-test/card0/device/hwmon/hwmon0/power1_cap)" = 90000000 &&
+    test "$(cat /run/gpu-test/card1/gt_max_freq_mhz)" = 900 &&
+    ARKADEOS_DRM=/run/gpu-test /usr/libexec/arkadeos/gpu-cap stop &&
+    test "$(cat /run/gpu-test/card0/device/hwmon/hwmon0/power1_cap)" = 150000000 &&
+    test "$(cat /run/gpu-test/card1/gt_max_freq_mhz)" = 1500 && test ! -e /run/arkadeos/gpu-cap.saved'
+ssh_vm /usr/libexec/arkadeos/power-set wow || true
+sleep 4
+check "WoW profile" "tuned-adm active | grep -q arkadeos-wow && ${session} arkadeos-power status | grep -qx profile=wow &&
+    journalctl -b -t arkadeos-gpu-cap | grep -q 'nothing held back'"
+ssh_vm /usr/libexec/arkadeos/power-set balanced || true
+sleep 4
+check "back to Balanced after WoW" 'tuned-adm active | grep -q arkadeos-balanced && test ! -e /run/arkadeos/power-wow'
 # T012: the switch sits in the top bar and reads the profile.
 check "power switch in the top bar" "grep -qx plugin=org.arkadeos.power ${home}/plasma-org.kde.plasma.desktop-appletsrc &&
     ${session} arkadeos-power status | grep -qx profile=balanced"
@@ -291,6 +310,13 @@ ssh_vm "cd /home/arkade && ${session} DISPLAY=:0 ARKADEOS_PROFILE=battery GAMEID
 check "per-game profile: Akku game on Akku" 'grep -q arkadeos-battery /tmp/profiles.log'
 sleep 20
 check "Balanced after the Akku game" 'tuned-adm active | grep -q arkadeos-balanced'
+# T055: World of Warcraft (Wow.exe under Wine) switches WoW on by itself,
+# then Balanced comes back. Stand-ins for its wineserver and Wow.exe.
+ssh_vm "nohup sh -c 'for i in \$(seq 20); do tuned-adm active; sleep 3; done' > /tmp/wow.log 2>&1 &"
+ssh_vm "${session} bash -c '(exec -a wineserver sleep 30) & (exec -a Wow.exe sleep 30) & wait'" || true
+check "World of Warcraft on WoW" 'grep -q arkadeos-wow /tmp/wow.log'
+sleep 20
+check "Balanced after World of Warcraft" 'tuned-adm active | grep -q arkadeos-balanced && test ! -e /run/arkadeos/power-wow'
 
 step "apps"
 # T014: Battle.net on the image's GE-Proton, its installer reachable, and in

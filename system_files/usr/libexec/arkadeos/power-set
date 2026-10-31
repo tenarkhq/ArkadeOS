@@ -1,10 +1,11 @@
 #!/usr/bin/bash
 # Sets an ArkadeOS power profile as root (T011): battery, balanced and gaming
-# through the standard power profile service, max straight in TuneD and only
-# on the charger. /run/arkadeos/power-max marks Max while it is on.
+# through the standard power profile service, max (only on the charger) and
+# wow (T055) straight in TuneD. /run/arkadeos/power-max and power-wow mark
+# them while they are on.
 set -euo pipefail
 
-flag=/run/arkadeos/power-max
+flags=(/run/arkadeos/power-max /run/arkadeos/power-wow)
 
 on_battery() {
     busctl get-property org.freedesktop.UPower /org/freedesktop/UPower org.freedesktop.UPower OnBattery 2>/dev/null |
@@ -42,11 +43,18 @@ case "${1:-}" in
             exit 1
         fi
         mkdir -p /run/arkadeos
-        touch "${flag}"
+        rm -f "${flags[@]}"
+        touch /run/arkadeos/power-max
         exec tuned-adm profile arkadeos-max
         ;;
-    *) echo "usage: $0 <battery|balanced|gaming|max> | charge <on|off>" >&2; exit 2 ;;
+    wow)
+        mkdir -p /run/arkadeos
+        rm -f "${flags[@]}"
+        touch /run/arkadeos/power-wow
+        exec tuned-adm profile arkadeos-wow
+        ;;
+    *) echo "usage: $0 <battery|balanced|gaming|max|wow> | charge <on|off>" >&2; exit 2 ;;
 esac
 
-rm -f "${flag}"
+rm -f "${flags[@]}"
 busctl set-property net.hadess.PowerProfiles /net/hadess/PowerProfiles net.hadess.PowerProfiles ActiveProfile s "${ppd}"

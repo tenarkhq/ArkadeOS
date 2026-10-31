@@ -25,7 +25,7 @@ A macOS-style KDE desktop, NVIDIA and AMD images, Steam and Proton, Battle.net, 
 | 🧲 | qBittorrent: free, open-source torrent client without ads (ticked by default, can be left out) | in testing |
 | 🎙️ | Microphone noise filter and low-latency audio | in testing |
 | ⚡ | Gaming kernel, sched_ext scheduler, NTSYNC | in testing |
-| 🔋 | Power profiles: Battery, Balanced, Gaming, Max, switching automatically, per game | in testing |
+| 🔋 | Power profiles: Battery, Balanced, Gaming, Max, WoW, switching automatically, per game | in testing |
 | 💻 | Gaming laptops: ASUS (asusctl), MSI (msi-ec, MControlCenter), Lenovo Legion (LenovoLegionLinux); battery care at 80% | in testing |
 | 🌈 | RGB that follows the power profile (OpenRGB), Logitech and Razer mice, monitor control | in testing |
 | 🍎 | macOS-style KDE Plasma 6 with the WhiteSur theme, light and dark | in testing |
@@ -72,6 +72,7 @@ The ArkadeOS Portal does the same from a window, and also switches the channel (
 | Balanced | Automatically on AC | Balanced CPU mode with boost |
 | Gaming | Automatically while a game runs | Performance CPU mode, low-latency scheduler, GPU boost |
 | Max | Manually, on AC only | Deep sleep states off, fans and platform profile at maximum |
+| WoW | Automatically while World of Warcraft runs, or manually | Gaming for the CPU, the graphics card held back to 60% so power and cooling go to the CPU (`percent=` in `/etc/arkadeos/gpu-cap.conf`) |
 
 ## Known limitations
 

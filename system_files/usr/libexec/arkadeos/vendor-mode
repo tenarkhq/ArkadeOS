@@ -1,5 +1,5 @@
 #!/usr/bin/bash
-# TuneD script of the ArkadeOS profiles (T046, T047): the laptop maker's own
+# TuneD script of the ArkadeOS profiles (T046, T047, T055): the laptop maker's own
 # modes follow the power profile, when that maker's parts are on
 # (arkadeos-vendor). The platform profile (Lenovo, ASUS) is set by the
 # profiles' [acpi] part; this adds what it does not cover.
@@ -13,7 +13,7 @@ if grep -qx msi <<< "${vendors}" && [[ -f "${ec}/shift_mode" ]]; then
     case "${profile}" in
         battery) want=eco ;;
         balanced) want=comfort ;;
-        gaming) want=sport ;;
+        gaming|wow) want=sport ;;
         max) want=turbo ;;
     esac
     [[ "${action}" == stop ]] && want=comfort
@@ -22,6 +22,24 @@ if grep -qx msi <<< "${vendors}" && [[ -f "${ec}/shift_mode" ]]; then
     [[ -n "${want}" ]] && echo "${want}" > "${ec}/shift_mode"
     if [[ -f "${ec}/cooler_boost" ]]; then
         [[ "${profile}" == max && "${action}" == start ]] && echo on > "${ec}/cooler_boost" || echo off > "${ec}/cooler_boost"
+    fi
+fi
+# ASUS (T055): on WoW the processor's power limits (PPT) at the firmware's
+# highest, through the kernel's asus-armoury attributes (asusctl armoury);
+# the old values come back when the profile goes.
+fw=/sys/class/firmware-attributes/asus-armoury/attributes
+saved=/run/arkadeos/asus-ppt.saved
+if grep -qx asus <<< "${vendors}" && [[ -d "${fw}" ]]; then
+    if [[ "${profile}" == wow && "${action}" == start ]]; then
+        mkdir -p /run/arkadeos
+        for a in ppt_pl1_spl ppt_pl2_sppt ppt_pl3_fppt ppt_fppt; do
+            [[ -f "${fw}/${a}/current_value" && -f "${fw}/${a}/max_value" ]] || continue
+            grep -qs "^${a} " "${saved}" || echo "${a} $(cat "${fw}/${a}/current_value")" >> "${saved}"
+            cat "${fw}/${a}/max_value" > "${fw}/${a}/current_value"
+        done
+    elif [[ "${action}" == stop && -f "${saved}" ]]; then
+        while read -r a v; do echo "${v}" > "${fw}/${a}/current_value"; done < "${saved}"
+        rm -f "${saved}"
     fi
 fi
 exit 0
