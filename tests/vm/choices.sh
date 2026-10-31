@@ -115,7 +115,8 @@ install sunshine 900
 check_wait "Sunshine running, its page answers" "systemctl --user -M arkade@ is-active app-dev.lizardbyte.app.Sunshine &&
     curl -ks -o /dev/null https://127.0.0.1:47990/" 400
 shot sunshine
-ssh_vm "${user} systemctl --user status --no-pager app-dev.lizardbyte.app.Sunshine; journalctl _UID=${uid} --no-pager | grep -i sunshine | tail -80; tail -80 /home/arkade/.var/app/dev.lizardbyte.app.Sunshine/config/sunshine/sunshine.log; ss -ltnp" > "${out}/sunshine.txt" 2>&1 || true
+ssh_vm "${user} systemctl --user status --no-pager app-dev.lizardbyte.app.Sunshine; journalctl _UID=${uid} --no-pager | grep -i sunshine | tail -80; tail -80 /home/arkade/.var/app/dev.lizardbyte.app.Sunshine/config/sunshine/sunshine.log; ss -ltnp;
+    journalctl _UID=${uid} --no-pager | grep -i -E 'portal|screencast|remote.?desktop|kwin_wayland' | tail -80" > "${out}/sunshine.txt" 2>&1 || true
 
 # T020: Mac keyboard.
 install toshy 1500

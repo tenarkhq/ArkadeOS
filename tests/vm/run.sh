@@ -315,6 +315,7 @@ check "microphone noise filter set up" "test -f ${home}/autostart/com.github.wwm
     grep -q 'ArkadeOS mikrofon' /home/arkade/.var/app/com.github.wwmm.easyeffects/config/easyeffects/db/easyeffectsrc"
 # It starts with the session, a little after the desktop: up to 2 minutes.
 check "Easy Effects running" 'for i in $(seq 24); do pgrep -u arkade -f easyeffects && exit 0; sleep 5; done; exit 1'
+ssh_vm "ls -la /home/arkade/.config/autostart; journalctl _UID=${uid} --no-pager | grep -i easyeffects | tail -60" > "${out}/easyeffects.txt" 2>&1 || true
 ssh_vm "${session} pw-metadata -n settings" > "${out}/pw-settings.txt" 2>&1 || true
 # PipeWire itself raises the minimum to 1024 inside a VM (its own rule for
 # virtual machines), so the test checks the setting, not the running value.
