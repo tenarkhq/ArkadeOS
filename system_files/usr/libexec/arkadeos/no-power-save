@@ -1,0 +1,63 @@
+#!/usr/bin/bash
+# TuneD script of the performance profiles, Gaming, Max and WoW (T058): no
+# power saving anywhere while they are on (10-31, Roland: everything for
+# performance). The old values are kept in /run/arkadeos/no-power-save.saved
+# and come back with the next profile.
+#   no-power-save start|stop
+#   Wi-Fi power save off (no ping spikes), Ethernet EEE off, PCIe link power
+#   management (ASPM) off, every PCI and USB device kept awake (runtime power
+#   management off), SATA links at full power, the sound chip never sleeps.
+saved=/run/arkadeos/no-power-save.saved
+sys=${ARKADEOS_SYS:-/sys}  # a stand-in tree in the VM test
+
+# path value: remember the old value once, then write the new one.
+put() {
+    [[ -w "$1" ]] || return 0
+    grep -qs "^$1 " "${saved}" || echo "$1 $(cat "$1")" >> "${saved}"
+    echo "$2" > "$1" 2>/dev/null || true
+}
+
+start() {
+    local f dev
+    mkdir -p "$(dirname "${saved}")"
+    put "${sys}/module/pcie_aspm/parameters/policy" performance
+    for f in "${sys}"/bus/pci/devices/*/power/control "${sys}"/bus/usb/devices/*/power/control; do
+        put "${f}" on
+    done
+    for f in "${sys}"/class/scsi_host/*/link_power_management_policy; do
+        put "${f}" max_performance
+    done
+    put "${sys}/module/snd_hda_intel/parameters/power_save" 0
+    [[ -n "${ARKADEOS_SYS:-}" ]] && return
+    for dev in $(iw dev 2>/dev/null | awk '$1 == "Interface" {print $2}'); do
+        grep -qs "^wifi:${dev} " "${saved}" ||
+            echo "wifi:${dev} $(iw dev "${dev}" get power_save | awk '{print $NF}')" >> "${saved}"
+        iw dev "${dev}" set power_save off
+    done
+    for dev in $(ls /sys/class/net); do
+        [[ -e "/sys/class/net/${dev}/device" && ! -d "/sys/class/net/${dev}/wireless" ]] || continue
+        ethtool --show-eee "${dev}" 2>/dev/null | grep -q "EEE status: enabled" || continue
+        grep -qs "^eee:${dev} " "${saved}" || echo "eee:${dev} on" >> "${saved}"
+        ethtool --set-eee "${dev}" eee off 2>/dev/null || true
+    done
+}
+
+stop() {
+    [[ -f "${saved}" ]] || return 0
+    while read -r f v; do
+        if [[ "${f}" == wifi:* ]]; then
+            iw dev "${f#wifi:}" set power_save "${v}" 2>/dev/null || true
+        elif [[ "${f}" == eee:* ]]; then
+            ethtool --set-eee "${f#eee:}" eee "${v}" 2>/dev/null || true
+        else
+            echo "${v}" > "${f}" 2>/dev/null || true
+        fi
+    done < "${saved}"
+    rm -f "${saved}"
+}
+
+case "${1:-}" in
+    start) start ;;
+    stop) stop ;;
+esac
+exit 0
