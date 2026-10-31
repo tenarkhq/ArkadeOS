@@ -1,7 +1,8 @@
 #!/usr/bin/bash
 # Per-user setup at each login, and again when apps are installed or removed
 # (arkadeos-session-setup.path): game folders out of home snapshots, Steam
-# Game Mode shortcuts, EasyEffects microphone noise filter, stores on the dock.
+# Game Mode shortcuts, EasyEffects microphone noise filter, stores on the dock,
+# one-time update steps for the user's settings.
 set -uo pipefail
 
 IFS=: read -ra app_dirs <<< "${XDG_DATA_HOME:-${HOME}/.local/share}:${XDG_DATA_DIRS:-/usr/local/share:/usr/share}"
@@ -13,6 +14,9 @@ has_app() {
     done
     return 1
 }
+
+# New ArkadeOS defaults for this user's existing settings (T051).
+/usr/libexec/arkadeos/migrate
 
 # Game folders as their own btrfs subvolumes (T025): the daily home snapshots
 # then leave out games, which are large and can be downloaded again.
@@ -48,7 +52,7 @@ fi
 # it is removed; one the user took off the dock is not put back.
 present=""
 for store in steam.desktop org.arkadeos.BattleNet.desktop com.heroicgameslauncher.hgl.desktop \
-    net.lutris.Lutris.desktop; do
+    net.lutris.Lutris.desktop org.arkadeos.EA.desktop org.arkadeos.Ubisoft.desktop; do
     has_app "${store}" && on=true || on=false
     present+="\"applications:${store}\": ${on}, "
 done

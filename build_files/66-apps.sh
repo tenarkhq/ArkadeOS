@@ -8,7 +8,18 @@ systemctl enable arkadeos-apps.service
 systemctl --global enable arkadeos-session-setup.service arkadeos-session-setup.path
 desktop-file-validate /usr/share/applications/org.arkadeos.BattleNet.desktop \
     /usr/share/applications/org.arkadeos.WowUp.desktop /usr/share/applications/org.arkadeos.AntiCheat.desktop \
-    /usr/share/applications/org.arkadeos.WebApp.desktop /usr/share/applications/org.arkadeos.Tiling.desktop
+    /usr/share/applications/org.arkadeos.WebApp.desktop /usr/share/applications/org.arkadeos.Tiling.desktop \
+    /usr/share/applications/org.arkadeos.AirPlay.desktop /usr/share/applications/org.arkadeos.Portal.desktop \
+    /etc/xdg/autostart/org.arkadeos.PortalFirstRun.desktop /usr/share/arkadeos/launchers/*.desktop
+
+# T037: ArkadeOS Portal. Every catalog item has a known kind, and every app of
+# the first-boot list is in the Portal too, so it can be removed there.
+python3 -m py_compile /usr/bin/arkadeos-portal && rm -rf /usr/bin/__pycache__
+awk -F'\t' '!/^#/ { if (NF != 6 || $3 !~ /^(flatpak|launcher|brew|switch|ujust|quadlet|script)$/ || seen[$1]++) { print "bad Portal item: " $0; bad = 1 } }
+    END { exit bad }' /usr/share/arkadeos/portal/catalog.tsv
+for id in $(grep -v '^#' /usr/share/arkadeos/apps.list | cut -d'|' -f1); do
+    grep -q "^${id}"$'\t' /usr/share/arkadeos/portal/catalog.tsv
+done
 
 # T041: VLC opens videos (and its own formats); KDE's list points them at
 # Haruna, which ArkadeOS does not install.

@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=ArkadeOS Portal
+Comment=Choose the apps on the first login
+Comment[hu]=Az appok kiválasztása az első bejelentkezéskor
+Exec=arkadeos-portal --first-run
+Icon=preferences-system
+NoDisplay=true
+X-KDE-autostart-phase=2

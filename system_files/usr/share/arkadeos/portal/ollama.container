@@ -1,0 +1,20 @@
+# ArkadeOS AI pack (T019): Ollama for the user, on the graphics card. Started
+# by the Portal, then with every login. A model is let go after 5 minutes unused
+# so games get the video memory back (T050).
+[Unit]
+Description=Ollama (ArkadeOS AI)
+
+[Container]
+ContainerName=ollama
+Image=@OLLAMA_IMAGE@
+PublishPort=127.0.0.1:11434:11434
+Volume=ollama:/root/.ollama
+Environment=OLLAMA_KEEP_ALIVE=5m
+@DEVICES@
+SecurityLabelDisable=true
+
+[Service]
+Restart=on-failure
+
+[Install]
+WantedBy=default.target

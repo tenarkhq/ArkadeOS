@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE policyconfig PUBLIC "-//freedesktop//DTD PolicyKit Policy Configuration 1.0//EN"
+ "http://www.freedesktop.org/standards/PolicyKit/1/policyconfig.dtd">
+<policyconfig>
+  <vendor>ArkadeOS</vendor>
+  <action id="org.arkadeos.apps-choose">
+    <description>Save the app choice</description>
+    <description xml:lang="hu">Az appválasztás mentése</description>
+    <message>Saving which apps this machine gets</message>
+    <message xml:lang="hu">Annak mentése, mely appok kerüljenek a gépre</message>
+    <defaults>
+      <allow_any>no</allow_any>
+      <allow_inactive>no</allow_inactive>
+      <allow_active>auth_admin_keep</allow_active>
+    </defaults>
+    <annotate key="org.freedesktop.policykit.exec.path">/usr/libexec/arkadeos/apps-choose</annotate>
+  </action>
+  <action id="org.arkadeos.vendor-set">
+    <description>Turn a laptop maker's parts on or off</description>
+    <description xml:lang="hu">Gépgyártói részek be- vagy kikapcsolása</description>
+    <message>Changing which laptop maker's parts run</message>
+    <message xml:lang="hu">Annak módosítása, mely gépgyártó részei fussanak</message>
+    <defaults>
+      <allow_any>no</allow_any>
+      <allow_inactive>no</allow_inactive>
+      <allow_active>auth_admin_keep</allow_active>
+    </defaults>
+    <annotate key="org.freedesktop.policykit.exec.path">/usr/libexec/arkadeos/vendor-set</annotate>
+  </action>
+  <action id="org.arkadeos.reset-system">
+    <description>Factory reset, keeping the files</description>
+    <description xml:lang="hu">Gyári visszaállítás a fájlok megtartásával</description>
+    <message>Resetting the system settings to the factory ones</message>
+    <message xml:lang="hu">A rendszerbeállítások visszaállítása a gyáriakra</message>
+    <defaults>
+      <allow_any>no</allow_any>
+      <allow_inactive>no</allow_inactive>
+      <allow_active>auth_admin</allow_active>
+    </defaults>
+    <annotate key="org.freedesktop.policykit.exec.path">/usr/libexec/arkadeos/reset-system</annotate>
+  </action>
+</policyconfig>

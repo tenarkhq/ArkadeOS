@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=ArkadeOS Portal
+Comment=Install or remove apps, updates and system settings
+Comment[hu]=Appok telepítése és eltávolítása, frissítések, rendszerbeállítások
+Exec=arkadeos-portal
+Icon=preferences-system
+Categories=System;Settings;
+Keywords=apps;install;remove;update;rollback;channel;ai;
+Keywords[hu]=app;telepítés;eltávolítás;frissítés;visszalépés;csatorna;ai;

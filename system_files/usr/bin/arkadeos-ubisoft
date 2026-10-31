@@ -1,0 +1,3 @@
+#!/usr/bin/bash
+# Ubisoft Connect (T018): see arkadeos-store.
+exec arkadeos-store ubisoft "$@"

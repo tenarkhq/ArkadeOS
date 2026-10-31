@@ -1,20 +1,30 @@
 #!/usr/bin/bash
 # Installs the apps of /usr/share/arkadeos/apps.list that should be on this
-# machine and are not yet. Apps are never removed here: what the user installed
-# or kept stays.
+# machine: the always ones, and the chosen ones (/etc/arkadeos/apps, written by
+# the installer's choice or the Portal's first start) or the default ones when
+# nothing was chosen. Each app is installed once: one the user removed later
+# (in the Portal or by hand) does not come back, and apps are never removed here.
 set -euo pipefail
 
 chosen=/etc/arkadeos/apps
-want=()
+done_list=/var/lib/arkadeos/apps-done
+mkdir -p "$(dirname "${done_list}")"
+touch "${done_list}"
+want=() ids=()
 while IFS='|' read -r id ref default; do
     [[ -z "${id}" || "${id}" == \#* ]] && continue
+    grep -qx "${id}" "${done_list}" && continue
     if [[ "${default}" == always ]] ||
         { [[ -f "${chosen}" ]] && grep -qx "${id}" "${chosen}"; } ||
         { [[ ! -f "${chosen}" && "${default}" == on ]]; }; then
+        ids+=("${id}")
         flatpak info --system "${ref}" &>/dev/null || want+=("${ref}")
     fi
 done < /usr/share/arkadeos/apps.list
 
-[[ ${#want[@]} -eq 0 ]] && exit 0
-flatpak remote-add --if-not-exists --system flathub /etc/flatpak/remotes.d/flathub.flatpakrepo
-flatpak install --system --noninteractive --or-update flathub "${want[@]}"
+if [[ ${#want[@]} -gt 0 ]]; then
+    flatpak remote-add --if-not-exists --system flathub /etc/flatpak/remotes.d/flathub.flatpakrepo
+    flatpak install --system --noninteractive --or-update flathub "${want[@]}"
+fi
+[[ ${#ids[@]} -gt 0 ]] && printf '%s\n' "${ids[@]}" >> "${done_list}"
+exit 0

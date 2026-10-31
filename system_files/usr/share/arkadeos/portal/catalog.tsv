@@ -1,0 +1,29 @@
+# ArkadeOS Portal catalog (T037, T026): id, group, kind, ref, English name, Hungarian name
+# kind: flatpak | launcher | brew | switch | ujust | quadlet | script (portal-item)
+firefox	base	flatpak	org.mozilla.firefox	Firefox	Firefox
+chrome	base	flatpak	com.google.Chrome	Google Chrome	Google Chrome
+vlc	base	flatpak	org.videolan.VLC	VLC	VLC
+easyeffects	base	flatpak	com.github.wwmm.easyeffects	EasyEffects (microphone filter)	EasyEffects (mikrofonszűrő)
+protonplus	base	flatpak	com.vysp3r.ProtonPlus	ProtonPlus (Proton versions)	ProtonPlus (Proton-verziók)
+discord	chat	flatpak	com.discordapp.Discord	Discord	Discord
+vesktop	chat	flatpak	dev.vencord.Vesktop	Vesktop (Discord with Vencord)	Vesktop (Discord Vencorddal)
+battlenet	stores	launcher	org.arkadeos.BattleNet.desktop	Battle.net	Battle.net
+ea	stores	launcher	org.arkadeos.EA.desktop	EA app	EA app
+ubisoft	stores	launcher	org.arkadeos.Ubisoft.desktop	Ubisoft Connect	Ubisoft Connect
+heroic	stores	flatpak	com.heroicgameslauncher.hgl	Heroic (Epic, GOG, Amazon)	Heroic (Epic, GOG, Amazon)
+lutris	stores	flatpak	net.lutris.Lutris	Lutris	Lutris
+obs	stream	flatpak	com.obsproject.Studio	OBS Studio	OBS Studio
+sunshine	stream	ujust	setup-sunshine	Sunshine (stream games to other devices)	Sunshine (játék streamelése más eszközre)
+airplay	stream	switch	arkadeos-airplay	AirPlay receiver	AirPlay vevő
+decky	gaming	ujust	setup-decky install	Decky Loader (Steam game mode plugins)	Decky Loader (Steam játékmód bővítmények)
+tiling	desktop	switch	arkadeos-tiling	Tiling windows	Csempés ablakok
+toshy	desktop	script	toshy	Mac keyboard shortcuts (Toshy)	Mac-billentyűkiosztás (Toshy)
+ollama	ai	quadlet	ollama	Ollama (local AI models)	Ollama (helyi AI modellek)
+open-webui	ai	quadlet	open-webui	Open WebUI (chat for local AI)	Open WebUI (csevegés a helyi AI-val)
+claude-code	ai	script	claude-code	Claude Code	Claude Code
+codex	ai	brew	codex	Codex CLI	Codex CLI
+gemini	ai	brew	gemini-cli	Gemini CLI	Gemini CLI
+gh	dev	brew	gh	GitHub CLI	GitHub CLI
+asus	vendor	switch	arkadeos-vendor asus	ASUS (Armoury Crate features: asusctl, ROG Control Center)	ASUS (Armoury Crate funkciók: asusctl, ROG Control Center)
+msi	vendor	switch	arkadeos-vendor msi	MSI (performance modes, Cooler Boost)	MSI (teljesítménymódok, Cooler Boost)
+legion	vendor	switch	arkadeos-vendor legion	Lenovo Legion (performance modes, battery care)	Lenovo Legion (teljesítménymódok, akkukímélés)

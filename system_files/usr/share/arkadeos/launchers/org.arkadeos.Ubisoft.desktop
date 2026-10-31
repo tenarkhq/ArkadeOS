@@ -1,0 +1,14 @@
+[Desktop Entry]
+Type=Application
+Name=Ubisoft Connect
+Comment=Ubisoft Connect games through Proton
+Comment[hu]=Ubisoft Connect-játékok Protonnal
+Exec=arkadeos-ubisoft
+Icon=applications-games
+Categories=Game;
+Actions=ChooseProton;
+
+[Desktop Action ChooseProton]
+Name=Choose another Proton
+Name[hu]=Másik Proton választása
+Exec=arkadeos-ubisoft --choose-proton

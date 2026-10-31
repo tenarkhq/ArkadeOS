@@ -1,0 +1,17 @@
+#!/usr/bin/bash
+# Back to the ArkadeOS desktop defaults (T037): the user's own desktop settings
+# (theme, panel and dock, shortcuts, window rules) are moved into a dated
+# folder, so the defaults of /etc/xdg apply again. Files and apps stay.
+set -euo pipefail
+
+cfg="${XDG_CONFIG_HOME:-${HOME}/.config}"
+backup="${XDG_DATA_HOME:-${HOME}/.local/share}/arkadeos/reset-$(date +%Y%m%d-%H%M%S)"
+mkdir -p "${backup}"
+for f in kdeglobals kwinrc kwinrulesrc plasmarc plasmashellrc plasma-org.kde.plasma.desktop-appletsrc \
+    kscreenlockerrc ksplashrc kcminputrc kxkbrc kglobalshortcutsrc kactivitymanagerdrc \
+    plasma-localerc breezerc gtk-3.0/settings.ini gtk-4.0/settings.ini; do
+    [[ -e "${cfg}/${f}" ]] || continue
+    mkdir -p "${backup}/$(dirname "${f}")"
+    mv "${cfg}/${f}" "${backup}/${f}"
+done
+echo "${backup}"

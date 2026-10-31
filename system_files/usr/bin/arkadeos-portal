@@ -1,0 +1,361 @@
+#!/usr/bin/python3
+"""ArkadeOS Portal (T037): everything optional of ArkadeOS in one window.
+
+Apps: tick to install, untick to remove (portal-item does the work). On the
+first login it opens by itself as the choice screen (T026, --first-run): the
+defaults are ticked, and what is chosen gets installed.
+System: update now, go back to the previous version, channel (stable or
+testing), the image for the graphics card, firmware, desktop defaults.
+"""
+import os
+import subprocess
+import sys
+from pathlib import Path
+
+from PySide6.QtCore import QLocale, QObject, QProcess, QThread, Signal
+from PySide6.QtGui import QIcon
+from PySide6.QtWidgets import (
+    QApplication, QCheckBox, QComboBox, QGridLayout, QGroupBox, QHBoxLayout,
+    QLabel, QMessageBox, QPlainTextEdit, QPushButton, QScrollArea, QTabWidget,
+    QVBoxLayout, QWidget,
+)
+
+ITEM = "/usr/libexec/arkadeos/portal-item"
+CATALOG = Path("/usr/share/arkadeos/portal/catalog.tsv")
+APPS_LIST = Path("/usr/share/arkadeos/apps.list")
+STATE = Path(os.environ.get("XDG_STATE_HOME", Path.home() / ".local/state")) / "arkadeos"
+FIRST_RUN_DONE = STATE / "portal-first-run"
+
+HU = QLocale().name().startswith("hu")
+
+
+def tr(en, hu):
+    return hu if HU else en
+
+
+GROUPS = {
+    "base": tr("Basic apps", "Alap appok"),
+    "chat": tr("Chat", "Csevegés"),
+    "stores": tr("Game stores", "Játékáruházak"),
+    "gaming": tr("Gaming", "Játék"),
+    "stream": tr("Streaming and recording", "Streamelés és felvétel"),
+    "desktop": tr("Desktop", "Asztal"),
+    "ai": tr("AI", "AI"),
+    "dev": tr("Developer tools", "Fejlesztői eszközök"),
+    "vendor": tr("Laptop maker (detected one ticked)", "Gépgyártó (a felismert kipipálva)"),
+}
+
+
+def catalog():
+    items = []
+    for line in CATALOG.read_text().splitlines():
+        if not line or line.startswith("#"):
+            continue
+        item_id, group, kind, ref, en, hun = line.split("\t")
+        items.append({"id": item_id, "group": group, "name": tr(en, hun)})
+    return items
+
+
+def defaults():
+    """The apps that come by default (apps.list: always or on)."""
+    on = set()
+    for line in APPS_LIST.read_text().splitlines():
+        if line and not line.startswith("#"):
+            item_id, _, default = line.split("|")
+            if default in ("always", "on"):
+                on.add(item_id)
+    return on
+
+
+def run(*args):
+    return subprocess.run(args, capture_output=True, text=True).stdout.strip()
+
+
+class StatusReader(QObject):
+    """Reads every item's status in the background: some take a moment."""
+    found = Signal(str, bool)
+    finished = Signal()
+
+    def __init__(self, ids):
+        super().__init__()
+        self.ids = ids
+
+    def work(self):
+        for item_id in self.ids:
+            self.found.emit(item_id, run(ITEM, item_id, "status") == "on")
+        self.finished.emit()
+
+
+class AppsTab(QWidget):
+    def __init__(self, first_run):
+        super().__init__()
+        self.first_run = first_run
+        self.items = catalog()
+        self.installed = {}
+        self.boxes = {}
+        self.queue = []
+
+        layout = QVBoxLayout(self)
+        intro = QLabel(tr(
+            "Welcome to ArkadeOS! Tick what you want on this machine; everything can be "
+            "changed here later too.",
+            "Üdv az ArkadeOS-en! Pipáld ki, mi kerüljön a gépre; később itt bármikor "
+            "módosíthatod.") if first_run else tr(
+            "Tick to install, untick to remove.",
+            "Pipáld ki, amit telepítenél, vedd ki a pipát, amit eltávolítanál."))
+        intro.setWordWrap(True)
+        layout.addWidget(intro)
+        # T053: what the installer's hardware check found (English and
+        # Hungarian line of each finding).
+        check = Path("/etc/arkadeos/hardware-check.txt")
+        if first_run and check.exists():
+            notes = [b.splitlines() for b in check.read_text().split("\n\n") if b.strip()]
+            found = QLabel("\n".join("⚠ " + (n[1] if HU and len(n) > 1 else n[0]) for n in notes))
+            found.setWordWrap(True)
+            layout.addWidget(found)
+
+        body = QWidget()
+        grid = QVBoxLayout(body)
+        for group, title in GROUPS.items():
+            members = [i for i in self.items if i["group"] == group]
+            if not members:
+                continue
+            box = QGroupBox(title)
+            box_layout = QGridLayout(box)
+            for n, item in enumerate(members):
+                check = QCheckBox(item["name"])
+                check.setEnabled(False)
+                self.boxes[item["id"]] = check
+                box_layout.addWidget(check, n // 2, n % 2)
+            grid.addWidget(box)
+        grid.addStretch()
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setWidget(body)
+        layout.addWidget(scroll, 1)
+
+        self.log = QPlainTextEdit()
+        self.log.setReadOnly(True)
+        self.log.setMaximumHeight(140)
+        self.log.hide()
+        layout.addWidget(self.log)
+
+        row = QHBoxLayout()
+        self.state = QLabel(tr("Checking what is installed…", "Annak ellenőrzése, mi van telepítve…"))
+        row.addWidget(self.state, 1)
+        self.apply = QPushButton(QIcon.fromTheme("dialog-ok-apply"), tr("Apply", "Alkalmazás"))
+        self.apply.setEnabled(False)
+        self.apply.clicked.connect(self.start)
+        row.addWidget(self.apply)
+        layout.addLayout(row)
+
+        self.thread = QThread()
+        self.reader = StatusReader([i["id"] for i in self.items])
+        self.reader.moveToThread(self.thread)
+        self.thread.started.connect(self.reader.work)
+        self.reader.found.connect(self.found)
+        self.reader.finished.connect(self.ready)
+        self.reader.finished.connect(self.thread.quit)
+        self.thread.start()
+
+    def found(self, item_id, on):
+        self.installed[item_id] = on
+        check = self.boxes[item_id]
+        check.setChecked(on or (self.first_run and item_id in defaults()))
+        check.setEnabled(True)
+
+    def ready(self):
+        self.state.setText("")
+        self.apply.setEnabled(True)
+
+    def start(self):
+        self.queue = [(i, "install" if b.isChecked() else "remove") for i, b in self.boxes.items()
+                      if b.isChecked() != self.installed.get(i, False)]
+        if self.first_run:
+            chosen = [i for i, b in self.boxes.items() if b.isChecked()]
+            subprocess.run(["pkexec", "/usr/libexec/arkadeos/apps-choose", *chosen])
+        if not self.queue:
+            self.done()
+            return
+        self.apply.setEnabled(False)
+        for check in self.boxes.values():
+            check.setEnabled(False)
+        self.log.show()
+        self.next()
+
+    def next(self):
+        if not self.queue:
+            self.done()
+            return
+        item_id, action = self.queue.pop(0)
+        name = self.boxes[item_id].text()
+        self.state.setText(tr(f"{'Installing' if action == 'install' else 'Removing'}: {name}",
+                              f"{'Telepítés' if action == 'install' else 'Eltávolítás'}: {name}"))
+        proc = QProcess(self)
+        proc.setProcessChannelMode(QProcess.MergedChannels)
+        proc.readyRead.connect(lambda: self.log.appendPlainText(
+            bytes(proc.readAll()).decode(errors="replace").rstrip()))
+        proc.finished.connect(lambda code, _status: self.item_done(item_id, action, code))
+        proc.start(ITEM, [item_id, action])
+
+    def item_done(self, item_id, action, code):
+        ok = code == 0
+        if ok:
+            self.installed[item_id] = action == "install"
+        else:
+            self.boxes[item_id].setChecked(self.installed.get(item_id, False))
+        self.log.appendPlainText(("✔ " if ok else "✘ ") + self.boxes[item_id].text())
+        self.next()
+
+    def done(self):
+        if self.first_run:
+            STATE.mkdir(parents=True, exist_ok=True)
+            FIRST_RUN_DONE.touch()
+        self.state.setText(tr("Done.", "Kész."))
+        self.apply.setEnabled(True)
+        for check in self.boxes.values():
+            check.setEnabled(True)
+
+
+class SystemTab(QWidget):
+    def __init__(self):
+        super().__init__()
+        layout = QVBoxLayout(self)
+
+        updates = QGroupBox(tr("Updates", "Frissítések"))
+        u = QVBoxLayout(updates)
+        self.version = QLabel()
+        u.addWidget(self.version)
+        u.addWidget(QLabel(tr(
+            "The system, apps and Homebrew update every day by themselves; a new system "
+            "version starts at the next reboot.",
+            "A rendszer, az appok és a Homebrew naponta maguktól frissülnek; az új "
+            "rendszerverzió a következő újraindításkor indul.")))
+        row = QHBoxLayout()
+        row.addWidget(self.button("system-software-update", tr("Update now", "Frissítés most"),
+                                  ["arkadeos-update", "now"]))
+        row.addWidget(self.button("edit-undo", tr("Back to the previous version", "Vissza az előző verzióra"),
+                                  ["arkadeos-update", "rollback"]))
+        u.addLayout(row)
+        row = QHBoxLayout()
+        row.addWidget(QLabel(tr("Channel:", "Csatorna:")))
+        self.channel = QComboBox()
+        self.channel.addItem(tr("Stable", "Stabil"), "stable")
+        self.channel.addItem(tr("Testing (newer, less tried)", "Teszt (újabb, kevésbé kipróbált)"), "testing")
+        row.addWidget(self.channel, 1)
+        switch = QPushButton(tr("Switch", "Váltás"))
+        switch.clicked.connect(lambda: self.call(["arkadeos-update", "channel", self.channel.currentData()]))
+        row.addWidget(switch)
+        u.addLayout(row)
+        row = QHBoxLayout()
+        row.addWidget(QLabel(tr("Graphics card:", "Videokártya:")))
+        self.gpu = QComboBox()
+        self.gpu.addItem("NVIDIA", "nvidia")
+        self.gpu.addItem(tr("AMD or Intel", "AMD vagy Intel"), "other")
+        row.addWidget(self.gpu, 1)
+        switch = QPushButton(tr("Switch", "Váltás"))
+        switch.clicked.connect(lambda: self.call(["arkadeos-update", "gpu", self.gpu.currentData()]))
+        row.addWidget(switch)
+        u.addLayout(row)
+        layout.addWidget(updates)
+
+        firmware = QGroupBox(tr("Firmware", "Firmware"))
+        f = QHBoxLayout(firmware)
+        f.addWidget(self.button("system-software-update", tr("Look for firmware updates", "Firmware-frissítések keresése"),
+                                ["arkadeos-firmware", "check"]))
+        f.addWidget(self.button("run-install", tr("Install firmware updates", "Firmware-frissítések telepítése"),
+                                ["arkadeos-firmware", "update"]))
+        layout.addWidget(firmware)
+
+        desktop = QGroupBox(tr("Reset", "Visszaállítás"))
+        d = QHBoxLayout(desktop)
+        reset = QPushButton(QIcon.fromTheme("edit-reset"), tr("Restore the desktop defaults", "Asztal alapbeállításainak visszaállítása"))
+        reset.clicked.connect(self.reset_desktop)
+        d.addWidget(reset)
+        factory = QPushButton(QIcon.fromTheme("edit-clear-history"), tr("Factory reset (files stay)", "Gyári visszaállítás (a fájlok megmaradnak)"))
+        factory.clicked.connect(self.reset_system)
+        d.addWidget(factory)
+        layout.addWidget(desktop)
+
+        versions = QGroupBox(tr("Earlier builds (last 90 days)", "Korábbi buildek (az elmúlt 90 nap)"))
+        v = QHBoxLayout(versions)
+        self.builds = QComboBox()
+        v.addWidget(self.builds, 1)
+        load = QPushButton(tr("List", "Listázás"))
+        load.clicked.connect(lambda: self.builds.addItems(run("arkadeos-update", "versions").splitlines()) if not self.builds.count() else None)
+        v.addWidget(load)
+        start = QPushButton(tr("Start this one", "Ez induljon"))
+        start.clicked.connect(lambda: self.builds.currentText() and self.call(["arkadeos-update", "version", self.builds.currentText()]))
+        v.addWidget(start)
+        layout.addWidget(versions)
+        layout.addStretch()
+        self.refresh()
+
+    def button(self, icon, text, command):
+        b = QPushButton(QIcon.fromTheme(icon), text)
+        b.clicked.connect(lambda: self.call(command))
+        return b
+
+    def call(self, command):
+        result = subprocess.run(command, capture_output=True, text=True)
+        text = (result.stdout + result.stderr).strip()
+        if text:
+            QMessageBox.information(self, "ArkadeOS", text)
+        self.refresh()
+
+    def refresh(self):
+        self.version.setText(run("arkadeos-update", "status"))
+        for combo, value in ((self.channel, run("arkadeos-update", "channel")),
+                             (self.gpu, run("arkadeos-update", "gpu"))):
+            index = combo.findData(value)
+            if index >= 0:
+                combo.setCurrentIndex(index)
+
+    def reset_system(self):
+        if QMessageBox.question(self, "ArkadeOS", tr(
+                "Reset the system settings to the factory ones? Home folders, users, network "
+                "connections, language and keyboard stay; packages added on top are removed. "
+                "It counts after a reboot.",
+                "Visszaállítod a rendszerbeállításokat a gyáriakra? A saját mappák, a felhasználók, "
+                "a hálózati kapcsolatok, a nyelv és a billentyűzet megmaradnak; a ráadásként "
+                "telepített csomagok eltűnnek. Újraindítás után érvényes.")) != QMessageBox.Yes:
+            return
+        result = subprocess.run(["pkexec", "/usr/libexec/arkadeos/reset-system"], capture_output=True, text=True)
+        if result.returncode == 0:
+            QMessageBox.information(self, "ArkadeOS", tr(
+                f"Done. Restart the machine. The old settings are in {result.stdout.strip()}.",
+                f"Kész. Indítsd újra a gépet. A régi beállítások itt vannak: {result.stdout.strip()}."))
+
+    def reset_desktop(self):
+        if QMessageBox.question(self, "ArkadeOS", tr(
+                "Restore the ArkadeOS look, panel, dock and shortcuts? Your own settings are "
+                "kept in a backup folder; files and apps stay.",
+                "Visszaállítod az ArkadeOS kinézetét, paneljét, dockját és billentyűparancsait? "
+                "A saját beállításaid egy mentési mappába kerülnek; a fájlok és az appok "
+                "megmaradnak.")) != QMessageBox.Yes:
+            return
+        backup = run("/usr/libexec/arkadeos/reset-desktop")
+        QMessageBox.information(self, "ArkadeOS", tr(
+            f"Done. Log out and back in to see it. Your settings are in {backup}.",
+            f"Kész. Jelentkezz ki és be, hogy érvénybe lépjen. A beállításaid itt vannak: {backup}."))
+
+
+def main():
+    first_run = "--first-run" in sys.argv
+    if first_run and FIRST_RUN_DONE.exists():
+        return
+    app = QApplication(sys.argv)
+    app.setDesktopFileName("org.arkadeos.Portal")
+    window = QTabWidget()
+    window.setWindowTitle("ArkadeOS Portal")
+    window.setWindowIcon(QIcon.fromTheme("arkadeos-portal", QIcon.fromTheme("preferences-system")))
+    window.addTab(AppsTab(first_run), QIcon.fromTheme("applications-all"), tr("Apps", "Appok"))
+    if not first_run:
+        window.addTab(SystemTab(), QIcon.fromTheme("preferences-system"), tr("System", "Rendszer"))
+    window.resize(760, 640)
+    window.show()
+    app.exec()
+
+
+if __name__ == "__main__":
+    main()

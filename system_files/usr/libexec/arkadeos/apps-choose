@@ -1,0 +1,14 @@
+#!/usr/bin/bash
+# Saves the app choice of the Portal's first start (T026) to /etc/arkadeos/apps
+# for apps-install: the chosen ids of apps.list, nothing else.
+#   pkexec /usr/libexec/arkadeos/apps-choose ID...
+set -euo pipefail
+
+mkdir -p /etc/arkadeos
+: > /etc/arkadeos/apps.new
+for id in "$@"; do
+    if grep -q "^${id//[^a-z0-9-]/}|" /usr/share/arkadeos/apps.list; then
+        echo "${id}" >> /etc/arkadeos/apps.new
+    fi
+done
+mv /etc/arkadeos/apps.new /etc/arkadeos/apps

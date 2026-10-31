@@ -1,0 +1,18 @@
+# ArkadeOS AI pack (T019): Open WebUI at http://127.0.0.1:3000, talking to
+# the user's Ollama.
+[Unit]
+Description=Open WebUI (ArkadeOS AI)
+After=ollama.service
+
+[Container]
+ContainerName=open-webui
+Image=ghcr.io/open-webui/open-webui:main
+Network=host
+Environment=OLLAMA_BASE_URL=http://127.0.0.1:11434 PORT=3000 HOST=127.0.0.1 WEBUI_AUTH=False
+Volume=open-webui:/app/backend/data
+
+[Service]
+Restart=on-failure
+
+[Install]
+WantedBy=default.target

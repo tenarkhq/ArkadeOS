@@ -1,0 +1,147 @@
+#!/usr/bin/bash
+# One item of the ArkadeOS Portal (T037) and the installer's choice screen
+# (T026): installs, removes or reports it. Runs as the user; installs that
+# need the system ask for the password (polkit), the AI parts run in the
+# user's containers, command-line tools go to the user's Homebrew.
+#   portal-item ITEM install|remove|status      status prints on or off
+#   portal-item --list                         every item: id, group, names
+set -uo pipefail
+
+catalog=/usr/share/arkadeos/portal/catalog.tsv
+brew=/home/linuxbrew/.linuxbrew/bin/brew
+apps="${XDG_DATA_HOME:-${HOME}/.local/share}/applications"
+quadlets="${XDG_CONFIG_HOME:-${HOME}/.config}/containers/systemd"
+
+if [[ "${1:-}" == --list ]]; then
+    grep -v '^#' "${catalog}"
+    exit 0
+fi
+item=${1:?item} action=${2:?install|remove|status}
+line=$(grep -v '^#' "${catalog}" | awk -F'\t' -v id="${item}" '$1 == id')
+[[ -n "${line}" ]] || { echo "unknown item: ${item}" >&2; exit 2; }
+IFS=$'\t' read -r _ _ kind ref _ <<< "${line}"
+
+status() { if "$@" &>/dev/null; then echo on; else echo off; fi; }
+in_terminal() {  # installers that ask questions run where the user sees them
+    if [[ -n "${WAYLAND_DISPLAY:-}${DISPLAY:-}" ]]; then konsole --hold -e "$@"; else "$@"; fi
+}
+
+# The model that fits the graphics card's memory (T019).
+ollama_model() {
+    local mib=0 v
+    if command -v nvidia-smi &>/dev/null; then
+        mib=$(nvidia-smi --query-gpu=memory.total --format=csv,noheader,nounits 2>/dev/null | sort -n | tail -1)
+    fi
+    for v in /sys/class/drm/card*/device/mem_info_vram_total; do
+        [[ -f "${v}" ]] && (( $(cat "${v}") / 1048576 > mib )) && mib=$(( $(cat "${v}") / 1048576 ))
+    done
+    if (( mib >= 20000 )); then echo qwen3:30b
+    elif (( mib >= 14000 )); then echo qwen3:14b
+    elif (( mib >= 7000 )); then echo qwen3:8b
+    else echo qwen3:4b
+    fi
+}
+
+case "${kind}:${action}" in
+    flatpak:status) status flatpak info "${ref}" ;;
+    flatpak:install) flatpak install --system -y --noninteractive --or-update flathub "${ref}" ;;
+    flatpak:remove) flatpak uninstall --system -y --noninteractive "${ref}" ;;
+
+    # A store launcher of the image (Battle.net) or one from the launchers folder.
+    launcher:status)
+        if [[ -f "/usr/share/applications/${ref}" ]]; then
+            status bash -c "! grep -qsx Hidden=true '${apps}/${ref}'"
+        else
+            status test -f "${apps}/${ref}"
+        fi
+        ;;
+    launcher:install)
+        mkdir -p "${apps}"
+        if [[ -f "/usr/share/applications/${ref}" ]]; then rm -f "${apps}/${ref}"
+        else cp "/usr/share/arkadeos/launchers/${ref}" "${apps}/"; fi
+        ;;
+    launcher:remove)
+        mkdir -p "${apps}"
+        if [[ -f "/usr/share/applications/${ref}" ]]; then printf '[Desktop Entry]\nHidden=true\n' > "${apps}/${ref}"
+        else rm -f "${apps}/${ref}"; fi
+        ;;
+
+    brew:status) status test -x "/home/linuxbrew/.linuxbrew/bin/${ref##*/}" ;;
+    brew:install) "${brew}" install "${ref}" ;;
+    brew:remove) "${brew}" uninstall "${ref}" ;;
+
+    # A switch of ours: arkadeos-airplay on|off|status and the like.
+    switch:status) [[ "$(${ref} status)" == on ]] && echo on || echo off ;;
+    switch:install) ${ref} on ;;
+    switch:remove) ${ref} off ;;
+
+    # A Bazzite recipe (ujust) that knows how to set the thing up.
+    ujust:status)
+        case "${item}" in
+            decky) status test -d "${HOME}/homebrew/services" ;;
+            sunshine) status flatpak info dev.lizardbyte.app.Sunshine ;;
+        esac
+        ;;
+    ujust:install) in_terminal ujust ${ref} ;;
+    ujust:remove)
+        case "${item}" in
+            decky) in_terminal ujust setup-decky uninstall ;;
+            sunshine) in_terminal ujust setup-sunshine uninstall ;;
+        esac
+        ;;
+
+    # AI (T019): Ollama and Open WebUI as the user's containers, started with
+    # the session; the GPU build of Ollama that fits the card. Ollama lets go of
+    # a model after 5 minutes unused (T050).
+    quadlet:status) status test -f "${quadlets}/${ref}.container" ;;
+    quadlet:install)
+        mkdir -p "${quadlets}"
+        # The card decides the build: NVIDIA through CDI, AMD on ROCm, else CPU.
+        image=docker.io/ollama/ollama:latest devices=
+        if command -v nvidia-smi &>/dev/null; then
+            devices="AddDevice=nvidia.com/gpu=all"
+        elif [[ -e /dev/kfd ]] && grep -qsx 0x1002 /sys/class/drm/card*/device/vendor; then
+            image=docker.io/ollama/ollama:rocm devices='AddDevice=/dev/kfd\nAddDevice=/dev/dri'
+        fi
+        awk -v img="${image}" -v dev="${devices}" '{ sub(/@OLLAMA_IMAGE@/, img) } /^@DEVICES@$/ { if (dev != "") print dev; next } 1' \
+            "/usr/share/arkadeos/portal/${ref}.container" > "${quadlets}/${ref}.container"
+        systemctl --user daemon-reload
+        systemctl --user start "${ref}.service"
+        if [[ "${ref}" == ollama ]]; then
+            for _ in $(seq 60); do curl -fs http://127.0.0.1:11434/ >/dev/null && break; sleep 5; done
+            podman exec ollama ollama pull "$(ollama_model)"
+        fi
+        ;;
+    quadlet:remove)
+        systemctl --user stop "${ref}.service" || true
+        rm -f "${quadlets}/${ref}.container"
+        systemctl --user daemon-reload
+        ;;
+
+    # Installers from the tool's own makers, into the user's home.
+    script:status)
+        case "${item}" in
+            claude-code) status test -x "${HOME}/.local/bin/claude" ;;
+            toshy) status test -d "${HOME}/.config/toshy" ;;
+        esac
+        ;;
+    script:install)
+        case "${item}" in
+            claude-code) curl -fsSL https://claude.ai/install.sh | bash ;;
+            # Toshy's own setup asks questions and needs the password once.
+            toshy)
+                src="${XDG_CACHE_HOME:-${HOME}/.cache}/arkadeos/toshy"
+                rm -rf "${src}"
+                git clone --depth 1 https://github.com/RedBearAK/toshy "${src}"
+                in_terminal "${src}/setup_toshy.py" install
+                ;;
+        esac
+        ;;
+    script:remove)
+        case "${item}" in
+            claude-code) rm -rf "${HOME}/.local/bin/claude" "${HOME}/.local/share/claude" ;;
+            toshy) in_terminal "${HOME}/.local/bin/toshy-uninstall" ;;
+        esac
+        ;;
+    *) echo "${item}: cannot ${action}" >&2; exit 2 ;;
+esac

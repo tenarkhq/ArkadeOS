@@ -1,0 +1,14 @@
+[Desktop Entry]
+Type=Application
+Name=EA app
+Comment=EA app games through Proton
+Comment[hu]=EA app-játékok Protonnal
+Exec=arkadeos-ea
+Icon=applications-games
+Categories=Game;
+Actions=ChooseProton;
+
+[Desktop Action ChooseProton]
+Name=Choose another Proton
+Name[hu]=Másik Proton választása
+Exec=arkadeos-ea --choose-proton

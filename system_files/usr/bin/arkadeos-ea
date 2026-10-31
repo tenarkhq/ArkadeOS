@@ -1,0 +1,3 @@
+#!/usr/bin/bash
+# EA app (T018): see arkadeos-store.
+exec arkadeos-store ea "$@"
