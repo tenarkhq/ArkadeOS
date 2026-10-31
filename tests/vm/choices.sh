@@ -102,7 +102,7 @@ ssh_vm "${gui} sh -c 'flatpak run com.obsproject.Studio >/tmp/obs.log 2>&1 &'" |
 check_wait "OBS starts" 'pgrep -u arkade -x obs' 120
 sleep 10
 shot obs
-ssh_vm 'pkill -u arkade -f com.obsproject.Studio' || true
+ssh_vm 'pkill -u arkade -x obs' || true
 install sunshine 900
 # Sunshine asks once to share the screen (the desktop's own dialog); the
 # user says yes.
@@ -129,11 +129,10 @@ check_wait "Decky Loader running" 'systemctl is-active plugin_loader.service' 12
 # Compatibility settings.
 step "installing another Proton"
 ssh_vm "${user} sh -c 'image=\$(basename /usr/share/steam/compatibilitytools.d/GE-Proton*) &&
-    tag=\$(curl -fsSL \"https://api.github.com/repos/GloriousEggroll/proton-ge-custom/releases?per_page=5\" |
-        jq -r --arg i \"\$image\" \"[.[] | select(.tag_name != \\\$i)][0].tag_name\") &&
+    url=\$(curl -fsSL \"https://api.github.com/repos/GloriousEggroll/proton-ge-custom/releases?per_page=5\" |
+        jq -r --arg i \"\$image\" \"[.[] | select(.tag_name != \\\$i) | .tag_name as \\\$t | .assets[] | select(.name == (\\\$t + \\\"-x86_64.tar.gz\\\")) | .browser_download_url][0]\") &&
     mkdir -p ~/.local/share/Steam/compatibilitytools.d &&
-    curl -fsSL \"https://github.com/GloriousEggroll/proton-ge-custom/releases/download/\$tag/\$tag.tar.gz\" |
-        tar -xz -C ~/.local/share/Steam/compatibilitytools.d && echo \$tag'" > "${out}/proton-install.log" 2>&1 || true
+    curl -fsSL \"\$url\" | tar -xz -C ~/.local/share/Steam/compatibilitytools.d && basename \"\$url\" -x86_64.tar.gz'" > "${out}/proton-install.log" 2>&1 || true
 other=$(tail -1 "${out}/proton-install.log")
 check "another Proton installed" "test -x /home/arkade/.local/share/Steam/compatibilitytools.d/${other}/proton"
 ssh_vm "${gui} sh -c 'arkadeos-store ea --choose-proton >/tmp/choose.log 2>&1 &'" || true
