@@ -5,6 +5,14 @@
 #   arkadeos-update status     versions: running, waiting for reboot, previous
 #   arkadeos-update now        update now instead of waiting for 04:00
 #   arkadeos-update rollback   start the previous version at the next reboot
+#   arkadeos-update channel [stable|testing]   show or change the channel (T051)
+#   arkadeos-update versions   the builds of the last 90 days of this channel (T036)
+#   arkadeos-update version TAG   start that build at the next reboot; it stays
+#                              until "channel" brings the newest again
+#   arkadeos-update notify     tells the user once when a new version waits
+#                              for the reboot (arkadeos-update-notify.timer)
+#   arkadeos-update gpu [nvidia|other]         after a graphics card change: the
+#                              NVIDIA image or the plain one (T051)
 set -euo pipefail
 
 hu() { [[ "${LANG:-}" == hu* || "${LANGUAGE:-}" == hu* ]]; }
@@ -17,6 +25,23 @@ s = json.load(sys.stdin).get("status", {})
 e = s.get(sys.argv[1]) or {}
 i = (e.get("image") or {})
 print(i.get("version") or (i.get("image") or {}).get("image") or "")' "$1"
+}
+
+# The image this machine follows, e.g. ghcr.io/tenarkhq/arkadeos-nvidia:stable.
+image_ref() {
+    bootc status --json 2>/dev/null | python3 -c '
+import json, sys
+print(((json.load(sys.stdin).get("spec") or {}).get("image") or {}).get("image") or "")'
+}
+
+# Follow another image from the next reboot on; the signature is checked.
+switch_to() {
+    if [[ "${2:-}" != --yes && -n "${WAYLAND_DISPLAY:-}${DISPLAY:-}" ]]; then
+        kdialog --title ArkadeOS --yesno "$(say "Switch to ${1} at the next reboot?" \
+            "Váltás erre a következő újraindításkor: ${1}?")" || exit 0
+    fi
+    pkexec bootc switch --enforce-container-sigpolicy "${1}"
+    say "Done: ${1} starts at the next reboot." "Kész: a következő újraindításkor ez indul: ${1}."
 }
 
 case "${1:-status}" in
@@ -44,8 +69,69 @@ case "${1:-status}" in
         say "Done: the previous version starts at the next reboot." \
             "Kész: a következő újraindításkor az előző verzió indul."
         ;;
+    channel)
+        ref=$(image_ref)
+        [[ -n "${ref}" ]] || { say "No ArkadeOS image found." "Nem található ArkadeOS image."; exit 1; }
+        if [[ -z "${2:-}" ]]; then t=${ref##*:}; echo "${t%%-*}"; exit 0; fi
+        case "${2}" in stable|testing) ;; *) echo "channel: stable | testing" >&2; exit 2 ;; esac
+        [[ "${ref##*:}" == "${2}" ]] && exit 0
+        switch_to "${ref%:*}:${2}" "${3:-}"
+        ;;
+    notify)
+        # rpm-ostree answers without root; bootc does not.
+        staged=$(rpm-ostree status --json 2>/dev/null | python3 -c '
+import json, sys
+for d in json.load(sys.stdin).get("deployments", []):
+    if d.get("staged"):
+        print(d.get("version") or d.get("checksum", ""))' || true)
+        seen="${XDG_STATE_HOME:-${HOME}/.local/state}/arkadeos/update-notified"
+        [[ -n "${staged}" && "$(cat "${seen}" 2>/dev/null)" != "${staged}" ]] || exit 0
+        mkdir -p "$(dirname "${seen}")"
+        echo "${staged}" > "${seen}"
+        action=$(notify-send -a ArkadeOS -i system-software-update \
+            -A restart="$(say "Restart now" "Újraindítás most")" \
+            "$(say "Update ready" "Frissítés kész")" \
+            "$(say "ArkadeOS ${staged} starts at the next reboot." "Az ArkadeOS ${staged} a következő újraindításkor indul.")" || true)
+        [[ "${action}" == restart ]] && exec qdbus org.kde.LogoutPrompt /LogoutPrompt promptReboot
+        exit 0
+        ;;
+    versions)
+        ref=$(image_ref)
+        [[ -n "${ref}" ]] || { say "No ArkadeOS image found." "Nem található ArkadeOS image."; exit 1; }
+        channel=${ref##*:}
+        channel=${channel%%-*}
+        since=$(date -u -d '90 days ago' +%Y%m%d)
+        skopeo list-tags "docker://${ref%:*}" | python3 -c '
+import json, re, sys
+channel, since = sys.argv[1], sys.argv[2]
+for tag in sorted(json.load(sys.stdin)["Tags"], reverse=True):
+    m = re.fullmatch(re.escape(channel) + r"-\d+\.(\d{8})", tag)
+    if m and m.group(1) >= since:
+        print(tag)' "${channel}" "${since}"
+        ;;
+    version)
+        ref=$(image_ref)
+        [[ -n "${ref}" ]] || { say "No ArkadeOS image found." "Nem található ArkadeOS image."; exit 1; }
+        tag=${2:?tag}
+        [[ "${tag}" =~ ^(stable|testing)-[0-9]+\.[0-9]{8}$ ]] || { echo "version: a tag from 'arkadeos-update versions'" >&2; exit 2; }
+        switch_to "${ref%:*}:${tag}" "${3:-}"
+        ;;
+    gpu)
+        ref=$(image_ref)
+        [[ -n "${ref}" ]] || { say "No ArkadeOS image found." "Nem található ArkadeOS image."; exit 1; }
+        repo=${ref%:*} tag=${ref##*:}
+        tag=${tag%%-*}
+        if [[ -z "${2:-}" ]]; then [[ "${repo}" == *-nvidia ]] && echo nvidia || echo other; exit 0; fi
+        case "${2}" in
+            nvidia) new=${repo%-nvidia}-nvidia ;;
+            other) new=${repo%-nvidia} ;;
+            *) echo "gpu: nvidia | other" >&2; exit 2 ;;
+        esac
+        [[ "${new}" == "${repo}" ]] && exit 0
+        switch_to "${new}:${tag}" "${3:-}"
+        ;;
     *)
-        sed -n '2,8p' "$0" | sed 's/^# \{0,1\}//'
+        sed -n '2,17p' "$0" | sed 's/^# \{0,1\}//'
         exit 2
         ;;
 esac

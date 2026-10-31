@@ -8,3 +8,6 @@ systemctl is-enabled uupd.timer
 jq -e '.modules.flatpak.disable != true and .modules.system.disable != true' /etc/uupd/config.json
 systemctl enable arkadeos-home-snapshots.service snapper-timeline.timer snapper-cleanup.timer
 desktop-file-validate /usr/share/applications/org.arkadeos.Rollback.desktop
+
+# T048: the top bar says when an update waits for the reboot.
+systemctl --global enable arkadeos-update-notify.timer

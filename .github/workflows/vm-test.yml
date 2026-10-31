@@ -44,7 +44,7 @@ jobs:
       - name: Tools
         run: |
           sudo apt-get update -q
-          sudo apt-get install -y -q qemu-system-x86 ovmf socat imagemagick
+          sudo apt-get install -y -q qemu-system-x86 ovmf socat imagemagick dosfstools mtools
 
       - name: Pull image
         env:
@@ -100,5 +100,87 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: vm-test-${{ matrix.image }}
+          path: vm-out/
+          if-no-files-found: ignore
+
+  # T051: the previous build, installed and used, updates to this one without
+  # reinstalling. One image is enough: both share everything but the driver.
+  update-path:
+    name: update path
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    env:
+      REPO: ghcr.io/tenarkhq/arkadeos
+      TAG: ${{ inputs.tag || 'testing' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+          sudo udevadm settle
+          test -w /dev/kvm || { echo "no KVM on this runner" >&2; exit 1; }
+
+      - name: Tools
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y -q qemu-system-x86 ovmf socat imagemagick
+
+      - name: Previous and new build
+        id: builds
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          echo "$GITHUB_TOKEN" | sudo podman login ghcr.io -u "${{ github.actor }}" --password-stdin
+          new=$(skopeo inspect --format '{{ .Digest }}' "docker://${REPO}:${TAG}")
+          previous=
+          for tag in $(skopeo list-tags "docker://${REPO}" | jq -r '.Tags[] | select(test("^(testing|stable)-[0-9]+\\.[0-9]{8}$"))' | sort -t- -k2 -r); do
+            digest=$(skopeo inspect --format '{{ .Digest }}' "docker://${REPO}:${tag}")
+            if [ "${digest}" != "${new}" ]; then previous=${tag}; break; fi
+          done
+          if [ -z "${previous}" ]; then
+            echo "No previous build to update from." >> "$GITHUB_STEP_SUMMARY"
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          echo "${REPO}:${previous} → ${REPO}:${TAG} (${new})" >> "$GITHUB_STEP_SUMMARY"
+          for pair in "old ${REPO}:${previous}" "new ${REPO}@${new}"; do
+            set -- ${pair}
+            sudo podman pull -q "$2"
+            printf '%s\n' "FROM $2" 'RUN systemctl enable sshd.service && mkdir -p /etc/containers/registries.conf.d && printf "[[registry]]\nlocation = \"%s\"\ninsecure = true\n" 127.0.0.1:5000 10.0.2.2:5000 > /etc/containers/registries.conf.d/50-vm-test.conf' |
+              sudo podman build -q -t "localhost/vm-$1" -f - .
+          done
+          sudo podman run -d --name registry -p 127.0.0.1:5000:5000 docker.io/library/registry:2
+          sudo podman push -q --tls-verify=false localhost/vm-old 127.0.0.1:5000/arkadeos:test
+
+      - name: Disk image (previous build)
+        if: steps.builds.outputs.skip != 'true'
+        run: |
+          ssh-keygen -q -t ed25519 -N '' -f vm-key
+          sudo truncate -s 60G /mnt/disk.raw
+          sudo podman run --rm --privileged --pid=host --net=host --security-opt label=type:unconfined_t \
+            -v /dev:/dev -v /var/lib/containers:/var/lib/containers -v /mnt:/output \
+            -v ./vm-key.pub:/vm-key.pub:ro \
+            localhost/vm-old \
+            bootc install to-disk --via-loopback --generic-image --wipe --filesystem btrfs \
+              --source-imgref registry:127.0.0.1:5000/arkadeos:test --target-imgref 10.0.2.2:5000/arkadeos:test \
+              --karg console=ttyS0,115200 \
+              --root-ssh-authorized-keys /vm-key.pub /output/disk.raw
+          sudo chown "$USER" /mnt/disk.raw
+
+      - name: Update to the new build
+        if: steps.builds.outputs.skip != 'true'
+        run: |
+          tests/vm/update-path.sh /mnt/disk.raw vm-key vm-out \
+            "sudo podman push -q --tls-verify=false localhost/vm-new 127.0.0.1:5000/arkadeos:test"
+
+      - name: Results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: vm-test-update-path
           path: vm-out/
           if-no-files-found: ignore

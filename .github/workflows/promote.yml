@@ -1,4 +1,7 @@
 name: Promote to stable
+# A testing build becomes stable (T048): by hand with a tag, or every day by
+# itself for the newest testing build that passed its VM test and has been on
+# testing for three days.
 on:
   workflow_dispatch:
     inputs:
@@ -6,13 +9,48 @@ on:
         description: "Tested tag to release as stable (testing or testing-<version>)"
         default: testing
         required: true
+  schedule:
+    - cron: "0 5 * * *"
 
 permissions:
   contents: read
   packages: write
+  actions: read
 
 jobs:
+  pick:
+    runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.pick.outputs.tag }}
+    steps:
+      - name: Pick
+        id: pick
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ inputs.tag }}
+        run: |
+          if [ -n "${TAG}" ]; then echo "tag=${TAG}" >> "$GITHUB_OUTPUT"; exit 0; fi
+          src=docker://ghcr.io/tenarkhq/arkadeos
+          stable=$(skopeo inspect --format '{{ .Digest }}' "${src}:stable" 2>/dev/null || true)
+          limit=$(date -u -d '3 days ago' +%s)
+          for tag in $(skopeo list-tags "${src}" | jq -r '.Tags[] | select(test("^testing-[0-9]+\\.[0-9]{8}$"))' | sort -r); do
+            info=$(skopeo inspect "${src}:${tag}")
+            created=$(date -u -d "$(jq -r .Created <<< "${info}")" +%s)
+            [ "${created}" -le "${limit}" ] || continue
+            [ "$(jq -r .Digest <<< "${info}")" != "${stable}" ] || break
+            rev=$(jq -r '.Labels["org.opencontainers.image.revision"]' <<< "${info}")
+            passed=$(gh api "repos/${GITHUB_REPOSITORY}/actions/workflows/vm-test.yml/runs?head_sha=${rev}&status=success" --jq .total_count)
+            if [ "${passed}" -gt 0 ]; then
+              echo "tag=${tag}" >> "$GITHUB_OUTPUT"
+              echo "${tag} (${rev::7}): VM test passed, 3+ days on testing → stable" >> "$GITHUB_STEP_SUMMARY"
+              exit 0
+            fi
+          done
+          echo "Nothing to promote: stable is the newest tested build." >> "$GITHUB_STEP_SUMMARY"
+
   promote:
+    needs: pick
+    if: needs.pick.outputs.tag != ''
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -25,7 +63,7 @@ jobs:
       - name: Retag
         env:
           GITHUB_TOKEN: ${{ github.token }}
-          TAG: ${{ inputs.tag }}
+          TAG: ${{ needs.pick.outputs.tag }}
         run: |
           src=ghcr.io/tenarkhq/${{ matrix.image }}
           echo "$GITHUB_TOKEN" | skopeo login ghcr.io -u "${{ github.actor }}" --password-stdin

@@ -1,0 +1,43 @@
+#!/usr/bin/bash
+# One-time steps that bring new ArkadeOS defaults into the user's home (T051):
+# an image update changes /usr and /etc, not the settings a user already has.
+# Each step of /usr/share/arkadeos/migrations (NNN-name.sh, in order) runs once
+# per user, at login. Steps change only what the user left as it was:
+#   set_default FILE GROUP KEY OLD NEW
+#       KDE setting: NEW where the value is still the old default OLD (or unset)
+#   replace_app OLD.desktop NEW.desktop
+#       an app whose install changed: the dock and favourites point to the new one
+set -uo pipefail
+
+dir=${ARKADEOS_MIGRATIONS:-/usr/share/arkadeos/migrations}
+state="${XDG_STATE_HOME:-${HOME}/.local/state}/arkadeos/migrations"
+mkdir -p "${state}"
+cfg="${XDG_CONFIG_HOME:-${HOME}/.config}"
+
+set_default() {
+    local file=$1 group=$2 key=$3 old=$4 new=$5 now
+    now=$(kreadconfig6 --file "${cfg}/${file}" --group "${group}" --key "${key}")
+    if [[ -z "${now}" || "${now}" == "${old}" ]]; then
+        kwriteconfig6 --file "${cfg}/${file}" --group "${group}" --key "${key}" "${new}"
+    fi
+}
+
+replace_app() {
+    local f
+    for f in "${cfg}/plasma-org.kde.plasma.desktop-appletsrc" "${cfg}/kactivitymanagerd-statsrc"; do
+        [[ -f "${f}" ]] && sed -i "s|applications:$1|applications:$2|g" "${f}"
+    done
+}
+
+for step in "${dir}"/[0-9][0-9][0-9]-*.sh; do
+    [[ -f "${step}" ]] || continue
+    name=$(basename "${step}")
+    [[ -e "${state}/${name}" ]] && continue
+    # shellcheck source=/dev/null
+    if ( source "${step}" ); then
+        touch "${state}/${name}"
+    else
+        echo "migration ${name} failed; it runs again at the next login" >&2
+    fi
+done
+exit 0

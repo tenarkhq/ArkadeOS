@@ -1,0 +1,7 @@
+[Unit]
+Description=Tell the user when an ArkadeOS update waits for the reboot
+After=plasma-plasmashell.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/arkadeos-update notify

@@ -9,7 +9,7 @@ on:
     - cron: "30 1 * * *"
 
 permissions:
-  contents: read
+  contents: write
 
 concurrency:
   group: prefetch
@@ -67,6 +67,25 @@ jobs:
             { dnf5 -q download --arch x86_64 --arch noarch --destdir /out asusctl-rog-gui || echo "asusctl-rog-gui: not in the repo"; }'
           rm -rf "$out" && mv "$out.new" "$out"
           ls -1 "$out"
+
+      # T048: the pinned bases follow Bazzite. A new base (kernel, Mesa, NVIDIA
+      # driver) becomes a commit on main; the 03:00 build makes it the testing
+      # image, the VM test checks it, and promote.yml takes it to stable once
+      # it has passed and been on testing for three days.
+      - name: Base update
+        run: |
+          tools/bump-bases.sh
+          git diff --quiet bases.txt && exit 0
+          changes=$(tools/base-changes.sh)
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -q -F - bases.txt <<MSG
+          Base update: newest Bazzite
+
+          ${changes:-No kernel, Mesa or NVIDIA driver change.}
+          MSG
+          git push origin HEAD:main
+          { echo "### Base update"; echo '```'; echo "${changes}"; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Cache size
         if: always()

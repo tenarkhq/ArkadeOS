@@ -1,0 +1,11 @@
+# T048: "update ready, starts at the next reboot" in the top bar, once per
+# new version. The daily update runs at 04:00; checked every hour and after login.
+[Unit]
+Description=Check for an ArkadeOS update waiting for the reboot
+
+[Timer]
+OnStartupSec=5min
+OnUnitActiveSec=1h
+
+[Install]
+WantedBy=timers.target

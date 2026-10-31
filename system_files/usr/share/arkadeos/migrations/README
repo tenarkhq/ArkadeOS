@@ -1,0 +1,6 @@
+One-time steps for the users' home settings (T051), run by
+/usr/libexec/arkadeos/migrate at login, each once per user, in name order:
+NNN-what-it-does.sh, sourced in bash with set_default and replace_app
+available (see migrate). A new user gets the new defaults from /etc/xdg anyway,
+so a step only has to bring an existing user from the old default to the new
+one, and must leave alone what the user changed.
