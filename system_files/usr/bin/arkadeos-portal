@@ -52,7 +52,7 @@ def catalog():
         if not line or line.startswith("#"):
             continue
         item_id, group, kind, ref, en, hun = line.split("\t")
-        items.append({"id": item_id, "group": group, "name": tr(en, hun)})
+        items.append({"id": item_id, "group": group, "kind": kind, "name": tr(en, hun)})
     return items
 
 
@@ -125,7 +125,12 @@ class AppsTab(QWidget):
             for n, item in enumerate(members):
                 check = QCheckBox(item["name"])
                 check.setEnabled(False)
-                self.boxes[item["id"]] = check
+                if item["kind"] == "fixed":
+                    # Part of the image: shown so the list is complete, never removed.
+                    check.setChecked(True)
+                    check.setToolTip(tr("Always on this machine", "Mindig rajta van a gépen"))
+                else:
+                    self.boxes[item["id"]] = check
                 box_layout.addWidget(check, n // 2, n % 2)
             grid.addWidget(box)
         grid.addStretch()
@@ -150,7 +155,7 @@ class AppsTab(QWidget):
         layout.addLayout(row)
 
         self.thread = QThread()
-        self.reader = StatusReader([i["id"] for i in self.items])
+        self.reader = StatusReader([i["id"] for i in self.items if i["kind"] != "fixed"])
         self.reader.moveToThread(self.thread)
         self.thread.started.connect(self.reader.work)
         self.reader.found.connect(self.found)

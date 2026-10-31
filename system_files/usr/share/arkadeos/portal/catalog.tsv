@@ -1,5 +1,7 @@
 # ArkadeOS Portal catalog (T037, T026): id, group, kind, ref, English name, Hungarian name
-# kind: flatpak | launcher | brew | switch | ujust | quadlet | script (portal-item)
+# kind: flatpak | launcher | brew | switch | ujust | quadlet | script (portal-item),
+# fixed: part of the image, shown ticked and cannot be removed
+steam	base	fixed	steam	Steam	Steam
 firefox	base	flatpak	org.mozilla.firefox	Firefox	Firefox
 chrome	base	flatpak	com.google.Chrome	Google Chrome	Google Chrome
 vlc	base	flatpak	org.videolan.VLC	VLC	VLC
