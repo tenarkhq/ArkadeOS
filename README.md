@@ -72,7 +72,7 @@ The ArkadeOS Portal does the same from a window, and also switches the channel (
 | Balanced | Automatically on AC | Balanced CPU mode with boost |
 | Gaming | Automatically while a game runs | Performance CPU mode, low-latency scheduler, GPU boost |
 | Max | Manually, on AC only | Deep sleep states off, fans and platform profile at maximum |
-| WoW | Automatically while World of Warcraft runs, or manually | Gaming for the CPU, the graphics card held back to 60% so power and cooling go to the CPU (`percent=` in `/etc/arkadeos/gpu-cap.conf`) |
+| WoW | Automatically while World of Warcraft runs, or manually | Gaming for the CPU, the graphics card held back to 60% of its power (TGP; on ASUS also Dynamic Boost off) so power and cooling go to the CPU (`percent=` in `/etc/arkadeos/gpu-cap.conf`) |
 
 ## Known limitations
 

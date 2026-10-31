@@ -277,6 +277,16 @@ check "GPU held back to 60% and let go" 'ARKADEOS_DRM=/run/gpu-test /usr/libexec
     ARKADEOS_DRM=/run/gpu-test /usr/libexec/arkadeos/gpu-cap stop &&
     test "$(cat /run/gpu-test/card0/device/hwmon/hwmon0/power1_cap)" = 150000000 &&
     test "$(cat /run/gpu-test/card1/gt_max_freq_mhz)" = 1500 && test ! -e /run/arkadeos/gpu-cap.saved'
+# ASUS laptop with NVIDIA: the firmware's GPU TGP and Dynamic Boost (stand-in
+# nvidia-smi that refuses -pl, as laptop GPUs do, and stand-in attributes).
+ssh_vm 'mkdir -p /run/tgp-test/bin /run/tgp-test/fw/dgpu_tgp /run/tgp-test/fw/nv_dynamic_boost && cd /run/tgp-test &&
+    printf "#!/bin/sh\ncase \"\$1\" in -pl) exit 1;; -L) echo GPU 0;; esac\n" > bin/nvidia-smi && chmod +x bin/nvidia-smi &&
+    echo 115 > fw/dgpu_tgp/current_value && echo 115 > fw/dgpu_tgp/max_value && echo 55 > fw/dgpu_tgp/min_value &&
+    echo 25 > fw/nv_dynamic_boost/current_value && echo 5 > fw/nv_dynamic_boost/min_value'
+check "ASUS GPU TGP to 60%, Dynamic Boost off, then back" 'export PATH=/run/tgp-test/bin:$PATH ARKADEOS_FW=/run/tgp-test/fw ARKADEOS_DRM=/run/tgp-test &&
+    /usr/libexec/arkadeos/gpu-cap start && test "$(cat /run/tgp-test/fw/dgpu_tgp/current_value)" = 69 &&
+    test "$(cat /run/tgp-test/fw/nv_dynamic_boost/current_value)" = 5 && /usr/libexec/arkadeos/gpu-cap stop &&
+    test "$(cat /run/tgp-test/fw/dgpu_tgp/current_value)" = 115 && test "$(cat /run/tgp-test/fw/nv_dynamic_boost/current_value)" = 25'
 ssh_vm /usr/libexec/arkadeos/power-set wow || true
 sleep 4
 check "WoW profile" "tuned-adm active | grep -q arkadeos-wow && ${session} arkadeos-power status | grep -qx profile=wow &&

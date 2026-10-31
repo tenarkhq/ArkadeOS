@@ -1,14 +1,19 @@
 #!/usr/bin/bash
 # TuneD script of the WoW profile (T055): holds the graphics card back to a
-# share of its full speed while the profile is on, and lets it go after.
+# share of its full power (TGP) while the profile is on, and lets it go after.
 #   gpu-cap start|stop
 # The share is percent= in /etc/arkadeos/gpu-cap.conf (default 60).
-#   NVIDIA: the highest graphics clock (nvidia-smi).
+#   NVIDIA, the first that the machine allows:
+#     ASUS laptop: the firmware's GPU TGP (asus-armoury, as G-Helper sets it),
+#       and Dynamic Boost at its lowest, so the shared budget stays with the CPU;
+#     desktop card: the power limit (nvidia-smi -pl; laptop GPUs refuse it);
+#     else the highest graphics clock (nvidia-smi -lgc).
 #   AMD card: the power limit (amdgpu power1_cap; only cards have it).
 #   Intel built-in: the highest clock, only beside an NVIDIA or AMD card; a
 #   game on the built-in GPU alone keeps all of it.
 # Values changed are kept in /run/arkadeos/gpu-cap.saved and put back on stop.
 drm=${ARKADEOS_DRM:-/sys/class/drm}  # a stand-in tree in the VM test
+fw=${ARKADEOS_FW:-/sys/class/firmware-attributes/asus-armoury/attributes}
 saved=/run/arkadeos/gpu-cap.saved
 log() { logger -t arkadeos-gpu-cap "gpu-cap: $*"; }
 
@@ -21,17 +26,49 @@ put() {
     echo "$2" > "$1"
 }
 
+# ASUS laptop: Dynamic Boost to its lowest, the GPU TGP to the share. Fails
+# when the firmware has no TGP setting.
+asus_tgp() {
+    local a=${fw}/dgpu_tgp max min cap
+    grep -qx asus <<< "$(arkadeos-vendor 2>/dev/null)" || [[ -n "${ARKADEOS_FW:-}" ]] || return 1
+    if [[ -f "${fw}/nv_dynamic_boost/min_value" ]]; then
+        put "${fw}/nv_dynamic_boost/current_value" "$(cat "${fw}/nv_dynamic_boost/min_value")" &&
+            log "ASUS Dynamic Boost at $(cat "${fw}/nv_dynamic_boost/min_value") W"
+    fi
+    [[ -f "${a}/current_value" && -f "${a}/max_value" ]] || return 1
+    max=$(cat "${a}/max_value") min=$(cat "${a}/min_value" 2>/dev/null || echo 0)
+    cap=$(( max * percent / 100 ))
+    (( cap < min )) && cap=${min}
+    put "${a}/current_value" "${cap}" && log "ASUS GPU TGP ${cap} of ${max} W"
+}
+
+# Desktop NVIDIA card: its power limit. Laptop GPUs refuse it.
+nvidia_pl() {
+    local def
+    def=$(nvidia-smi --query-gpu=power.default_limit --format=csv,noheader,nounits 2>/dev/null | head -1)
+    def=${def%%.*}
+    [[ "${def}" =~ ^[0-9]+$ ]] || return 1
+    nvidia-smi -pl "$(( def * percent / 100 ))" >/dev/null 2>&1 || return 1
+    grep -qs "^nvidia-pl " "${saved}" || echo "nvidia-pl ${def}" >> "${saved}"
+    log "NVIDIA power limit $(( def * percent / 100 )) of ${def} W"
+}
+
+nvidia_clock() {
+    local max
+    max=$(nvidia-smi --query-gpu=clocks.max.graphics --format=csv,noheader,nounits | head -1)
+    if [[ "${max}" =~ ^[0-9]+$ ]] && nvidia-smi -lgc "0,$(( max * percent / 100 ))" >/dev/null 2>&1; then
+        log "NVIDIA clock at most $(( max * percent / 100 )) of ${max} MHz"
+    else
+        log "NVIDIA: no power or clock limit available"
+    fi
+}
+
 start() {
     local discrete=false f max min cap
     mkdir -p /run/arkadeos
     if command -v nvidia-smi >/dev/null && nvidia-smi -L >/dev/null 2>&1; then
         discrete=true
-        max=$(nvidia-smi --query-gpu=clocks.max.graphics --format=csv,noheader,nounits | head -1)
-        if [[ "${max}" =~ ^[0-9]+$ ]] && nvidia-smi -lgc "0,$(( max * percent / 100 ))" >/dev/null 2>&1; then
-            log "NVIDIA clock at most $(( max * percent / 100 )) of ${max} MHz"
-        else
-            log "NVIDIA: the clock limit is not available"
-        fi
+        asus_tgp || nvidia_pl || nvidia_clock
     fi
     for f in ${drm}/card*/device/hwmon/hwmon*/power1_cap; do
         [[ -f "${f}" ]] || continue
@@ -63,7 +100,9 @@ start() {
 stop() {
     command -v nvidia-smi >/dev/null && nvidia-smi -rgc >/dev/null 2>&1
     if [[ -f "${saved}" ]]; then
-        while read -r f v; do echo "${v}" > "${f}"; done < "${saved}"
+        while read -r f v; do
+            if [[ "${f}" == nvidia-pl ]]; then nvidia-smi -pl "${v}" >/dev/null 2>&1; else echo "${v}" > "${f}"; fi
+        done < "${saved}"
         rm -f "${saved}"
     fi
     log "graphics card back to full speed"
