@@ -289,8 +289,11 @@ check "ASUS GPU TGP to 60%, Dynamic Boost off, then back" 'export PATH=/run/tgp-
     test "$(cat /run/tgp-test/fw/dgpu_tgp/current_value)" = 115 && test "$(cat /run/tgp-test/fw/nv_dynamic_boost/current_value)" = 25'
 ssh_vm /usr/libexec/arkadeos/power-set wow || true
 sleep 4
-check "WoW profile" "tuned-adm active | grep -q arkadeos-wow && ${session} arkadeos-power status | grep -qx profile=wow &&
-    journalctl -b -t arkadeos-gpu-cap | grep -q 'nothing held back'"
+check "WoW profile" 'tuned-adm active | grep -q arkadeos-wow'
+check "WoW in the top-bar switch" "${session} arkadeos-power status | grep -qx profile=wow"
+check "WoW: GPU limit script ran" "journalctl -b -t arkadeos-gpu-cap | grep -q 'nothing held back'"
+ssh_vm "tuned-adm active; ${session} arkadeos-power status; journalctl -b -t arkadeos-gpu-cap --no-pager;
+    journalctl -b -u tuned --no-pager | tail -30" > "${out}/wow-profile.txt" 2>&1 || true
 ssh_vm /usr/libexec/arkadeos/power-set balanced || true
 sleep 4
 check "back to Balanced after WoW" 'tuned-adm active | grep -q arkadeos-balanced && test ! -e /run/arkadeos/power-wow'
@@ -364,6 +367,7 @@ for app in org.mozilla.firefox:firefox com.google.Chrome:chrome com.discordapp.D
     sleep 25
     shot "app-${app#*:}"
     check "${app#*:} starts" "pgrep -u arkade -fi '/app/.*${app#*:}'"
+    ssh_vm "cat /tmp/${app%%:*}.log" > "${out}/app-${app#*:}.log" 2>&1 || true
 done
 sleep 10
 check "microphone noise filter set up" "test -f ${home}/autostart/com.github.wwmm.easyeffects.desktop &&
