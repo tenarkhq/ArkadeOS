@@ -76,9 +76,10 @@ done
 ssh_vm 'pkill -u arkade -f "arkadeos-portal --first-run"' || true
 uid=$(ssh_vm 'id -u arkade')
 # The user's session without a display: the Portal then runs installers
-# inline instead of in a terminal window.
-user="runuser -u arkade -- env HOME=/home/arkade USER=arkade XDG_RUNTIME_DIR=/run/user/${uid} DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/${uid}/bus PATH=/home/arkade/.local/bin:/home/linuxbrew/.linuxbrew/bin:/usr/local/bin:/usr/bin"
-gui="runuser -u arkade -- env HOME=/home/arkade USER=arkade XDG_RUNTIME_DIR=/run/user/${uid} WAYLAND_DISPLAY=wayland-0 QT_QPA_PLATFORM=wayland XDG_CURRENT_DESKTOP=KDE XDG_SESSION_TYPE=wayland DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/${uid}/bus"
+# inline instead of in a terminal window. It starts in the user's home, as
+# the Portal does.
+user="runuser -u arkade -- env -C /home/arkade HOME=/home/arkade USER=arkade XDG_RUNTIME_DIR=/run/user/${uid} DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/${uid}/bus PATH=/home/arkade/.local/bin:/home/linuxbrew/.linuxbrew/bin:/usr/local/bin:/usr/bin"
+gui="runuser -u arkade -- env -C /home/arkade HOME=/home/arkade USER=arkade XDG_RUNTIME_DIR=/run/user/${uid} WAYLAND_DISPLAY=wayland-0 QT_QPA_PLATFORM=wayland XDG_CURRENT_DESKTOP=KDE XDG_SESSION_TYPE=wayland DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/${uid}/bus"
 portal="${user} /usr/libexec/arkadeos/portal-item"
 install() {  # item, seconds; the log goes to the results
     step "installing $1"
@@ -98,6 +99,7 @@ ssh_vm 'pkill -u arkade -f com.obsproject.Studio' || true
 install sunshine 900
 check_wait "Sunshine running, its page answers" "systemctl --user -M arkade@ is-active app-dev.lizardbyte.app.Sunshine &&
     curl -ks -o /dev/null https://127.0.0.1:47990/" 180
+ssh_vm "${user} systemctl --user status --no-pager app-dev.lizardbyte.app.Sunshine; journalctl _UID=${uid} --no-pager | grep -i sunshine | tail -80" > "${out}/sunshine.txt" 2>&1 || true
 
 # T020: Mac keyboard.
 install toshy 1500
@@ -110,6 +112,7 @@ check_wait "Decky Loader running" 'systemctl is-active plugin_loader.service' 12
 # T019: the AI pack.
 install ollama 1800
 check "Ollama answers" "curl -fs http://127.0.0.1:11434/api/generate -d '{\"model\":\"qwen3:4b\",\"prompt\":\"Hi\",\"stream\":false,\"options\":{\"num_predict\":3}}' | jq -e .response"
+ssh_vm "${user} systemctl --user status --no-pager ollama; ${user} podman ps -a; ${user} podman exec ollama ollama list; ${user} podman logs --tail 40 ollama" > "${out}/ollama.txt" 2>&1 || true
 install open-webui 1200
 check_wait "Open WebUI page answers" 'curl -fs -o /dev/null http://127.0.0.1:3000/' 600
 shot open-webui
