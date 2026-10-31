@@ -202,3 +202,30 @@ jobs:
           name: vm-test-update-path
           path: vm-out/
           if-no-files-found: ignore
+
+  # T048: a base update that passed every test goes to main, and main is built
+  # at once as the next testing image.
+  merge-base-update:
+    name: base update to main
+    needs: [vm-test, update-path]
+    if: github.event_name == 'workflow_dispatch' && github.ref_name == 'base-update'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+      actions: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Merge and build
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh pr view base-update -R "${GITHUB_REPOSITORY}" --json state --jq .state | grep -q OPEN; then
+            gh pr merge base-update -R "${GITHUB_REPOSITORY}" --squash --delete-branch --match-head-commit "${GITHUB_SHA}"
+          else
+            # No pull request (see prefetch.yml): the tested commit itself.
+            git push --atomic origin "${GITHUB_SHA}:refs/heads/main" ":refs/heads/base-update"
+          fi
+          gh workflow run build.yml -R "${GITHUB_REPOSITORY}" --ref main

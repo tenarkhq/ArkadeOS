@@ -10,6 +10,8 @@ on:
 
 permissions:
   contents: write
+  pull-requests: write
+  actions: write
 
 concurrency:
   group: prefetch
@@ -69,23 +71,40 @@ jobs:
           ls -1 "$out"
 
       # T048: the pinned bases follow Bazzite. A new base (kernel, Mesa, NVIDIA
-      # driver) becomes a commit on main; the 03:00 build makes it the testing
-      # image, the VM test checks it, and promote.yml takes it to stable once
-      # it has passed and been on testing for three days.
+      # driver) becomes a pull request from the base-update branch; that branch
+      # is built and VM-tested (build.yml, vm-test.yml), and a passing test
+      # merges it. The next main build is the testing image, and promote.yml
+      # takes it to stable once it has passed and been on testing for three days.
       - name: Base update
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           tools/bump-bases.sh
           git diff --quiet bases.txt && exit 0
           changes=$(tools/base-changes.sh)
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout -q -B base-update
           git commit -q -F - bases.txt <<MSG
           Base update: newest Bazzite
 
           ${changes:-No kernel, Mesa or NVIDIA driver change.}
           MSG
-          git push origin HEAD:main
-          { echo "### Base update"; echo '```'; echo "${changes}"; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+          git push -q -f origin base-update
+          api=https://api.github.com/repos/${GITHUB_REPOSITORY}
+          auth=(-H "Authorization: Bearer ${GH_TOKEN}" -H "Accept: application/vnd.github+json")
+          body=$(jq -n --arg c "${changes:-No kernel, Mesa or NVIDIA driver change.}" \
+            '{title: "Base update: newest Bazzite", head: "base-update", base: "main",
+              body: ("```\n" + $c + "\n```\n\nBuilt and VM-tested from this branch; merged by itself when the test passes.")}')
+          open=$(curl -fsS "${auth[@]}" "${api}/pulls?head=${GITHUB_REPOSITORY_OWNER}:base-update&state=open" | jq length)
+          # Opening it needs "Allow GitHub Actions to create pull requests" in the
+          # repository settings; without it the branch is still tested and merged.
+          if [ "${open}" = 0 ]; then
+            curl -fsS "${auth[@]}" -X POST "${api}/pulls" -d "${body}" | jq -r .html_url ||
+              echo "::warning::No pull request: Actions may not open one in this repository"
+          fi
+          curl -fsS "${auth[@]}" -X POST "${api}/actions/workflows/build.yml/dispatches" -d '{"ref":"base-update"}'
+          { echo "### Base update (pull request from base-update)"; echo '```'; echo "${changes}"; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Cache size
         if: always()
