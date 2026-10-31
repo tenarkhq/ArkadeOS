@@ -11,6 +11,13 @@ qmp=${out}/qmp.sock
 disk=${out}/disk.qcow2
 qemu-img create -q -f qcow2 "${disk}" 60G
 cp /usr/share/OVMF/OVMF_VARS_4M.fd "${out}/vars.fd"
+# T061: a software TPM 2.0, kept from the install to the installed system.
+mkdir -p "${out}/tpm"
+tpm=()
+start_tpm() {
+    swtpm socket --tpm2 --tpmstate dir="${out}/tpm" --ctrl type=unixio,path="${out}/tpm.sock" --daemon
+    tpm=(-chardev socket,id=chrtpm,path="${out}/tpm.sock" -tpmdev emulator,id=tpm0,chardev=chrtpm -device tpm-crb,tpmdev=tpm0)
+}
 
 ssh_vm() {
     ssh -n -i "${key}" -p 2222 -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null \
@@ -55,12 +62,13 @@ if [[ "${RST:-}" == 1 ]]; then
 fi
 
 step "installing from the ISO"
+start_tpm
 # -no-reboot: the installer's reboot ends this QEMU, the next one boots the disk.
 qemu-system-x86_64 -enable-kvm -cpu host -smp 4 -m 8G -machine q35 \
     -drive if=pflash,format=raw,readonly=on,file=/usr/share/OVMF/OVMF_CODE_4M.fd \
     -drive if=pflash,format=raw,file="${out}/vars.fd" \
     -drive file="${disk}",if=virtio,format=qcow2 \
-    "${rst[@]}" -cdrom "${iso}" -boot once=d -no-reboot \
+    "${rst[@]}" "${tpm[@]}" -cdrom "${iso}" -boot once=d -no-reboot \
     -device virtio-vga -display none -nic user,model=virtio-net-pci \
     -serial file:"${out}/install-serial.log" -qmp unix:"${qmp}",server,nowait \
     -pidfile "${out}/qemu.pid" &
@@ -78,7 +86,8 @@ if kill -0 "${qemu}" 2>/dev/null; then
 fi
 
 step "booting the installed system"
-qemu-system-x86_64 -enable-kvm -cpu host -smp 4 -m 8G -machine q35 \
+start_tpm
+qemu-system-x86_64 -enable-kvm -cpu host -smp 4 -m 8G -machine q35 "${tpm[@]}" \
     -drive if=pflash,format=raw,readonly=on,file=/usr/share/OVMF/OVMF_CODE_4M.fd \
     -drive if=pflash,format=raw,file="${out}/vars.fd" \
     -drive file="${disk}",if=virtio,format=qcow2 \
@@ -133,6 +142,23 @@ fi
 check "hardware clock on local time" 'test "$(timedatectl show -p LocalRTC --value)" = yes'
 check "firewall on, ArkadeOS zone" 'firewall-cmd --state && test "$(firewall-cmd --get-default-zone)" = ArkadeOS'
 ssh_vm 'journalctl -b --no-pager -p warning' > "${out}/journal-warnings.txt" 2>&1 || true
+# T061: once the disk password is given, the TPM opens the disk: the next
+# boot reaches the system with no password typed.
+if [[ -n "${LUKS_PASSWORD:-}" ]]; then
+    check "disk set to open with the TPM" "echo '${LUKS_PASSWORD}' | /usr/libexec/arkadeos/tpm-unlock enroll &&
+        test \"\$(/usr/libexec/arkadeos/tpm-unlock status)\" = on"
+    ssh_vm 'systemctl reboot' || true
+    sleep 30
+    r=FAILED
+    for n in $(seq 60); do
+        if ssh_vm true 2>/dev/null; then r=ok; break; fi
+        sleep 5
+    done
+    [[ "${r}" == ok ]] || { failed=1; shot tpm-boot; }
+    echo "${r} disk opens with the TPM, no password typed" | tee -a "${out}/result.txt"
+    check "the password still opens the disk too" "printf %s '${LUKS_PASSWORD}' | cryptsetup open --test-passphrase --key-file=- \
+        \$(lsblk -nrpo NAME,FSTYPE | awk '\$2 == \"crypto_LUKS\" {print \$1; exit}')"
+fi
 kill "$(cat "${out}/qemu.pid")" || true
 cat "${out}/result.txt"
 exit "${failed}"

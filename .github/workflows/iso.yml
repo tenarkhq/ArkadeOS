@@ -48,7 +48,7 @@ jobs:
       - name: Tools
         run: |
           sudo apt-get update -q
-          sudo apt-get install -y -q qemu-system-x86 qemu-utils ovmf socat imagemagick
+          sudo apt-get install -y -q qemu-system-x86 qemu-utils ovmf socat imagemagick swtpm swtpm-tools
 
       - name: Fedora installer cache
         uses: actions/cache@v4
