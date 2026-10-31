@@ -114,18 +114,29 @@ echo "${ref}" > "${ARKADEOS_TMP:-/tmp}/arkadeos-image"
 # The installer pulls with Fedora's trust settings; the installed system
 # checks ArkadeOS's signature from then on (bootc switch below).
 echo "ostreecontainer --url=${ref} --transport=registry --no-signature-verification" > "${ARKADEOS_TMP:-/tmp}/arkadeos-image.ks"
+# The installed system learns the image and the hardware check's findings
+# here: a %post inside the new system cannot read the installer's /tmp, and
+# outside it the deployment's /etc is elsewhere.
+{
+    echo "%post --erroronfail --log=/var/log/arkadeos-install-info.log"
+    echo "mkdir -p /etc/arkadeos"
+    echo "echo '${ref}' > /etc/arkadeos/installed-image"
+    if [ -s "${ARKADEOS_TMP:-/tmp}/arkadeos-hwcheck.txt" ]; then
+        echo "base64 -d > /etc/arkadeos/hardware-check.txt <<'HWCHECK'"
+        base64 "${ARKADEOS_TMP:-/tmp}/arkadeos-hwcheck.txt"
+        echo "HWCHECK"
+    fi
+    echo "%end"
+} > "${ARKADEOS_TMP:-/tmp}/arkadeos-info.ks"
 %end
 
 %include /tmp/arkadeos-image.ks
+%include /tmp/arkadeos-info.ks
 
-%post --nochroot --erroronfail --log=/mnt/sysimage/var/log/arkadeos-install.log
-mkdir -p /mnt/sysimage/etc/arkadeos
-cp /tmp/arkadeos-image /mnt/sysimage/etc/arkadeos/installed-image
-[ -s /tmp/arkadeos-hwcheck.txt ] && cp /tmp/arkadeos-hwcheck.txt /mnt/sysimage/etc/arkadeos/hardware-check.txt
-%end
 
 %post --erroronfail --log=/var/log/arkadeos-install-chroot.log
 ref=$(cat /etc/arkadeos/installed-image)
+test -n "${ref}"
 # Updates come from the registry, with ArkadeOS's signature checked.
 bootc switch --mutate-in-place --enforce-container-sigpolicy --transport registry "${ref}"
 # Secure Boot: queue the key the drivers are signed with. At the first reboot

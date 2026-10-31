@@ -24,6 +24,17 @@ shot() {
     convert "${out}/$1.ppm" "${out}/$1.png" && rm "${out}/$1.ppm"
 }
 step() { echo "$(date -u +%T) $*"; }
+# Types text on the VM keyboard (lower-case letters, digits, minus), then Enter.
+type_line() {
+    local keys="" c
+    for (( i = 0; i < ${#1}; i++ )); do
+        c=${1:i:1}
+        [[ "${c}" == - ]] && c=minus
+        keys+="{\"execute\":\"send-key\",\"arguments\":{\"keys\":[{\"type\":\"qcode\",\"data\":\"${c}\"}]}}"$'\n'
+    done
+    keys+='{"execute":"send-key","arguments":{"keys":[{"type":"qcode","data":"ret"}]}}'
+    printf '%s\n%s\n' '{"execute":"qmp_capabilities"}' "${keys}" | socat - "UNIX-CONNECT:${qmp}" >/dev/null
+}
 
 step "installing from the ISO"
 # -no-reboot: the installer's reboot ends this QEMU, the next one boots the disk.
@@ -57,16 +68,24 @@ qemu-system-x86_64 -enable-kvm -cpu host -smp 4 -m 8G -machine q35 \
     -nic user,model=virtio-net-pci,hostfwd=tcp:127.0.0.1:2222-:22 \
     -serial file:"${out}/serial.log" -qmp unix:"${qmp}",server,nowait \
     -daemonize -pidfile "${out}/qemu.pid"
-ok=0
-for _ in $(seq 150); do
+# T024: the disk is encrypted; its password is typed at the boot screen.
+ok=0 typed=0
+for n in $(seq 150); do
     if ssh_vm true 2>/dev/null; then ok=$((ok + 1)); [[ ${ok} -ge 3 ]] && break; else ok=0; fi
+    if [[ -n "${LUKS_PASSWORD:-}" && ${typed} -lt 3 && $((n % 6)) == 0 ]]; then
+        shot "unlock-${n}"
+        type_line "${LUKS_PASSWORD}"
+        typed=$((typed + 1))
+    fi
     sleep 5
 done
 ssh_vm "timeout 600 systemctl is-system-running --wait" || true
 shot installed
 failed=0
 check() {
-    if ssh_vm "$2" >/dev/null 2>&1; then echo "ok $1"; else echo "FAILED $1"; failed=1; fi | tee -a "${out}/result.txt"
+    local r="ok"
+    ssh_vm "$2" >/dev/null 2>&1 || { r=FAILED; failed=1; }
+    echo "${r} $1" | tee -a "${out}/result.txt"
 }
 ssh_vm 'bootc status; cat /etc/arkadeos/installed-image; findmnt -R /; lsblk -f' > "${out}/installed.txt" 2>&1 || true
 check "installed and booted" 'grep -qx "PRETTY_NAME=\"ArkadeOS\"" /usr/lib/os-release'
@@ -74,6 +93,8 @@ check "right image for the graphics card (${expect})" "test \"\$(cat /etc/arkade
 check "updates from the registry, signature checked" "bootc status --json | jq -e '.spec.image.image == \"${expect}\" and .spec.image.signature != null and .spec.image.signature != \"insecure\"'"
 check "user account" 'id arkade && id -nG arkade | grep -qw wheel'
 check "home on its own subvolume" 'btrfs subvolume show /var/home'
+[[ -n "${LUKS_PASSWORD:-}" ]] && check "disk encrypted (LUKS)" 'lsblk -nro FSTYPE | grep -qx crypto_LUKS'
+check "firewall on, ArkadeOS zone" 'firewall-cmd --state && test "$(firewall-cmd --get-default-zone)" = ArkadeOS'
 ssh_vm 'journalctl -b --no-pager -p warning' > "${out}/journal-warnings.txt" 2>&1 || true
 kill "$(cat "${out}/qemu.pid")" || true
 cat "${out}/result.txt"
