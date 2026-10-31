@@ -17,6 +17,7 @@ heroic	stores	flatpak	com.heroicgameslauncher.hgl	Heroic (Epic, GOG, Amazon)	Her
 lutris	stores	flatpak	net.lutris.Lutris	Lutris	Lutris
 obs	stream	flatpak	com.obsproject.Studio	OBS Studio	OBS Studio
 gpurecorder	stream	flatpak	com.dec05eba.gpu_screen_recorder	GPU Screen Recorder (instant replay on a hotkey, like ShadowPlay)	GPU Screen Recorder (visszajátszás gyorsgombbal, mint a ShadowPlay)
+lsfg-vk	gaming	script	lsfg-vk	Frame generation (lsfg-vk, needs Lossless Scaling on Steam)	Képkocka-generálás (lsfg-vk, a Steames Lossless Scaling kell hozzá)
 sunshine	stream	ujust	setup-sunshine enable	Sunshine (stream games to other devices)	Sunshine (játék streamelése más eszközre)
 airplay	stream	switch	arkadeos-airplay	AirPlay receiver	AirPlay vevő
 decky	gaming	ujust	setup-decky install	Decky Loader (Steam game mode plugins)	Decky Loader (Steam játékmód bővítmények)

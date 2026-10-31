@@ -7,6 +7,10 @@
 #   portal-item --list                         every item: id, group, names
 set -uo pipefail
 
+# lsfg-vk (T056): the build ArkadeOS was tested with.
+LSFG_VERSION=2.0.0
+LSFG_SHA256=08bdbdf373a111022df87dac7aa87e3b564bb841f961552e3ca85fea12b5aa74
+
 catalog=/usr/share/arkadeos/portal/catalog.tsv
 brew=/home/linuxbrew/.linuxbrew/bin/brew
 apps="${XDG_DATA_HOME:-${HOME}/.local/share}/applications"
@@ -132,6 +136,7 @@ case "${kind}:${action}" in
         case "${item}" in
             claude-code) status test -x "${HOME}/.local/bin/claude" ;;
             toshy) status test -d "${HOME}/.config/toshy" ;;
+            lsfg-vk) status test -f "${HOME}/.local/lib/liblsfg-vk-layer.so" ;;
         esac
         ;;
     script:install)
@@ -144,12 +149,28 @@ case "${kind}:${action}" in
                 git clone --depth 1 https://github.com/RedBearAK/toshy "${src}"
                 in_terminal "${src}/setup_toshy.py" install
                 ;;
+            # T056: lsfg-vk, its makers' own build into ~/.local, as their guide
+            # says; the frame generation itself comes from the user's Lossless
+            # Scaling (Steam). Pinned, checksum checked.
+            lsfg-vk)
+                tarball="${XDG_CACHE_HOME:-${HOME}/.cache}/arkadeos/lsfg-vk-${LSFG_VERSION}.tar.xz"
+                mkdir -p "$(dirname "${tarball}")" "${HOME}/.local/share/arkadeos"
+                curl -fsSL -o "${tarball}" "https://builds.lsfg-vk.dev/lsfg-vk-${LSFG_VERSION}.tar.xz" &&
+                    echo "${LSFG_SHA256}  ${tarball}" | sha256sum -c --quiet || { rm -f "${tarball}"; exit 1; }
+                tar -tf "${tarball}" | grep -v '/$' > "${HOME}/.local/share/arkadeos/lsfg-vk.files" &&
+                    tar -xf "${tarball}" -C "${HOME}/.local" || exit 1
+                rm -f "${tarball}"
+                ;;
         esac
         ;;
     script:remove)
         case "${item}" in
             claude-code) rm -rf "${HOME}/.local/bin/claude" "${HOME}/.local/share/claude" ;;
             toshy) in_terminal "${HOME}/.local/bin/toshy-uninstall" ;;
+            lsfg-vk)
+                while read -r f; do rm -f "${HOME}/.local/${f#./}"; done < "${HOME}/.local/share/arkadeos/lsfg-vk.files"
+                rm -f "${HOME}/.local/share/arkadeos/lsfg-vk.files"
+                ;;
         esac
         ;;
     *) echo "${item}: cannot ${action}" >&2; exit 2 ;;

@@ -109,6 +109,11 @@ ssh_vm 'pkill -u arkade -x obs' || true
 # T059: GPU Screen Recorder, off by default, installed from the Portal.
 install gpurecorder 600
 check "GPU Screen Recorder installed" "flatpak info --system com.dec05eba.gpu_screen_recorder"
+# T056: frame generation (lsfg-vk), off by default, in and out from the Portal.
+install lsfg-vk 300
+check "frame generation layer seen by Vulkan" "${user} vulkaninfo --summary 2>/dev/null | grep -q VK_LAYER_LSFGVK_frame_generation"
+ssh_vm "${portal} lsfg-vk remove" || true
+check "frame generation removed" "test \$(${portal} lsfg-vk status) = off && ! ls /home/arkade/.local/lib/liblsfg-vk-layer.so"
 # Sunshine's own debug log, and the KDE portal's, show which screen sharing
 # step it waits on if it does not come up.
 ssh_vm "${user} sh -c 'mkdir -p .var/app/dev.lizardbyte.app.Sunshine/config/sunshine &&
