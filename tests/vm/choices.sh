@@ -106,6 +106,9 @@ check_wait "OBS starts" 'pgrep -u arkade -x obs' 120
 sleep 10
 shot obs
 ssh_vm 'pkill -u arkade -x obs' || true
+# T059: GPU Screen Recorder, off by default, installed from the Portal.
+install gpurecorder 600
+check "GPU Screen Recorder installed" "flatpak info --system com.dec05eba.gpu_screen_recorder"
 # Sunshine's own debug log, and the KDE portal's, show which screen sharing
 # step it waits on if it does not come up.
 ssh_vm "${user} sh -c 'mkdir -p .var/app/dev.lizardbyte.app.Sunshine/config/sunshine &&
