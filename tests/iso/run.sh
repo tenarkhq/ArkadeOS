@@ -125,9 +125,9 @@ check "chosen apps installed, the rest not" 'for i in $(seq 90); do
     flatpak info --system org.mozilla.firefox && flatpak info --system com.heroicgameslauncher.hgl &&
     flatpak info --system org.qbittorrent.qBittorrent && ! flatpak info --system com.google.Chrome'
 if [[ "${RST:-}" == 1 ]]; then
-    ssh_vm 'cat /var/log/arkadeos-rst.txt' > "${out}/rst.txt" 2>&1 || true
-    check "installer sees the Intel RST array" 'grep -q imsm /var/log/arkadeos-rst.txt &&
-        grep -A3 "== installer storage" /var/log/arkadeos-rst.txt | grep -qi -E "volume0|md12[0-9]"'
+    ssh_vm 'cat /etc/arkadeos-rst.txt' > "${out}/rst.txt" 2>&1 || true
+    check "installer sees the Intel RST array" 'grep -q imsm /etc/arkadeos-rst.txt &&
+        grep -A3 "== installer storage" /etc/arkadeos-rst.txt | grep -qi -E "volume0|md12[0-9]"'
 fi
 check "firewall on, ArkadeOS zone" 'firewall-cmd --state && test "$(firewall-cmd --get-default-zone)" = ArkadeOS'
 ssh_vm 'journalctl -b --no-pager -p warning' > "${out}/journal-warnings.txt" 2>&1 || true
