@@ -1,5 +1,5 @@
 [Unit]
-Description=Windows in the ArkadeOS boot menu
+Description=Windows and the look of the ArkadeOS boot menu
 After=local-fs.target boot.mount
 RequiresMountsFor=/boot
 ConditionPathIsDirectory=/boot/grub2

@@ -3,8 +3,8 @@
 # fixed one, so Windows is added by hand: every EFI system partition with
 # Windows's boot loader gets an entry in custom.cfg (read by the fixed menu),
 # and the menu then waits 5 seconds (05_arkadeos.cfg), so there is a moment
-# to choose. Runs at every start: a Windows installed later or removed is
-# picked up. /boot is mounted read-only, so it is made writable only for a
+# to choose. It also puts the menu's look (T009) on /boot. Runs at every
+# start: a Windows installed later or removed is picked up. /boot is mounted read-only, so it is made writable only for a
 # change and then put back.
 set -euo pipefail
 
@@ -44,4 +44,14 @@ if [[ -s "${new}" ]]; then
 elif [[ -f "${cfg}" ]] && head -1 "${cfg}" | grep -q 'ArkadeOS, T023'; then
     writable
     rm -f "${cfg}"
+fi
+
+# The boot menu's look (T009): the image's theme, kept the same on /boot,
+# where GRUB reads it (05_arkadeos.cfg).
+theme=/boot/grub2/themes/arkadeos
+if ! diff -rq /usr/share/arkadeos/grub-theme "${theme}" &>/dev/null; then
+    writable
+    rm -rf "${theme}"
+    mkdir -p "$(dirname "${theme}")"
+    cp -r /usr/share/arkadeos/grub-theme "${theme}"
 fi

@@ -415,6 +415,10 @@ check "no Bazzite Portal" '! rpm -q bazzite-portal && ! test -e /home/arkade/.co
     ! pgrep -f "yafti_gt[k]"'
 check "Windows in the boot menu" "grep -q 'chainloader /EFI/Microsoft/Boot/bootmgfw.efi' /boot/grub2/custom.cfg &&
     grep -q 'set timeout=5' /boot/grub2/grub.cfg"
+# T009: the boot menu's look is on /boot where GRUB reads it (its picture:
+# windows-chosen.png).
+check "boot menu look on /boot" "diff -r /usr/share/arkadeos/grub-theme /boot/grub2/themes/arkadeos &&
+    test -s /boot/grub2/themes/arkadeos/inter-24.pf2 && grep -q 'set theme=' /boot/grub2/grub.cfg"
 # T036: factory reset keeps the files and users, puts /etc back.
 check "factory reset: settings back, files and users stay" "echo '# changed' >> /etc/dnf/dnf.conf && touch /etc/arkadeos-test-added &&
     runuser -u arkade -- touch /home/arkade/keep-reset.txt &&
