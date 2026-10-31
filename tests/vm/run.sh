@@ -315,6 +315,8 @@ sleep 4
 check "WoW profile" 'tuned-adm active | grep -q arkadeos-wow'
 check "WoW in the top-bar switch" "${session} arkadeos-power status | grep -qx profile=wow"
 check "WoW: GPU limit script ran" "journalctl -b -t arkadeos-gpu-cap | grep -q 'nothing held back'"
+# TuneD runs only scripts inside the profile folders; ours start from there.
+check "TuneD ran every profile script" "! journalctl -b -u tuned | grep -q 'Paths outside of the profile directories'"
 ssh_vm "tuned-adm active; ${session} arkadeos-power status; journalctl -b -t arkadeos-gpu-cap --no-pager;
     journalctl -b -u tuned --no-pager | tail -30" > "${out}/wow-profile.txt" 2>&1 || true
 ssh_vm /usr/libexec/arkadeos/power-set balanced || true
@@ -394,9 +396,11 @@ for app in org.mozilla.firefox:firefox com.google.Chrome:chrome com.discordapp.D
     org.qbittorrent.qBittorrent:qbittorrent; do
     ssh_vm "nohup ${session} flatpak run ${app%%:*} > /tmp/${app%%:*}.log 2>&1 &"
     sleep 25
+    ssh_vm 'loginctl unlock-sessions' || true
     shot "app-${app#*:}"
-    check "${app#*:} starts" "pgrep -u arkade -fi '/app/.*${app#*:}'"
-    ssh_vm "cat /tmp/${app%%:*}.log" > "${out}/app-${app#*:}.log" 2>&1 || true
+    # qBittorrent starts as plain "qbittorrent" from the sandbox's PATH, not /app/...
+    check "${app#*:} starts" "pgrep -u arkade -fi '/app/.*${app#*:}' || pgrep -u arkade -xi '${app#*:}'"
+    ssh_vm "cat /tmp/${app%%:*}.log; ${session} flatpak ps" > "${out}/app-${app#*:}.log" 2>&1 || true
 done
 sleep 10
 check "microphone noise filter set up" "test -f ${home}/autostart/com.github.wwmm.easyeffects.desktop &&
