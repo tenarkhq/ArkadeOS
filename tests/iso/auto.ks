@@ -6,7 +6,7 @@ keyboard us
 timezone Europe/Budapest --utc
 zerombr
 clearpart --all --initlabel --disklabel=gpt
-autopart --type=btrfs
+autopart --type=btrfs --encrypted --passphrase=arkade-luks
 rootpw --lock
 user --name=arkade --groups=wheel --password=arkade-test --plaintext
 sshkey --username=root "@SSHKEY@"
