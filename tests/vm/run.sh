@@ -267,6 +267,27 @@ check "Max profile" 'tuned-adm active | grep -q arkadeos-max'
 ssh_vm /usr/libexec/arkadeos/power-set balanced || true
 sleep 4
 check "back to Balanced" 'tuned-adm active | grep -q arkadeos-balanced && test ! -e /run/arkadeos/power-max'
+# T058: Gaming, Max and WoW keep no power saving: PCI devices awake, NMI
+# watchdog off, and on a stand-in tree the rest (ASPM, USB, SATA, sound),
+# all back after the profile goes.
+ppd_set performance
+check "Gaming: no power saving" 'test "$(sysctl -n kernel.nmi_watchdog)" = 0 &&
+    ! grep -L -x on /sys/bus/pci/devices/*/power/control | grep -q . && test -s /run/arkadeos/no-power-save.saved'
+ppd_set balanced
+check "power saving back after Gaming" 'test ! -e /run/arkadeos/no-power-save.saved'
+ssh_vm 'd=/run/nps-test; mkdir -p $d/module/pcie_aspm/parameters $d/bus/pci/devices/0000:00:01.0/power \
+    $d/bus/usb/devices/1-1/power $d/class/scsi_host/host0 $d/module/snd_hda_intel/parameters &&
+    echo default > $d/module/pcie_aspm/parameters/policy && echo auto > $d/bus/pci/devices/0000:00:01.0/power/control &&
+    echo auto > $d/bus/usb/devices/1-1/power/control && echo 1 > $d/module/snd_hda_intel/parameters/power_save &&
+    echo med_power_with_dipm > $d/class/scsi_host/host0/link_power_management_policy'
+check "no power saving: ASPM, USB, SATA, sound, then back" 'd=/run/nps-test; export ARKADEOS_SYS=$d;
+    /usr/libexec/arkadeos/no-power-save start && test "$(cat $d/module/pcie_aspm/parameters/policy)" = performance &&
+    test "$(cat $d/bus/usb/devices/1-1/power/control)" = on && test "$(cat $d/module/snd_hda_intel/parameters/power_save)" = 0 &&
+    test "$(cat $d/class/scsi_host/host0/link_power_management_policy)" = max_performance &&
+    /usr/libexec/arkadeos/no-power-save stop && test "$(cat $d/module/pcie_aspm/parameters/policy)" = default &&
+    test "$(cat $d/bus/usb/devices/1-1/power/control)" = auto && test "$(cat $d/class/scsi_host/host0/link_power_management_policy)" = med_power_with_dipm'
+# T057: big shader caches for every game.
+check "shader cache 12 GB" "${session} systemctl --user show-environment | grep -qx __GL_SHADER_DISK_CACHE_SIZE=12000000000"
 # T055: WoW, full CPU with the graphics card held back. The VM has no
 # separate card, so the limit runs on a stand-in Intel and AMD tree.
 ssh_vm 'mkdir -p /run/gpu-test/card0/device/hwmon/hwmon0 /run/gpu-test/card1 && cd /run/gpu-test &&
@@ -327,11 +348,15 @@ sleep 20
 check "Balanced after the Akku game" 'tuned-adm active | grep -q arkadeos-balanced'
 # T055: World of Warcraft (Wow.exe under Wine) switches WoW on by itself,
 # then Balanced comes back. Stand-ins for its wineserver and Wow.exe.
-ssh_vm "nohup sh -c 'for i in \$(seq 20); do tuned-adm active; sleep 3; done' > /tmp/wow.log 2>&1 &"
+ssh_vm "nohup sh -c 'for i in \$(seq 20); do tuned-adm active; ${session} busctl --user get-property org.freedesktop.Notifications \
+    /org/freedesktop/Notifications org.freedesktop.Notifications Inhibited; sleep 3; done' > /tmp/wow.log 2>&1 &"
 ssh_vm "${session} bash -c '(exec -a wineserver sleep 30) & (exec -a Wow.exe sleep 30) & wait'" || true
 check "World of Warcraft on WoW" 'grep -q arkadeos-wow /tmp/wow.log'
+# T062: notifications wait while a game runs, and come again after.
+check "do not disturb while a game runs" 'grep -qx "b true" /tmp/wow.log'
 sleep 20
 check "Balanced after World of Warcraft" 'tuned-adm active | grep -q arkadeos-balanced && test ! -e /run/arkadeos/power-wow'
+check "notifications back after the game" "${session} busctl --user get-property org.freedesktop.Notifications /org/freedesktop/Notifications org.freedesktop.Notifications Inhibited | grep -qx 'b false'"
 
 step "apps"
 # T014: Battle.net on the image's GE-Proton, its installer reachable, and in
