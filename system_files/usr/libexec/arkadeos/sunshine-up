@@ -1,0 +1,9 @@
+#!/usr/bin/bash
+# Waits up to 90 seconds for Sunshine's page (port 47990); fails otherwise,
+# and its unit then starts it again (50-arkadeos.conf).
+for _ in $(seq 90); do
+    ss -Hltn 'sport = :47990' | grep -q . && exit 0
+    sleep 1
+done
+echo "Sunshine's page did not come up: starting it again"
+exit 1

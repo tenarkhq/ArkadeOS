@@ -85,13 +85,8 @@ case "${kind}:${action}" in
     ujust:install)
         # Sunshine is chosen to share the screen and take input: the desktop
         # allows it up front instead of asking when it starts unattended.
-        # Its saved screen share ("restore token") is not kept: with one, KDE
-        # waits on the screen choice that a fresh, allowed share skips.
-        if [[ "${item}" == sunshine ]]; then
+        [[ "${item}" == sunshine ]] &&
             flatpak permission-set kde-authorized remote-desktop dev.lizardbyte.app.Sunshine yes
-            mkdir -p "${HOME}/.var/app/dev.lizardbyte.app.Sunshine/config/sunshine"
-            ln -sfn /dev/null "${HOME}/.var/app/dev.lizardbyte.app.Sunshine/config/sunshine/portal_token"
-        fi
         in_terminal ujust ${ref}
         ;;
     ujust:remove)
