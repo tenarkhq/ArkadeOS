@@ -430,6 +430,10 @@ check "removed store gone from the dock" "! grep -q 'launchers=.*com.heroicgames
 # T037: the Portal installs what was left out and removes what is there.
 portal="${session} /usr/libexec/arkadeos/portal-item"
 check "Portal catalog" "test \$(${portal} --list | wc -l) -ge 20"
+# T055: the Games tab lists the factory, own and Steam games and saves the
+# choice (its own home, so the real Steam folder stays untouched).
+ssh_vm "echo $(base64 -w0 "${here}/portal-games.py") | base64 -d > /tmp/portal-games.py && install -d -o arkade /tmp/pg-home"
+check "Portal Games tab" "${session} env HOME=/tmp/pg-home python3 /tmp/portal-games.py | grep -qx 'portal games ok'"
 # Flatpak lets the desktop session's admin users install without a password;
 # this shell is not that session, so root installs here.
 check "Portal: Flatpak app in and out" "/usr/libexec/arkadeos/portal-item vesktop install &&

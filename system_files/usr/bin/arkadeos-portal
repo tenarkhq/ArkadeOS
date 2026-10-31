@@ -6,18 +6,22 @@ first login it opens by itself as the choice screen (T026, --first-run): the
 defaults are ticked, and what is chosen gets installed.
 System: update now, go back to the previous version, channel (stable or
 testing), the image for the graphics card, firmware, desktop defaults.
+Games: the power profile each game runs with (T055); arkadeos-power game
+keeps the list, a game not on it runs on Gaming.
 """
+import html
 import os
+import re
 import subprocess
 import sys
 from pathlib import Path
 
-from PySide6.QtCore import QLocale, QObject, QProcess, QThread, Signal
+from PySide6.QtCore import QLocale, QObject, QProcess, Qt, QThread, Signal
 from PySide6.QtGui import QIcon
 from PySide6.QtWidgets import (
     QApplication, QCheckBox, QComboBox, QGridLayout, QGroupBox, QHBoxLayout,
-    QLabel, QMessageBox, QPlainTextEdit, QPushButton, QScrollArea, QTabWidget,
-    QVBoxLayout, QWidget,
+    QHeaderView, QLabel, QLineEdit, QMessageBox, QPlainTextEdit, QPushButton,
+    QScrollArea, QTableWidget, QTabWidget, QToolButton, QVBoxLayout, QWidget,
 )
 
 ITEM = "/usr/libexec/arkadeos/portal-item"
@@ -368,6 +372,191 @@ class SystemTab(QWidget):
             f"Kész. Jelentkezz ki és be, hogy érvénybe lépjen. A beállításaid itt vannak: {backup}."))
 
 
+# Power profiles a game can run with (arkadeos-power, T011, T055).
+PROFILES = [
+    ("battery", tr("Battery", "Akku")),
+    ("balanced", tr("Balanced", "Kiegyensúlyozott")),
+    ("gaming", "Gaming"),
+    ("max", tr("Max (charger only)", "Max (csak töltőn)")),
+    ("wow", tr("WoW (full CPU, GPU held back)", "WoW (teljes CPU, visszafogott GPU)")),
+]
+FACTORY_GAMES = Path("/usr/share/arkadeos/game-profiles.conf")
+USER_GAMES = Path(os.environ.get("XDG_CONFIG_HOME", Path.home() / ".config")) / "arkadeos/game-profiles.conf"
+GAME_NAMES = {"wow.exe": ("World of Warcraft", "Battle.net"), "wowclassic.exe": ("WoW Classic", "Battle.net")}
+STEAM_ROOTS = [Path.home() / ".local/share/Steam", Path.home() / ".var/app/com.valvesoftware.Steam/.local/share/Steam"]
+# Steam's own tools are no games.
+STEAM_TOOLS = re.compile(r"^(Proton|Steam Linux Runtime|Steamworks Common)")
+
+
+def read_games(path):
+    out = {}
+    try:
+        for line in path.read_text().splitlines():
+            key, _, value = line.partition("=")
+            if key.strip() and not key.startswith("#") and value.strip():
+                out[key.strip()] = value.strip()
+    except OSError:
+        pass
+    return out
+
+
+def steam_games():
+    """AppId -> name of the installed Steam games, from every Steam library."""
+    games = {}
+    for root in STEAM_ROOTS:
+        libraries = {root}
+        try:
+            libraries |= {Path(p) for p in re.findall(r'"path"\s+"([^"]+)"',
+                                                       (root / "steamapps/libraryfolders.vdf").read_text())}
+        except OSError:
+            pass
+        for library in libraries:
+            for manifest in (library / "steamapps").glob("appmanifest_*.acf"):
+                try:
+                    text = manifest.read_text(errors="replace")
+                except OSError:
+                    continue
+                appid = re.search(r'"appid"\s+"(\d+)"', text)
+                name = re.search(r'"name"\s+"([^"]+)"', text)
+                if appid and name and not STEAM_TOOLS.match(name.group(1)):
+                    games[appid.group(1)] = name.group(1)
+    return games
+
+
+class GamesTab(QWidget):
+    def __init__(self):
+        super().__init__()
+        layout = QVBoxLayout(self)
+        intro = QLabel(tr(
+            "The power profile each game runs with. It switches on when the game starts, and "
+            "the profile before comes back when it exits. A game not on the list runs on Gaming.",
+            "Melyik játék milyen energiaprofillal fusson. A játék indulásakor ez kapcsol be "
+            "magától, és kilépéskor visszaáll az előző profil. Ami nincs a listán, Gaminggel fut."))
+        intro.setWordWrap(True)
+        layout.addWidget(intro)
+        self.table = QTableWidget(0, 4)
+        self.table.setHorizontalHeaderLabels([tr("Game", "Játék"), tr("From", "Honnan"),
+                                              tr("Power profile", "Energiaprofil"), ""])
+        header = self.table.horizontalHeader()
+        header.setSectionResizeMode(0, QHeaderView.Stretch)
+        for column in (1, 2, 3):
+            header.setSectionResizeMode(column, QHeaderView.ResizeToContents)
+        self.table.verticalHeader().hide()
+        self.table.setEditTriggers(QTableWidget.NoEditTriggers)
+        self.table.setSelectionMode(QTableWidget.NoSelection)
+        layout.addWidget(self.table, 1)
+
+        row = QHBoxLayout()
+        self.add = QPushButton(QIcon.fromTheme("list-add"), tr("Add a program…", "Program hozzáadása…"))
+        self.add.clicked.connect(lambda: self.adding(True))
+        row.addWidget(self.add)
+        self.name = QLineEdit()
+        self.name.setPlaceholderText(tr("The program's name, e.g. Diablo IV.exe", "A program neve, például Diablo IV.exe"))
+        self.name.returnPressed.connect(self.add_program)
+        row.addWidget(self.name, 1)
+        self.add_ok = QPushButton(tr("Add", "Hozzáadás"))
+        self.add_ok.clicked.connect(self.add_program)
+        row.addWidget(self.add_ok)
+        self.add_cancel = QPushButton(tr("Cancel", "Mégse"))
+        self.add_cancel.clicked.connect(lambda: self.adding(False))
+        row.addWidget(self.add_cancel)
+        row.addStretch()
+        layout.addLayout(row)
+        hint = QLabel(tr(
+            "Steam games come on the list by themselves. For another game give the program's name "
+            "(e.g. Wow.exe), even before it is installed. ✕ removes a program you added.",
+            "A Steam-játékok maguktól kerülnek a listára. Más játékhoz a program nevét kell megadni "
+            "(például Wow.exe), akkor is, ha a játék még nincs telepítve. A kézzel felvett programot "
+            "a ✕ törli."))
+        hint.setWordWrap(True)
+        layout.addWidget(hint)
+        self.status = QLabel()
+        layout.addWidget(self.status)
+        self.adding(False)
+        self.refresh()
+
+    def adding(self, on):
+        self.add.setVisible(not on)
+        for widget in (self.name, self.add_ok, self.add_cancel):
+            widget.setVisible(on)
+        if on:
+            self.name.setFocus()
+        else:
+            self.name.clear()
+
+    def rows(self):
+        """(key, name, from, factory profile or None, own profile or None, removable)"""
+        factory, own, steam = read_games(FACTORY_GAMES), read_games(USER_GAMES), steam_games()
+        keys = {k.lower(): k for k in list(factory) + list(own)}
+        out = []
+        for low, key in keys.items():
+            if key in steam:
+                continue
+            fac = next((v for k, v in factory.items() if k.lower() == low), None)
+            mine = next((v for k, v in own.items() if k.lower() == low), None)
+            name, source = GAME_NAMES.get(low, (re.sub(r"(?i)\.exe$", "", key), tr("program", "program")))
+            out.append((key, name, source, fac, mine, fac is None))
+        for appid, name in sorted(steam.items(), key=lambda kv: kv[1].lower()):
+            out.append((appid, name, "Steam", factory.get(appid), own.get(appid), False))
+        return out
+
+    def refresh(self):
+        rows = self.rows()
+        self.table.setRowCount(len(rows))
+        names = dict(PROFILES)
+        for i, (key, name, source, fac, mine, removable) in enumerate(rows):
+            label = QLabel(f"<b>{html.escape(name)}</b> <span style='color:gray'>{html.escape(key)}</span>")
+            label.setTextFormat(Qt.RichText)
+            self.table.setCellWidget(i, 0, label)
+            self.table.setCellWidget(i, 1, QLabel(source))
+            combo = QComboBox()
+            combo.addItem(tr(f"Default ({names[fac or 'gaming'].split(' (')[0]})",
+                             f"Alapértelmezett ({names[fac or 'gaming'].split(' (')[0]})"), "default")
+            for profile, text in PROFILES:
+                combo.addItem(text, profile)
+            index = combo.findData(mine) if mine else 0
+            combo.setCurrentIndex(max(index, 0))
+            combo.currentIndexChanged.connect(lambda _, k=key, n=name, c=combo: self.choose(k, n, c))
+            self.table.setCellWidget(i, 2, combo)
+            if removable:
+                remove = QToolButton()
+                remove.setText("✕")
+                remove.setToolTip(tr("Remove from the list", "Törlés a listáról"))
+                remove.clicked.connect(lambda _, k=key: self.remove(k))
+                self.table.setCellWidget(i, 3, remove)
+            else:
+                self.table.removeCellWidget(i, 3)
+
+    def power(self, key, profile):
+        result = subprocess.run(["arkadeos-power", "game", key, profile], capture_output=True, text=True)
+        if result.returncode:
+            QMessageBox.warning(self, "ArkadeOS", (result.stdout + result.stderr).strip())
+        return result.returncode == 0
+
+    def choose(self, key, name, combo):
+        if self.power(key, combo.currentData()):
+            self.status.setText(tr(f"Saved: {name} → {combo.currentText()}. It counts from its next start.",
+                                   f"Mentve: {name} → {combo.currentText()}. A következő indításától érvényes."))
+
+    def add_program(self):
+        key = self.name.text().strip()
+        if not key:
+            return
+        if not key.lower().endswith(".exe"):
+            key += ".exe"
+        if self.power(key, "gaming"):
+            self.adding(False)
+            self.refresh()
+            self.status.setText(tr(f"Added: {key}. Choose its profile in the list.",
+                                   f"Hozzáadva: {key}. A profilját a listában lehet választani."))
+
+    def remove(self, key):
+        if self.power(key, "default"):
+            self.refresh()
+            self.status.setText(tr(f"Removed: {key}. It runs on Gaming again.",
+                                   f"Törölve: {key}. Újra Gaminggel fut."))
+
+
 def main():
     first_run = "--first-run" in sys.argv
     if first_run and FIRST_RUN_DONE.exists():
@@ -380,6 +569,7 @@ def main():
     window.addTab(AppsTab(first_run), QIcon.fromTheme("applications-all"), tr("Apps", "Appok"))
     if not first_run:
         window.addTab(SystemTab(), QIcon.fromTheme("preferences-system"), tr("System", "Rendszer"))
+        window.addTab(GamesTab(), QIcon.fromTheme("applications-games"), tr("Games", "Játékok"))
     window.resize(760, 640)
     window.show()
     app.exec()
