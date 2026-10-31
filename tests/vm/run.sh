@@ -36,9 +36,18 @@ key() {
 step() { echo "$(date -u +%T) $*"; }
 
 step "boot"
+# T023: a second disk with a Windows boot partition (only its boot loader file)
+# for the boot menu entry.
+truncate -s 64M "${out}/windows.img"
+printf 'label: gpt\nstart=2048, type=C12A7328-F81F-11D2-BA4B-00A0C93EC93B\n' | sfdisk -q "${out}/windows.img"
+mkfs.vfat -F 16 --offset 2048 "${out}/windows.img" >/dev/null
+mmd -i "${out}/windows.img@@1M" ::EFI ::EFI/Microsoft ::EFI/Microsoft/Boot
+echo test > "${out}/bootmgfw.efi"
+mcopy -i "${out}/windows.img@@1M" "${out}/bootmgfw.efi" ::EFI/Microsoft/Boot/
 qemu-system-x86_64 -enable-kvm -cpu host -smp 4 -m 8G -machine q35 \
     -drive if=pflash,format=raw,readonly=on,file=/usr/share/OVMF/OVMF_CODE_4M.fd \
     -drive file="${disk}",if=virtio,format=raw \
+    -drive file="${out}/windows.img",if=virtio,format=raw \
     -device virtio-vga -display none \
     -nic user,model=virtio-net-pci,hostfwd=tcp:127.0.0.1:2222-:22 \
     -serial file:"${out}/serial.log" -qmp unix:"${qmp}",server,nowait \
@@ -88,8 +97,24 @@ for _ in $(seq 60); do
 done
 ssh_vm 'pgrep -u arkade -x plasmashell' >/dev/null || { shot desktop-missing; echo "plasmashell did not start" >&2; exit 1; }
 sleep 20
+# T026: the Portal opens by itself on the first login as the choice screen.
+shot portal-first-run
+if ssh_vm 'pgrep -u arkade -f "arkadeos-portal --first-run"' >/dev/null; then
+    echo "ok Portal choice screen on the first login" >> "${out}/apps.txt"
+else
+    echo "FAILED Portal choice screen on the first login" >> "${out}/apps.txt"
+fi
+ssh_vm 'pkill -u arkade -f "arkadeos-portal --first-run"' || true
+sleep 3
 shot desktop
 
+# T050: idle load of the fresh desktop, a minute after login: memory, CPU,
+# running services and the heaviest processes, for comparison between runs.
+sleep 40
+ssh_vm 'echo "== memory (MiB)"; free -m; echo "== load"; cat /proc/loadavg; echo "== CPU over 10 s"; vmstat 10 2 | tail -1
+    echo "== running system services"; systemctl list-units --type=service --state=running --no-legend --plain | cut -d" " -f1
+    echo "== running user services"; systemctl --user -M arkade@ list-units --type=service --state=running --no-legend --plain | cut -d" " -f1
+    echo "== top memory"; ps -eo rss,comm --sort=-rss | head -15' > "${out}/idle.txt" 2>&1 || true
 uid=$(ssh_vm 'id -u arkade')
 session="runuser -u arkade -- env XDG_RUNTIME_DIR=/run/user/${uid} WAYLAND_DISPLAY=wayland-0 QT_QPA_PLATFORM=wayland XDG_CURRENT_DESKTOP=KDE KDE_FULL_SESSION=true KDE_SESSION_VERSION=6 XDG_SESSION_TYPE=wayland DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/${uid}/bus"
 failed=0
@@ -305,10 +330,27 @@ ssh_vm "nohup ${session} gtk-launch arkadeos-webapp-arkadeos-github > /tmp/webap
 sleep 20
 shot webapp
 check "web app starts" "pgrep -u arkade -f 'class=arkadeos-webapp-arkadeos-github'"
-# T040: AirPlay receiver running, its ports open; AirPlay speakers module on.
-check "AirPlay receiver" "systemctl --user -M arkade@ is-active -q arkadeos-airplay.service arkadeos-airplay-audio.service &&
-    firewall-cmd --zone=ArkadeOS --query-service=arkadeos-airplay && rpm -q shairport-sync"
-check "AirPlay speakers (PipeWire RAOP)" "${session} pw-cli ls Module | grep -q raop-discover"
+# T040: AirPlay off by default (T050); switched on: receiver running, its
+# ports open, AirPlay speakers module loaded.
+check "AirPlay off by default" "test \"\$(${session} arkadeos-airplay status)\" = off && ! pgrep -x uxplay"
+ssh_vm "${session} arkadeos-airplay on; sleep 8" || true
+check "AirPlay receiver when on" "systemctl --user -M arkade@ is-active -q arkadeos-airplay.service arkadeos-airplay-audio.service &&
+    firewall-cmd --zone=ArkadeOS --query-service=arkadeos-airplay"
+check "AirPlay speakers when on (PipeWire RAOP)" "${session} pw-cli ls Module | grep -q raop-discover"
+ssh_vm "${session} arkadeos-airplay off" || true
+# T042, T045: one lighting for all devices, following the profile; mouse and
+# receiver tools installed; Solaar does not run without a Logitech receiver.
+check "RGB tools" "rpm -q openrgb piper libratbag-ratbagd solaar liquidctl input-remapper && command -v ddcutil &&
+    test \"\$(${session} arkadeos-rgb sync status)\" = on && ${session} arkadeos-rgb apply gaming"
+check "Solaar only with a receiver" '! pgrep -f solaar'
+# T052: the VM has no battery, so it is a desktop: Quiet instead of Akku,
+# CoolerControl for the fans, mainboard sensor drivers there.
+check "desktop: Quiet profile name, CoolerControl" "${session} arkadeos-power status | grep -qx has_battery=false &&
+    systemctl is-active -q coolercontrold.service && modinfo -F filename it87 nct6775 nct6687 asus_ec_sensors"
+# T043, T049: monitor control over DDC/CI, firmware updates through fwupd.
+check "monitor control (DDC/CI)" "command -v ddcutil && command -v arkadeos-monitor && lsmod | grep -q i2c_dev"
+check "firmware updates (fwupd)" "systemctl is-enabled -q fwupd-refresh.timer && systemctl --user -M arkade@ is-enabled -q arkadeos-firmware-check.timer &&
+    ${session} arkadeos-firmware devices"
 # T021: anti-cheat answer with its source.
 check "anti-cheat check" "${session} arkadeos-anticheat valorant | grep -q '✘ Valorant' &&
     ${session} arkadeos-anticheat 'world of warcraft' | grep -q 'areweanticheatyet.com'"
@@ -321,6 +363,58 @@ shot dock-heroic
 ssh_vm "rm /home/arkade/.local/share/applications/com.heroicgameslauncher.hgl.desktop &&
     systemctl --user -M arkade@ start arkadeos-session-setup.service && sleep 5" || true
 check "removed store gone from the dock" "! grep -q 'launchers=.*com.heroicgameslauncher.hgl' ${home}/plasma-org.kde.plasma.desktop-appletsrc"
+
+# T037: the Portal installs what was left out and removes what is there.
+portal="${session} /usr/libexec/arkadeos/portal-item"
+check "Portal catalog" "test \$(${portal} --list | wc -l) -ge 20"
+# Flatpak lets the desktop session's admin users install without a password;
+# this shell is not that session, so root installs here.
+check "Portal: Flatpak app in and out" "/usr/libexec/arkadeos/portal-item vesktop install &&
+    test \$(${portal} vesktop status) = on &&
+    /usr/libexec/arkadeos/portal-item vesktop remove && test \$(${portal} vesktop status) = off"
+check "Portal: store launcher in and out" "${portal} ea install && test \$(${portal} ea status) = on &&
+    test -f /home/arkade/.local/share/applications/org.arkadeos.EA.desktop &&
+    ${portal} ea remove && test \$(${portal} ea status) = off"
+check "Portal: Battle.net hidden and back" "${portal} battlenet remove && test \$(${portal} battlenet status) = off &&
+    ${portal} battlenet install && test \$(${portal} battlenet status) = on"
+check "Portal: switch item (tiling)" "${portal} tiling install && test \$(${portal} tiling status) = on &&
+    ${portal} tiling remove && test \$(${portal} tiling status) = off"
+check "Portal: AI pack not installed by default" "test \$(${portal} ollama status) = off && test \$(${portal} claude-code status) = off"
+check "Portal: first-start choice saved" "/usr/libexec/arkadeos/apps-choose discord nonsense vlc &&
+    test \"\$(cat /etc/arkadeos/apps)\" = \"\$(printf 'discord\\nvlc')\""
+check "Portal: first-boot apps installed once, never again" "grep -qx vlc /var/lib/arkadeos/apps-done"
+check "Portal: channel and graphics image" "test \$(arkadeos-update channel) = test && test \$(arkadeos-update gpu) = other"
+check "Portal: desktop defaults restored" "runuser -u arkade -- sh -c 'rm -rf /tmp/rt && mkdir -p /tmp/rt/data &&
+    cp -r /home/arkade/.config /tmp/rt/config &&
+    XDG_CONFIG_HOME=/tmp/rt/config XDG_DATA_HOME=/tmp/rt/data /usr/libexec/arkadeos/reset-desktop' &&
+    ls /tmp/rt/data/arkadeos/reset-*/kdeglobals && ! test -e /tmp/rt/config/kdeglobals"
+ssh_vm "nohup ${session} arkadeos-portal >/tmp/portal.log 2>&1 & echo \$! > /tmp/portal.pid"
+sleep 15
+shot portal
+check "Portal window" "kill -0 \$(cat /tmp/portal.pid)"
+# T051: a one-time update step changes a default the user kept, leaves a
+# changed one alone, and runs only once.
+check "update steps for the user's settings" "runuser -u arkade -- sh -c 'mkdir -p /tmp/mig &&
+    printf \"set_default arkadeos-test A kept old new\nset_default arkadeos-test A changed old new\necho x >> /tmp/mig/runs\n\" > /tmp/mig/001-test.sh &&
+    kwriteconfig6 --file arkadeos-test --group A --key kept old && kwriteconfig6 --file arkadeos-test --group A --key changed mine &&
+    ARKADEOS_MIGRATIONS=/tmp/mig /usr/libexec/arkadeos/migrate && ARKADEOS_MIGRATIONS=/tmp/mig /usr/libexec/arkadeos/migrate &&
+    test \$(kreadconfig6 --file arkadeos-test --group A --key kept) = new &&
+    test \$(kreadconfig6 --file arkadeos-test --group A --key changed) = mine && test \$(wc -l < /tmp/mig/runs) = 1'"
+# T023: Windows on the other disk is in the boot menu, and the menu shows.
+check "Windows in the boot menu" "grep -q 'chainloader /EFI/Microsoft/Boot/bootmgfw.efi' /boot/grub2/custom.cfg &&
+    ! grub2-editenv list | grep -q menu_auto_hide=1"
+# T036: factory reset keeps the files and users, puts /etc back.
+check "factory reset: settings back, files and users stay" "echo '# changed' >> /etc/dnf/dnf.conf && touch /etc/arkadeos-test-added &&
+    runuser -u arkade -- touch /home/arkade/keep-reset.txt &&
+    /usr/libexec/arkadeos/reset-system &&
+    cmp /etc/dnf/dnf.conf /usr/etc/dnf/dnf.conf && ! test -e /etc/arkadeos-test-added &&
+    test -f /home/arkade/keep-reset.txt && id arkade && test -f /etc/plasmalogin.conf.d/00-vm-test.conf &&
+    systemctl is-enabled -q sshd.service"
+# T026, T046, T047: no maker's parts on a machine that is none of them; no
+# battery care switch without a battery.
+check "maker parts: none detected, none running" "test \$(arkadeos-vendor detect) = none && test -z \"\$(arkadeos-vendor)\" &&
+    ! systemctl is-active -q asusd.service && ${session} arkadeos-power status | grep -qx charge=none"
+ssh_vm 'kill $(cat /tmp/portal.pid)' || true
 
 step "security"
 # T024: firewall on with the ArkadeOS zone (no open port range), no telemetry.
@@ -381,6 +475,10 @@ if [[ -n "${UPDATE_PUSH:-}" ]]; then
     eval "${UPDATE_PUSH}"
     ssh_vm 'bootc upgrade' > "${out}/update.txt" 2>&1 || true
     check "update waits for the reboot" 'test "$(bootc status --json | jq -r .status.staged.image.imageDigest)" != null'
+    # T048: the top bar says so, once.
+    ssh_vm "timeout 15 ${session} arkadeos-update notify" || true
+    shot update-ready
+    check "update ready message" 'test -s /home/arkade/.local/state/arkadeos/update-notified'
     reboot_vm
     ssh_vm 'arkadeos-update status' >> "${out}/update.txt" 2>&1 || true
     check "update running after the reboot" 'test -f /usr/share/arkadeos/update-test && test -f /home/arkade/keep.txt'

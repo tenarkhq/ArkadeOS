@@ -3,7 +3,7 @@
 **Fast, gaming-first Linux built on Fedora Atomic.**
 A macOS-style KDE desktop, NVIDIA and AMD images, Steam and Proton, Battle.net, smart power profiles, and atomic updates you can roll back.
 
-> **Status: early development.** Nothing here is ready for daily use yet. Features below are the plan; each one is ticked off as it lands.
+> **Status: early development.** Nothing here is ready for daily use yet. "In testing" means the feature is in the image and checked in a virtual machine; real-hardware checks come with the public beta.
 
 ---
 
@@ -18,16 +18,21 @@ A macOS-style KDE desktop, NVIDIA and AMD images, Steam and Proton, Battle.net, 
 
 | | Feature | Status |
 |---|---|---|
-| 🎮 | Steam, Proton-GE, Proton Experimental, Gamescope, MangoHud, GameMode | planned |
-| 🕹️ | Game Mode session: boot straight into full-screen Steam, or switch from the desktop | planned |
-| ⚔️ | One-click Battle.net (World of Warcraft first) with a pinned, tested Proton | planned |
-| 💬 | Discord preinstalled, Vesktop optional for Wayland screen sharing with audio | planned |
-| ⚡ | Gaming kernel, sched_ext scheduler, NTSYNC | planned |
-| 🔋 | Power profiles: Battery, Balanced, Gaming, Max, switching automatically | planned |
-| 💻 | ASUS laptop support: fan modes, charge limit, MUX switch (asusctl, supergfxctl) | planned |
-| 🍎 | macOS-style KDE Plasma 6 with the WhiteSur theme, light and dark | planned |
-| 🤖 | Optional AI pack at first boot: local models (Ollama), AI command-line tools | planned |
-| 🔄 | Atomic image updates with rollback | planned |
+| 🎮 | Steam, Proton-GE, Proton Experimental, Gamescope, MangoHud, GameMode | in testing |
+| 🕹️ | Game Mode session: boot straight into full-screen Steam, or switch from the desktop | in testing |
+| ⚔️ | One-click Battle.net (World of Warcraft first), EA app and Ubisoft Connect, WowUp for addons | in testing |
+| 💬 | Discord preinstalled, Vesktop optional for Wayland screen sharing with audio | in testing |
+| 🎙️ | Microphone noise filter and low-latency audio | in testing |
+| ⚡ | Gaming kernel, sched_ext scheduler, NTSYNC | in testing |
+| 🔋 | Power profiles: Battery, Balanced, Gaming, Max, switching automatically, per game | in testing |
+| 💻 | Gaming laptops: ASUS (asusctl), MSI (msi-ec), Lenovo Legion; battery care at 80% | in testing |
+| 🌈 | RGB that follows the power profile (OpenRGB), Logitech and Razer mice, monitor control | in testing |
+| 🍎 | macOS-style KDE Plasma 6 with the WhiteSur theme, light and dark | in testing |
+| 🧩 | ArkadeOS Portal: pick apps at first login, add or remove anything later | in testing |
+| 🤖 | Optional AI pack: local models (Ollama, Open WebUI) sized to your GPU, AI command-line tools | in testing |
+| 🔄 | Atomic image updates with rollback, builds of the last 90 days, factory reset that keeps your files | in testing |
+| 🪟 | Installer next to Windows, with Windows in the boot menu | in testing |
+| 🔒 | Firewall on, telemetry off, nothing running in the background unless you turn it on | in testing |
 
 ## Images
 
@@ -36,7 +41,7 @@ A macOS-style KDE desktop, NVIDIA and AMD images, Steam and Proton, Battle.net, 
 | `arkadeos` | AMD and Intel graphics |
 | `arkadeos-nvidia` | NVIDIA GTX 16xx / RTX 20xx and newer, including hybrid laptops |
 
-Older NVIDIA cards (GTX 10xx and earlier) are not supported.
+Older NVIDIA cards (GTX 10xx and earlier) get the `arkadeos` image with the open nouveau driver: they work, but games run slower than on Windows. [Driver coverage](docs/drivers.md) lists which chips work out of the box.
 
 ## Install
 
@@ -53,8 +58,10 @@ Use `arkadeos` instead of `arkadeos-nvidia` for AMD or Intel graphics. Reboot to
 **Roll back to the previous version:**
 
 ```bash
-sudo bootc rollback
+arkadeos-update rollback
 ```
+
+The ArkadeOS Portal does the same from a window, and also switches the channel (stable or testing) and goes back to any build of the last 90 days.
 
 ## Power profiles
 
