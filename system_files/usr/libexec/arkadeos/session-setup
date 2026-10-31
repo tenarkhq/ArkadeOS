@@ -45,7 +45,9 @@ if has_app "${ee}.desktop" && [[ ! -e "${stamp}" ]]; then
     kwriteconfig6 --file "${conf}" --group Presets --key lastLoadedInputPreset "ArkadeOS mikrofon"
     cp /usr/share/arkadeos/easyeffects/easyeffects-service.desktop "${HOME}/.config/autostart/${ee}.desktop"
     touch "${stamp}"
-    flatpak run "${ee}" --service-mode --hide-window &>/dev/null &
+    # Its own unit: started from this one-shot service with a plain "&", it is
+    # killed when the service ends if flatpak has not yet moved it to its scope.
+    systemd-run --user --collect --quiet flatpak run "${ee}" --service-mode --hide-window
 fi
 
 # Stores on the dock (T018): one appears when it gets installed and goes when

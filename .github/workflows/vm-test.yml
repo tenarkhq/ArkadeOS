@@ -47,6 +47,13 @@ jobs:
           grep -c -E 'vmx|svm' /proc/cpuinfo || true
           test -w /dev/kvm || { echo "no KVM on this runner" >&2; exit 1; }
 
+      - name: Room on the disk
+        # The image unpacks to well over 10 GB; some runners have less free
+        # space than that until their unused SDKs are gone.
+        run: |
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache /usr/local/share/boost
+          df -h / /mnt
+
       - name: Tools
         run: |
           sudo apt-get update -q
@@ -129,6 +136,13 @@ jobs:
           sudo udevadm trigger --name-match=kvm
           sudo udevadm settle
           test -w /dev/kvm || { echo "no KVM on this runner" >&2; exit 1; }
+
+      - name: Room on the disk
+        # The image unpacks to well over 10 GB; some runners have less free
+        # space than that until their unused SDKs are gone.
+        run: |
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache /usr/local/share/boost
+          df -h / /mnt
 
       - name: Tools
         run: |

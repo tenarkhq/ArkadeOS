@@ -25,6 +25,9 @@ mkdir -p "${mnt}/boot"
 mount "${loop}p3" "${mnt}/boot"
 mkdir -p "${mnt}/boot/efi"
 mount "${loop}p2" "${mnt}/boot/efi"
+# The serial console goes to a file, which cannot answer systemd when it asks
+# the terminal for its size: the size is given here, else the boot can wait on
+# that answer for good.
 podman run --rm --privileged --pid=host --net=host --security-opt label=type:unconfined_t \
     -v /dev:/dev -v /var/lib/containers:/var/lib/containers -v "${mnt}:/target" \
     -v "${key}:/vm-key.pub:ro" \
@@ -32,4 +35,6 @@ podman run --rm --privileged --pid=host --net=host --security-opt label=type:unc
     bootc install to-filesystem --generic-image \
         --source-imgref "${source}" --target-imgref "${target}" \
         --karg console=ttyS0,115200 --karg console=tty0 \
+        --karg systemd.tty.rows.ttyS0=50 --karg systemd.tty.columns.ttyS0=160 \
+        --karg systemd.tty.rows.console=50 --karg systemd.tty.columns.console=160 \
         --root-ssh-authorized-keys /vm-key.pub /target
