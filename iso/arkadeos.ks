@@ -154,4 +154,7 @@ if mokutil --sb-state 2>/dev/null | grep -q enabled; then
         mokutil --import /etc/pki/akmods/certs/akmods-ublue.der /etc/pki/arkadeos/arkadeos-mok.der || true
     mkdir -p /var/lib/arkadeos && touch /var/lib/arkadeos/mok-queued
 fi
+# The hardware clock keeps local time, as Windows does: no clock jump after
+# switching between the two (10-31, Roland: local time, not UTC).
+printf '0.0 0 0.0\n0\nLOCAL\n' > /etc/adjtime
 %end

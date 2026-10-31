@@ -129,6 +129,8 @@ if [[ "${RST:-}" == 1 ]]; then
     check "installer sees the Intel RST array" 'grep -q imsm /etc/arkadeos-rst.txt &&
         sed -n "/== installer storage/,/== now/p" /etc/arkadeos-rst.txt | grep -qi -E "Volume0|mdbiosraidarray"'
 fi
+# auto.ks asks for UTC on purpose: ArkadeOS keeps local time anyway.
+check "hardware clock on local time" 'test "$(timedatectl show -p LocalRTC --value)" = yes'
 check "firewall on, ArkadeOS zone" 'firewall-cmd --state && test "$(firewall-cmd --get-default-zone)" = ArkadeOS'
 ssh_vm 'journalctl -b --no-pager -p warning' > "${out}/journal-warnings.txt" 2>&1 || true
 kill "$(cat "${out}/qemu.pid")" || true
