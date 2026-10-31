@@ -62,7 +62,7 @@ ssh_vm 'useradd -m -G wheel arkade &&
 desktop || { shot old-desktop-missing; echo "FAILED desktop on the previous build" >> "${out}/update-path.txt"; exit 1; }
 sleep 30
 shot old-desktop
-ssh_vm 'runuser -u arkade -- kwriteconfig6 --file kwinrc --group Windows --key FocusPolicy FocusFollowsMouse &&
+ssh_vm 'runuser -u arkade -- env HOME=/home/arkade kwriteconfig6 --file kwinrc --group Windows --key FocusPolicy FocusFollowsMouse &&
     runuser -u arkade -- sh -c "echo keep > /home/arkade/keep.txt"'
 before=$(ssh_vm "bootc status --json | jq -r .status.booted.image.imageDigest")
 ssh_vm 'flatpak list --app --columns=application' | sort > "${out}/apps-before.txt" || true
@@ -84,7 +84,7 @@ check "runs the new build" "test \"\$(bootc status --json | jq -r .status.booted
     test -f /usr/share/arkadeos/apps.list"
 check "desktop starts" 'pgrep -u arkade -x plasmashell'
 check "no failed services" 'test -z "$(systemctl --failed --no-legend --plain)"'
-check "user setting kept" 'test "$(runuser -u arkade -- kreadconfig6 --file kwinrc --group Windows --key FocusPolicy)" = FocusFollowsMouse'
+check "user setting kept" 'test "$(runuser -u arkade -- env HOME=/home/arkade kreadconfig6 --file kwinrc --group Windows --key FocusPolicy)" = FocusFollowsMouse'
 check "user file kept" 'test -f /home/arkade/keep.txt'
 check "update steps ran for the user" 'test -d /home/arkade/.local/state/arkadeos/migrations'
 check "previous build kept to go back to" 'test "$(bootc status --json | jq -r .status.rollback.image.imageDigest)" = '"'${before}'"

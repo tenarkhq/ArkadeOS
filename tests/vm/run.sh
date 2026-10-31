@@ -116,7 +116,7 @@ ssh_vm 'echo "== memory (MiB)"; free -m; echo "== load"; cat /proc/loadavg; echo
     echo "== running user services"; systemctl --user -M arkade@ list-units --type=service --state=running --no-legend --plain | cut -d" " -f1
     echo "== top memory"; ps -eo rss,comm --sort=-rss | head -15' > "${out}/idle.txt" 2>&1 || true
 uid=$(ssh_vm 'id -u arkade')
-session="runuser -u arkade -- env XDG_RUNTIME_DIR=/run/user/${uid} WAYLAND_DISPLAY=wayland-0 QT_QPA_PLATFORM=wayland XDG_CURRENT_DESKTOP=KDE KDE_FULL_SESSION=true KDE_SESSION_VERSION=6 XDG_SESSION_TYPE=wayland DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/${uid}/bus"
+session="runuser -u arkade -- env HOME=/home/arkade USER=arkade XDG_RUNTIME_DIR=/run/user/${uid} WAYLAND_DISPLAY=wayland-0 QT_QPA_PLATFORM=wayland XDG_CURRENT_DESKTOP=KDE KDE_FULL_SESSION=true KDE_SESSION_VERSION=6 XDG_SESSION_TYPE=wayland DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/${uid}/bus"
 failed=0
 while read -r app; do
     [[ -z "${app}" || "${app}" == \#* ]] && continue
@@ -311,6 +311,7 @@ sleep 10
 check "microphone noise filter set up" "test -f ${home}/autostart/com.github.wwmm.easyeffects.desktop &&
     grep -q 'ArkadeOS mikrofon' /home/arkade/.var/app/com.github.wwmm.easyeffects/config/easyeffects/db/easyeffectsrc"
 check "Easy Effects running" 'pgrep -u arkade -f easyeffects'
+ssh_vm "${session} pw-metadata -n settings" > "${out}/pw-settings.txt" 2>&1 || true
 check "low-latency audio" "${session} pw-metadata -n settings | grep -q \"clock.quantum' value:'256'\""
 # T041: VLC plays videos by default.
 check "VLC opens videos" "test \"\$(${session} xdg-mime query default video/mp4)\" = org.videolan.VLC.desktop"
@@ -394,7 +395,7 @@ shot portal
 check "Portal window" "kill -0 \$(cat /tmp/portal.pid)"
 # T051: a one-time update step changes a default the user kept, leaves a
 # changed one alone, and runs only once.
-check "update steps for the user's settings" "runuser -u arkade -- sh -c 'mkdir -p /tmp/mig &&
+check "update steps for the user's settings" "runuser -u arkade -- env HOME=/home/arkade sh -c 'mkdir -p /tmp/mig &&
     printf \"set_default arkadeos-test A kept old new\nset_default arkadeos-test A changed old new\necho x >> /tmp/mig/runs\n\" > /tmp/mig/001-test.sh &&
     kwriteconfig6 --file arkadeos-test --group A --key kept old && kwriteconfig6 --file arkadeos-test --group A --key changed mine &&
     ARKADEOS_MIGRATIONS=/tmp/mig /usr/libexec/arkadeos/migrate && ARKADEOS_MIGRATIONS=/tmp/mig /usr/libexec/arkadeos/migrate &&
@@ -481,7 +482,9 @@ if [[ -n "${UPDATE_PUSH:-}" ]]; then
     check "update ready message" 'test -s /home/arkade/.local/state/arkadeos/update-notified'
     reboot_vm
     ssh_vm 'arkadeos-update status' >> "${out}/update.txt" 2>&1 || true
-    check "update running after the reboot" 'test -f /usr/share/arkadeos/update-test && test -f /home/arkade/keep.txt'
+    check "update running after the reboot" 'test -f /usr/share/arkadeos/update-test'
+    check "user file kept through the update" 'test -f /home/arkade/keep.txt'
+    ssh_vm 'bootc status; ls -la /home/arkade' >> "${out}/update.txt" 2>&1 || true
     ssh_vm 'arkadeos-update rollback --yes' >> "${out}/update.txt" 2>&1 || true
     reboot_vm
     ssh_vm 'arkadeos-update status' >> "${out}/update.txt" 2>&1 || true
