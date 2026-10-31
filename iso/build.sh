@@ -64,5 +64,7 @@ ${PODMAN:-podman} run --rm -v "${work}:/work" -v "${cache}:/cache:ro" -v "$(dirn
     [ -f boot/grub2/grub.cfg ] && maps=\"\$maps -map boot/grub2/grub.cfg /boot/grub2/grub.cfg\"
     xorriso -indev /work/stage.iso -outdev /out/$(basename "${out}") -boot_image any replay \
         -append_partition 2 0xef efi.img \$maps >/dev/null 2>&1
+    # Whoever runs this can clean up the work folder afterwards (root podman too).
+    chmod -R a+rwX /work
 "
 ls -la "${out}"
