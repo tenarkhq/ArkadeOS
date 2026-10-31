@@ -1,0 +1,31 @@
+#!/usr/bin/bash
+# The encrypted disk opens with the TPM (T061): no password at boot, the
+# password stays as a fallback. Runs as root (pkexec).
+#   tpm-unlock status     none (no TPM2 or no encrypted disk) | on | off
+#   tpm-unlock enroll     the disk password on stdin; adds the TPM key to
+#                         every encrypted disk that has none yet
+# The key is bound to the Secure Boot state (PCR 7): if that changes, the
+# boot asks for the password again, and enroll sets it up anew.
+set -euo pipefail
+
+disks() { lsblk -nrpo NAME,FSTYPE | awk '$2 == "crypto_LUKS" {print $1}'; }
+has_tpm() { [[ -e /sys/class/tpm/tpm0/tpm_version_major && "$(cat /sys/class/tpm/tpm0/tpm_version_major)" == 2 ]]; }
+enrolled() { cryptsetup luksDump "$1" | grep -q systemd-tpm2; }
+
+case "${1:-}" in
+    status)
+        list=$(disks)
+        if ! has_tpm || [[ -z "${list}" ]]; then echo none; exit 0; fi
+        for d in ${list}; do enrolled "${d}" || { echo off; exit 0; }; done
+        echo on
+        ;;
+    enroll)
+        has_tpm || { echo "no TPM 2.0 in this machine" >&2; exit 1; }
+        IFS= read -r password
+        for d in $(disks); do
+            enrolled "${d}" && continue
+            PASSWORD="${password}" systemd-cryptenroll --tpm2-device=auto --tpm2-pcrs=7 "${d}"
+        done
+        ;;
+    *) echo "usage: $0 status | enroll" >&2; exit 2 ;;
+esac

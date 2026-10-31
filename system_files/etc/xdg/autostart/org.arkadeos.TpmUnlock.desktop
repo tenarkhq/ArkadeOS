@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=ArkadeOS disk unlock
+Comment=Sets the encrypted disk to open with the TPM
+Comment[hu]=A titkosított lemez TPM-es nyitásának beállítása
+Exec=/usr/libexec/arkadeos/tpm-unlock-ask
+NoDisplay=true
+X-KDE-autostart-phase=2

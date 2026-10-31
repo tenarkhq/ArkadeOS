@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE policyconfig PUBLIC "-//freedesktop//DTD PolicyKit Policy Configuration 1.0//EN"
+ "http://www.freedesktop.org/standards/PolicyKit/1/policyconfig.dtd">
+<policyconfig>
+  <vendor>ArkadeOS</vendor>
+  <!-- T061: the disk password itself is the proof; no second password asked. -->
+  <action id="org.arkadeos.tpm-unlock">
+    <description>Open the encrypted disk with the TPM</description>
+    <description xml:lang="hu">A titkosított lemez nyitása a TPM-mel</description>
+    <message>Setting up the disk to open with the TPM</message>
+    <message xml:lang="hu">A lemez TPM-es nyitásának beállítása</message>
+    <defaults>
+      <allow_any>no</allow_any>
+      <allow_inactive>no</allow_inactive>
+      <allow_active>yes</allow_active>
+    </defaults>
+    <annotate key="org.freedesktop.policykit.exec.path">/usr/libexec/arkadeos/tpm-unlock</annotate>
+  </action>
+</policyconfig>

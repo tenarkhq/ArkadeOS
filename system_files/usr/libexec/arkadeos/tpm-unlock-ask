@@ -1,0 +1,22 @@
+#!/usr/bin/bash
+# At login (T061): while the encrypted disk does not open with the TPM yet,
+# asks for the disk password once and sets it up. Cancel asks again at the
+# next login.
+[[ "$(pkexec /usr/libexec/arkadeos/tpm-unlock status 2>/dev/null)" == off ]] || exit 0
+if [[ "${LANG:-}" == hu* ]]; then
+    title="Titkosított lemez"
+    ask="A lemez ezután jelszó nélkül nyílik indításkor (a gép TPM-je őrzi a kulcsot). Add meg egyszer a lemez jelszavát:"
+    done="Kész: a lemez indításkor jelszó nélkül nyílik. A jelszó tartaléknak megmarad."
+    wrong="Ez nem a lemez jelszava. A következő bejelentkezéskor újra kérdezem."
+else
+    title="Encrypted disk"
+    ask="From now on the disk opens at boot without the password (the machine's TPM keeps the key). Give the disk password once:"
+    done="Done: the disk opens at boot without the password. The password stays as a fallback."
+    wrong="That is not the disk password. It asks again at the next login."
+fi
+password=$(kdialog --title "${title}" --password "${ask}") || exit 0
+if printf '%s\n' "${password}" | pkexec /usr/libexec/arkadeos/tpm-unlock enroll; then
+    kdialog --title "${title}" --msgbox "${done}"
+else
+    kdialog --title "${title}" --sorry "${wrong}"
+fi
