@@ -1,0 +1,62 @@
+# Drivers every ArkadeOS image must carry (T054), checked at every build
+# (build_files/61-drivers.sh): when a kernel update drops one, the build fails
+# before it reaches anyone. Module and what it drives.
+# Disks and RAID
+ahci	SATA (also Intel RST in AHCI mode)
+nvme	NVMe SSDs
+vmd	Intel VMD (Intel RST on newer laptops)
+raid1	Intel RST / software RAID mirror
+raid456	Intel RST / software RAID 5
+# Ethernet
+r8169	Realtek 1G, 2.5G (RTL8125) and 5G (RTL8126)
+igc	Intel 2.5G (I225, I226)
+e1000e	Intel 1G
+atlantic	Aquantia / Marvell 10G
+alx	Killer / Atheros 1G
+r8152	Realtek USB Ethernet adapters
+ax88179_178a	ASIX USB Ethernet adapters
+# Wi-Fi
+iwlwifi	Intel Wi-Fi (AX200, AX210, AX211, BE200)
+rtw89_8852be	Realtek RTL8852BE
+rtw89_8852ce	Realtek RTL8852CE
+rtw89_8922ae	Realtek RTL8922AE (Wi-Fi 7)
+rtw88_8822ce	Realtek RTL8822CE
+rtw88_8821ce	Realtek RTL8821CE
+mt7921e	MediaTek MT7921 / AMD RZ608, RZ616
+mt7925e	MediaTek MT7925 / AMD RZ717 (Wi-Fi 7)
+ath11k_pci	Qualcomm QCA6390, WCN6855
+ath12k	Qualcomm WCN7850 (Wi-Fi 7)
+brcmfmac	Broadcom (newer)
+rtw88_8812au	Realtek RTL8812AU USB adapters
+rtw88_8821au	Realtek RTL8811AU / RTL8821AU USB adapters
+rtw88_8822bu	Realtek RTL8822BU USB adapters
+rtw88_8814au	Realtek RTL8814AU USB adapters
+rtw89_8852au	Realtek RTL8852AU USB adapters
+rtw89_8852bu	Realtek RTL8852BU USB adapters
+mt7921u	MediaTek MT7921AU USB adapters
+mt7925u	MediaTek MT7925 USB adapters
+# Bluetooth
+btusb	Bluetooth (Intel, Realtek, MediaTek, Qualcomm)
+# Graphics
+amdgpu	AMD Radeon
+i915	Intel graphics (up to Alder Lake)
+xe	Intel Arc and newer Intel graphics
+# Sensors and fans
+k10temp	AMD processor temperature
+coretemp	Intel processor temperature
+it87	ITE mainboard sensors (Gigabyte, many others)
+nct6775	Nuvoton mainboard sensors (ASUS, MSI, ASRock)
+nct6687	Nuvoton NCT6687 (newer MSI mainboards)
+asus_ec_sensors	ASUS ROG / TUF mainboard sensors
+gigabyte_wmi	Gigabyte mainboard sensors
+# Controllers
+xpad	Xbox controllers (USB)
+xone_dongle	Xbox Wireless Adapter
+hid_playstation	DualShock 4, DualSense
+hid_nintendo	Switch Pro, Joy-Con
+hid_steam	Steam Controller, Steam Deck
+# Laptop makers
+asus_wmi	ASUS laptops
+msi_ec	MSI laptops
+lenovo_wmi_gamezone	Lenovo Legion modes
+ideapad_laptop	Lenovo battery care
