@@ -3,12 +3,21 @@
 # fixed one, so Windows is added by hand: every EFI system partition with
 # Windows's boot loader gets an entry in custom.cfg (read by the fixed menu),
 # and the menu then always shows, so there is a moment to choose. Runs at
-# every start: a Windows installed later or removed is picked up.
+# every start: a Windows installed later or removed is picked up. /boot is
+# mounted read-only, so it is made writable only for a change and then put
+# back.
 set -euo pipefail
 
 cfg=/boot/grub2/custom.cfg
 new=$(mktemp)
-trap 'rm -f "${new}"' EXIT
+remounted=0
+trap 'rm -f "${new}" "${new}.cfg"; if (( remounted )); then mount -o remount,ro /boot; fi' EXIT
+writable() {
+    if (( ! remounted )) && findmnt -no OPTIONS /boot | tr , '\n' | grep -qx ro; then
+        mount -o remount,rw /boot
+        remounted=1
+    fi
+}
 mnt=$(mktemp -d)
 while read -r dev uuid; do
     if mount -t vfat -o ro "${dev}" "${mnt}"; then
@@ -29,15 +38,18 @@ ENTRY
 done < <(lsblk -nrpo PATH,UUID,PARTTYPE | awk 'tolower($3) == "c12a7328-f81f-11d2-ba4b-00a0c93ec93b" { print $1, $2 }')
 rmdir "${mnt}" || true
 env=/boot/grub2/grubenv
-[[ -f "${env}" ]] || grub2-editenv "${env}" create
+[[ -f "${env}" ]] || { writable; grub2-editenv "${env}" create; }
 
 if [[ -s "${new}" ]]; then
     { echo "# Windows (ArkadeOS, T023): written by arkadeos-windows-entry at every start."; cat "${new}"; } > "${new}.cfg"
-    cmp -s "${new}.cfg" "${cfg}" || cp "${new}.cfg" "${cfg}"
-    rm -f "${new}.cfg"
-    grub2-editenv "${env}" unset menu_auto_hide
+    cmp -s "${new}.cfg" "${cfg}" || { writable; cp "${new}.cfg" "${cfg}"; }
+    if grub2-editenv "${env}" list | grep -q '^menu_auto_hide='; then
+        writable
+        grub2-editenv "${env}" unset menu_auto_hide
+    fi
     echo "Windows found: boot menu entry written, the menu shows at start"
 elif [[ -f "${cfg}" ]] && head -1 "${cfg}" | grep -q 'ArkadeOS, T023'; then
+    writable
     rm -f "${cfg}"
     grub2-editenv "${env}" set menu_auto_hide=1
 fi

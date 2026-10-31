@@ -2,11 +2,13 @@
 # Update path (T051): a VM installed from the previous ArkadeOS build is used
 # a little (a setting changed, a file saved), then updates to the new build
 # without reinstalling. After the reboot it runs the new build, reaches the
-# desktop, and the user's setting, file and apps are still there.
-# Usage: update-path.sh <raw disk> <root ssh private key> <out dir> <push command>
+# desktop, and the user's setting, file and apps are still there. Then it
+# goes back to the previous build by its dated tag, the way a build from the
+# last 90 days is picked (T036).
+# Usage: update-path.sh <raw disk> <root ssh private key> <out dir> <push command> [previous tag]
 set -euo pipefail
 
-disk=$1 key=$2 out=$3 push=$4
+disk=$1 key=$2 out=$3 push=$4 old_tag=${5:-}
 mkdir -p "${out}"
 out=$(readlink -f "${out}")
 qmp=${out}/qmp.sock
@@ -91,6 +93,19 @@ check "previous build kept to go back to" 'test "$(bootc status --json | jq -r .
 if ! cmp -s "${out}/apps-before.txt" "${out}/apps-after.txt"; then
     comm -23 "${out}/apps-before.txt" "${out}/apps-after.txt" | grep -q . &&
         { echo "FAILED apps kept: $(comm -23 "${out}/apps-before.txt" "${out}/apps-after.txt" | tr '\n' ' ')" >> "${out}/update-path.txt"; failed=1; }
+fi
+
+# A build from the last 90 days, picked by its tag.
+if [[ -n "${old_tag}" ]]; then
+    old=$(skopeo inspect --tls-verify=false --format '{{ .Digest }}' "docker://127.0.0.1:5000/arkadeos:${old_tag}")
+    ssh_vm "arkadeos-update version ${old_tag} --yes" > "${out}/version.txt" 2>&1 || true
+    ssh_vm 'systemctl reboot' || true
+    sleep 40
+    wait_ssh
+    ssh_vm "timeout 600 systemctl is-system-running --wait" || true
+    check "older build back by its tag" "test \"\$(bootc status --json | jq -r .status.booted.image.imageDigest)\" = '${old}' &&
+        bootc status --json | jq -r .status.booted.image.image.image | grep -q ':${old_tag}\$'"
+    check "user file kept going back" 'test -f /home/arkade/keep.txt'
 fi
 kill "$(cat "${out}/qemu.pid")" || true
 cat "${out}/update-path.txt"

@@ -139,6 +139,7 @@ jobs:
             exit 0
           fi
           echo "${REPO}:${previous} → ${REPO}:${TAG} (${new})" >> "$GITHUB_STEP_SUMMARY"
+          echo "previous=${previous}" >> "$GITHUB_OUTPUT"
           for pair in "old ${REPO}:${previous}" "new ${REPO}@${new}"; do
             set -- ${pair}
             sudo podman pull -q "$2"
@@ -147,6 +148,7 @@ jobs:
           done
           sudo podman run -d --name registry -p 127.0.0.1:5000:5000 docker.io/library/registry:2
           sudo podman push -q --tls-verify=false localhost/vm-old 127.0.0.1:5000/arkadeos:test
+          sudo podman push -q --tls-verify=false localhost/vm-old "127.0.0.1:5000/arkadeos:${previous}"
 
       - name: Disk image (previous build)
         if: steps.builds.outputs.skip != 'true'
@@ -160,7 +162,8 @@ jobs:
         if: steps.builds.outputs.skip != 'true'
         run: |
           tests/vm/update-path.sh /mnt/disk.raw vm-key vm-out \
-            "sudo podman push -q --tls-verify=false localhost/vm-new 127.0.0.1:5000/arkadeos:test"
+            "sudo podman push -q --tls-verify=false localhost/vm-new 127.0.0.1:5000/arkadeos:test" \
+            "${{ steps.builds.outputs.previous }}"
 
       - name: Results
         if: always()
