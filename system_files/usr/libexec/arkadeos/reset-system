@@ -4,12 +4,13 @@
 # are removed, the machine follows its channel's newest build again. Kept: the
 # home folders, users and passwords, disks and encryption, network
 # connections, machine name, language, keyboard, time zone, printers, the
-# login settings, home snapshots, RAID and ArkadeOS's own choices. The old
+# login settings, home snapshots, RAID, the hardware setup already done
+# (Bazzite's, which would otherwise run again) and ArkadeOS's own choices. The old
 # /etc is saved first.
 #   reset-system         as root; the changes count after a reboot
 set -euo pipefail
 
-keep='^((passwd|group|shadow|gshadow|subuid|subgid)-?|\.pwd\.lock|fstab|crypttab|hostname|machine-id|machine-info|locale\.conf|vconsole\.conf|localtime|adjtime|resolv\.conf|X11(/xorg\.conf\.d(/00-keyboard\.conf)?)?|NetworkManager(/system-connections(/.*)?)?|ssh(/.*)?|systemd(/system(/multi-user\.target\.wants(/sshd\.service)?)?)?|arkadeos(/.*)?|plasmalogin\.conf\.d(/.*)?|sddm\.conf\.d(/.*)?|cups(/.*)?|pki(/akmods(/.*)?)?|ostree(/.*)?|snapper(/.*)?|sysconfig(/snapper)?|mdadm\.conf|udisks2(/.*)?|containers(/registries\.conf\.d(/.*)?)?)$'
+keep='^((passwd|group|shadow|gshadow|subuid|subgid)-?|\.pwd\.lock|fstab|crypttab|hostname|machine-id|machine-info|locale\.conf|vconsole\.conf|localtime|adjtime|resolv\.conf|X11(/xorg\.conf\.d(/00-keyboard\.conf)?)?|NetworkManager(/system-connections(/.*)?)?|ssh(/.*)?|systemd(/system(/multi-user\.target\.wants(/sshd\.service)?)?)?|arkadeos(/.*)?|plasmalogin\.conf\.d(/.*)?|sddm\.conf\.d(/.*)?|cups(/.*)?|pki(/akmods(/.*)?)?|ostree(/.*)?|bazzite(/.*)?|snapper(/.*)?|sysconfig(/snapper)?|mdadm\.conf|udisks2(/.*)?|containers(/registries\.conf\.d(/.*)?)?)$'
 
 backup=/var/lib/arkadeos/etc-before-reset-$(date +%Y%m%d-%H%M%S)
 mkdir -p "${backup}"

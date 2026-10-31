@@ -11,7 +11,7 @@ new=$(mktemp)
 trap 'rm -f "${new}"' EXIT
 mnt=$(mktemp -d)
 while read -r dev uuid; do
-    if mount -o ro "${dev}" "${mnt}" 2>/dev/null; then
+    if mount -t vfat -o ro "${dev}" "${mnt}"; then
         if [[ -f "${mnt}/EFI/Microsoft/Boot/bootmgfw.efi" ]]; then
             cat >> "${new}" <<ENTRY
 menuentry 'Windows' --class windows --class os \$menuentry_id_option 'windows-${uuid}' {
@@ -22,17 +22,22 @@ menuentry 'Windows' --class windows --class os \$menuentry_id_option 'windows-${
 }
 ENTRY
         fi
-        umount "${mnt}"
+        umount "${mnt}" || umount -l "${mnt}"
+    else
+        echo "${dev}: cannot look inside"
     fi
 done < <(lsblk -nrpo PATH,UUID,PARTTYPE | awk 'tolower($3) == "c12a7328-f81f-11d2-ba4b-00a0c93ec93b" { print $1, $2 }')
-rmdir "${mnt}"
+rmdir "${mnt}" || true
+env=/boot/grub2/grubenv
+[[ -f "${env}" ]] || grub2-editenv "${env}" create
 
 if [[ -s "${new}" ]]; then
     { echo "# Windows (ArkadeOS, T023): written by arkadeos-windows-entry at every start."; cat "${new}"; } > "${new}.cfg"
     cmp -s "${new}.cfg" "${cfg}" || cp "${new}.cfg" "${cfg}"
     rm -f "${new}.cfg"
-    grub2-editenv - unset menu_auto_hide
+    grub2-editenv "${env}" unset menu_auto_hide
+    echo "Windows found: boot menu entry written, the menu shows at start"
 elif [[ -f "${cfg}" ]] && head -1 "${cfg}" | grep -q 'ArkadeOS, T023'; then
     rm -f "${cfg}"
-    grub2-editenv - set menu_auto_hide=1
+    grub2-editenv "${env}" set menu_auto_hide=1
 fi

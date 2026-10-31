@@ -275,7 +275,7 @@ step "apps"
 # T014: Battle.net on the image's GE-Proton, its installer reachable, and in
 # Steam Game Mode (a Steam account folder stands in for a Steam login).
 check "Battle.net launcher on GE-Proton" "${session} arkadeos-battlenet --check | grep -q '^proton=.*GE-Proton'"
-check "Battle.net installer reachable" "curl -fsSL -o /dev/null -r 0-0 \"\$(grep -o 'https://downloader[^\"]*' /usr/bin/arkadeos-battlenet)\""
+check "Battle.net installer reachable" "curl -fsSL -o /dev/null -r 0-0 \"\$(grep -o 'https://downloader[^\"]*' /usr/bin/arkadeos-store)\""
 ssh_vm "pkill -u arkade -x steam; sleep 5; runuser -u arkade -- mkdir -p /home/arkade/.local/share/Steam/userdata/1234/config &&
     systemctl --user -M arkade@ start arkadeos-session-setup.service" || true
 check "Battle.net in Steam Game Mode" 'grep -qa arkadeos-battlenet /home/arkade/.local/share/Steam/userdata/1234/config/shortcuts.vdf'
@@ -312,7 +312,9 @@ check "microphone noise filter set up" "test -f ${home}/autostart/com.github.wwm
     grep -q 'ArkadeOS mikrofon' /home/arkade/.var/app/com.github.wwmm.easyeffects/config/easyeffects/db/easyeffectsrc"
 check "Easy Effects running" 'pgrep -u arkade -f easyeffects'
 ssh_vm "${session} pw-metadata -n settings" > "${out}/pw-settings.txt" 2>&1 || true
-check "low-latency audio" "${session} pw-metadata -n settings | grep -q \"clock.quantum' value:'256'\""
+# PipeWire itself raises the minimum to 1024 inside a VM (its own rule for
+# virtual machines), so the test checks the setting, not the running value.
+check "low-latency audio" "${session} pw-config -n pipewire.conf merge context.properties | grep -Eq 'default.clock.quantum.{0,4}256'"
 # T041: VLC plays videos by default.
 check "VLC opens videos" "test \"\$(${session} xdg-mime query default video/mp4)\" = org.videolan.VLC.desktop"
 # T033: LACT GPU control daemon.
@@ -341,9 +343,9 @@ check "AirPlay speakers when on (PipeWire RAOP)" "${session} pw-cli ls Module | 
 ssh_vm "${session} arkadeos-airplay off" || true
 # T042, T045: one lighting for all devices, following the profile; mouse and
 # receiver tools installed; Solaar does not run without a Logitech receiver.
-check "RGB tools" "rpm -q openrgb piper libratbag-ratbagd solaar liquidctl input-remapper && command -v ddcutil &&
-    test \"\$(${session} arkadeos-rgb sync status)\" = on && ${session} arkadeos-rgb apply gaming"
-check "Solaar only with a receiver" '! pgrep -f solaar'
+check "RGB, mouse and cooler tools" "rpm -q openrgb piper libratbag-ratbagd solaar liquidctl input-remapper && command -v ddcutil"
+check "lighting follows the profile by default" "test \"\$(${session} arkadeos-rgb sync status)\" = on && ${session} arkadeos-rgb apply gaming"
+check "Solaar only with a receiver" '! pgrep -x solaar'
 # T052: the VM has no battery, so it is a desktop: Quiet instead of Akku,
 # CoolerControl for the fans, mainboard sensor drivers there.
 check "desktop: Quiet profile name, CoolerControl" "${session} arkadeos-power status | grep -qx has_battery=false &&
@@ -402,6 +404,7 @@ check "update steps for the user's settings" "runuser -u arkade -- env HOME=/hom
     test \$(kreadconfig6 --file arkadeos-test --group A --key kept) = new &&
     test \$(kreadconfig6 --file arkadeos-test --group A --key changed) = mine && test \$(wc -l < /tmp/mig/runs) = 1'"
 # T023: Windows on the other disk is in the boot menu, and the menu shows.
+ssh_vm 'journalctl -b -u arkadeos-windows-entry --no-pager; lsblk -fp; cat /boot/grub2/custom.cfg' > "${out}/windows-entry.txt" 2>&1 || true
 check "Windows in the boot menu" "grep -q 'chainloader /EFI/Microsoft/Boot/bootmgfw.efi' /boot/grub2/custom.cfg &&
     ! grub2-editenv list | grep -q menu_auto_hide=1"
 # T036: factory reset keeps the files and users, puts /etc back.
@@ -475,13 +478,15 @@ if [[ -n "${UPDATE_PUSH:-}" ]]; then
     ssh_vm 'echo keep > /home/arkade/keep.txt'
     eval "${UPDATE_PUSH}"
     ssh_vm 'bootc upgrade' > "${out}/update.txt" 2>&1 || true
+    ssh_vm 'rpm-ostree status' >> "${out}/update.txt" 2>&1 || true
     check "update waits for the reboot" 'test "$(bootc status --json | jq -r .status.staged.image.imageDigest)" != null'
     # T048: the top bar says so, once.
     ssh_vm "timeout 15 ${session} arkadeos-update notify" || true
     shot update-ready
     check "update ready message" 'test -s /home/arkade/.local/state/arkadeos/update-notified'
+    ssh_vm 'rpm-ostree status' >> "${out}/update.txt" 2>&1 || true
     reboot_vm
-    ssh_vm 'arkadeos-update status' >> "${out}/update.txt" 2>&1 || true
+    ssh_vm 'arkadeos-update status; journalctl -b -1 --no-pager -u ostree-finalize-staged -u bazzite-hardware-setup -u rpm-ostreed | tail -60' >> "${out}/update.txt" 2>&1 || true
     check "update running after the reboot" 'test -f /usr/share/arkadeos/update-test'
     check "user file kept through the update" 'test -f /home/arkade/keep.txt'
     ssh_vm 'bootc status; ls -la /home/arkade' >> "${out}/update.txt" 2>&1 || true

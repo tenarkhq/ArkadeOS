@@ -12,8 +12,8 @@ set -euo pipefail
 user_conf="${XDG_CONFIG_HOME:-${HOME}/.config}/arkadeos/rgb.conf"
 get() {  # key -> value, the user's file first
     local v
-    v=$(grep -hs "^$1=" "${user_conf}" | tail -1 | cut -d= -f2)
-    [[ -n "${v}" ]] || v=$(grep -hs "^$1=" /usr/share/arkadeos/rgb.conf | tail -1 | cut -d= -f2)
+    v=$(grep -hs "^$1=" "${user_conf}" | tail -1 | cut -d= -f2 || true)
+    [[ -n "${v}" ]] || v=$(grep -hs "^$1=" /usr/share/arkadeos/rgb.conf | tail -1 | cut -d= -f2 || true)
     echo "${v}"
 }
 put() {

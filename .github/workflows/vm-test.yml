@@ -135,10 +135,10 @@ jobs:
           GITHUB_TOKEN: ${{ github.token }}
         run: |
           echo "$GITHUB_TOKEN" | sudo podman login ghcr.io -u "${{ github.actor }}" --password-stdin
-          new=$(skopeo inspect --format '{{ .Digest }}' "docker://${REPO}:${TAG}")
+          new=$(sudo skopeo inspect --format '{{ .Digest }}' "docker://${REPO}:${TAG}")
           previous=
-          for tag in $(skopeo list-tags "docker://${REPO}" | jq -r '.Tags[] | select(test("^(testing|stable)-[0-9]+\\.[0-9]{8}$"))' | sort -t- -k2 -r); do
-            digest=$(skopeo inspect --format '{{ .Digest }}' "docker://${REPO}:${tag}")
+          for tag in $(sudo skopeo list-tags "docker://${REPO}" | jq -r '.Tags[] | select(test("^(testing|stable)-[0-9]+\\.[0-9]{8}$"))' | sort -t- -k2 -r); do
+            digest=$(sudo skopeo inspect --format '{{ .Digest }}' "docker://${REPO}:${tag}")
             if [ "${digest}" != "${new}" ]; then previous=${tag}; break; fi
           done
           if [ -z "${previous}" ]; then
