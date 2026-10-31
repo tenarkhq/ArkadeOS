@@ -14,12 +14,19 @@ Its profile, first match wins:
      (arkadeos-power game writes the first)
   3. gaming
 Profiles: battery, balanced, gaming, max (max only on the charger, else
-gaming). Max set by hand is left alone."""
+gaming). Max set by hand is left alone.
+
+It also sets the lighting of the profile in force whenever that changes, by
+hand or by itself (arkadeos-rgb, T042), and when a game starts, a model the
+local AI (Ollama, T019) holds lets go of the video memory (T050)."""
 import os
 import re
 import subprocess
 import time
 from pathlib import Path
+
+import json
+import urllib.request
 
 import dbus
 
@@ -105,6 +112,34 @@ def power_set(profile):
     subprocess.run(["pkexec", "/usr/libexec/arkadeos/power-set", profile], check=False)
 
 
+def profile_in_force(bus):
+    """battery | balanced | gaming | max, as arkadeos-power status shows it."""
+    if os.path.exists(MAX_FLAG):
+        return "max"
+    props = dbus.Interface(bus.get_object("net.hadess.PowerProfiles", "/net/hadess/PowerProfiles"),
+                           "org.freedesktop.DBus.Properties")
+    active = str(props.Get("net.hadess.PowerProfiles", "ActiveProfile"))
+    if active == "power-saver":
+        return "battery"
+    if active == "performance":
+        return "gaming"
+    return "battery" if on_battery(bus) else "balanced"
+
+
+def unload_ai_models():
+    """Ollama keeps a used model in video memory for a while; a game needs it."""
+    try:
+        with urllib.request.urlopen("http://127.0.0.1:11434/api/ps", timeout=2) as r:
+            models = [m["name"] for m in json.load(r).get("models", [])]
+        for name in models:
+            body = json.dumps({"model": name, "keep_alive": 0}).encode()
+            urllib.request.urlopen(urllib.request.Request(
+                "http://127.0.0.1:11434/api/generate", data=body,
+                headers={"Content-Type": "application/json"}), timeout=10).read()
+    except (OSError, ValueError):
+        pass  # no Ollama running
+
+
 def main():
     bus = dbus.SystemBus()
     ppd = dbus.Interface(bus.get_object("net.hadess.PowerProfiles", "/net/hadess/PowerProfiles"),
@@ -112,7 +147,16 @@ def main():
     cookie = None    # our PPD hold (battery or gaming)
     our_max = False  # we switched Max on for the game
     current = None   # profile we applied for the running game
+    lit = None       # profile whose lighting is set
     while True:
+        try:
+            now = profile_in_force(bus)
+            if now != lit:
+                lit = now
+                subprocess.Popen(["arkadeos-rgb", "apply", now], stdout=subprocess.DEVNULL,
+                                 stderr=subprocess.DEVNULL)
+        except dbus.exceptions.DBusException:
+            pass
         want = running_game()
         if want == "max":
             try:
@@ -141,6 +185,14 @@ def main():
             elif want == "max":
                 power_set("max")
                 our_max = True
+            # Marks a game on Max for no-game-running (no PPD hold then).
+            mark = Path(f"/run/user/{UID}/arkadeos-game-max")
+            if want == "max":
+                mark.touch()
+            else:
+                mark.unlink(missing_ok=True)
+            if want is not None and current is None:
+                unload_ai_models()
             current = want
         time.sleep(3)
 

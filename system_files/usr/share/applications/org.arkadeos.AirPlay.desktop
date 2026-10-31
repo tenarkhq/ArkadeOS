@@ -1,0 +1,15 @@
+[Desktop Entry]
+Type=Application
+Name=AirPlay on
+Name[hu]=AirPlay bekapcsolása
+Comment=Mirror an iPhone or Mac here; play sound on AirPlay speakers
+Comment[hu]=iPhone vagy Mac tükrözése ide; hang AirPlay-hangszórókon
+Exec=arkadeos-airplay on
+Icon=network-wireless
+Categories=Settings;Network;
+Actions=Off;
+
+[Desktop Action Off]
+Name=Turn off
+Name[hu]=Kikapcsolás
+Exec=arkadeos-airplay off

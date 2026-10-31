@@ -1,6 +1,6 @@
 #!/usr/bin/bash
 # Desktop extras: LACT GPU control (T033), Polonium auto-tiling, off by
-# default (T038), AirPlay receive and send (T040).
+# default (T038), AirPlay receive and send, off by default (T040).
 set -euo pipefail
 
 # T033: LACT from its author's COPR; lactd applies the GPU settings at boot.
@@ -24,7 +24,8 @@ rm -rf "${tmp}"
 test -f /usr/share/kwin/scripts/polonium/metadata.json
 
 # T040: UxPlay (screen and sound from iPhone/Mac), Shairport Sync (AirPlay
-# sound), PipeWire RAOP (sound to AirPlay speakers and Apple TV).
+# sound), PipeWire RAOP (sound to AirPlay speakers and Apple TV). Off until
+# switched on (arkadeos-airplay on), as nothing runs in the background
+# unasked (T050).
 dnf5 -y install --setopt=install_weak_deps=False uxplay shairport-sync
-cp /usr/share/pipewire/pipewire.conf.avail/50-raop.conf /usr/share/pipewire/pipewire.conf.d/
-systemctl --global enable arkadeos-airplay.service arkadeos-airplay-audio.service
+test -f /usr/share/pipewire/pipewire.conf.avail/50-raop.conf

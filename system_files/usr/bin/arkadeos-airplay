@@ -1,0 +1,29 @@
+#!/usr/bin/bash
+# AirPlay (T040), off by default (T050):
+#   arkadeos-airplay on      receive iPhone/Mac screen and sound (UxPlay, Shairport
+#                            Sync) and send sound to AirPlay speakers (PipeWire RAOP)
+#   arkadeos-airplay off
+#   arkadeos-airplay status
+set -euo pipefail
+
+raop="${XDG_CONFIG_HOME:-${HOME}/.config}/pipewire/pipewire.conf.d/50-raop.conf"
+units=(arkadeos-airplay.service arkadeos-airplay-audio.service)
+case "${1:-status}" in
+    on)
+        mkdir -p "$(dirname "${raop}")"
+        cp /usr/share/pipewire/pipewire.conf.avail/50-raop.conf "${raop}"
+        systemctl --user restart pipewire.service
+        systemctl --user enable --now "${units[@]}"
+        ;;
+    off)
+        systemctl --user disable --now "${units[@]}"
+        if [[ -f "${raop}" ]]; then
+            rm -f "${raop}"
+            systemctl --user restart pipewire.service
+        fi
+        ;;
+    status)
+        systemctl --user is-enabled -q arkadeos-airplay.service && echo on || echo off
+        ;;
+    *) echo "usage: arkadeos-airplay on|off|status" >&2; exit 2 ;;
+esac
