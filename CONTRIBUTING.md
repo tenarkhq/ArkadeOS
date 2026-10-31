@@ -25,7 +25,7 @@ What enforces them today:
 
 | Rule | Where |
 |---|---|
-| 1 | `system_files/usr/share/arkadeos/apps.list` (`off` = only when chosen); vendor services start only on their hardware (e.g. `asusd` through udev) |
+| 1 | `system_files/usr/share/arkadeos/apps.list` (`off` = only when chosen); vendor parts run only for the chosen or detected maker: `usr/libexec/arkadeos/vendor-set` masks the others' services, unloads their drivers and hides their apps at every boot |
 | 2 | `tests/vm/run.sh` checks AirPlay is off by default; `tests/vm` records the running services and idle load (`idle.txt`) |
 | 3, 4 | `usr/libexec/arkadeos/game-profile` (the game watcher); updates wait while a game runs (`uupd.service.d/50-arkadeos-not-while-gaming.conf`); file indexing is off |
 | 5 | `idle.txt` of each VM test run; WoW FPS on real hardware at milestones |
