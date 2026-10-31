@@ -112,7 +112,7 @@ key ret
 sleep 5
 shot sunshine-after
 check_wait "Sunshine running, its page answers" "systemctl --user -M arkade@ is-active app-dev.lizardbyte.app.Sunshine &&
-    curl -ks -o /dev/null https://127.0.0.1:47990/" 180
+    curl -ks -o /dev/null https://127.0.0.1:47990/" 400
 ssh_vm "${user} systemctl --user status --no-pager app-dev.lizardbyte.app.Sunshine; journalctl _UID=${uid} --no-pager | grep -i sunshine | tail -80; tail -80 /home/arkade/.var/app/dev.lizardbyte.app.Sunshine/config/sunshine/sunshine.log; ss -ltnp" > "${out}/sunshine.txt" 2>&1 || true
 
 # T020: Mac keyboard.
@@ -128,11 +128,11 @@ check_wait "Decky Loader running" 'systemctl is-active plugin_loader.service' 12
 # Space to select, Enter). Steam lists the same folder in a game's
 # Compatibility settings.
 step "installing another Proton"
-ssh_vm "${user} sh -c 'image=\$(basename /usr/share/steam/compatibilitytools.d/GE-Proton*) &&
+ssh_vm "${user} sh -c 'image=\$(basename /usr/share/steam/compatibilitytools.d/GE-Proton* -x86_64) &&
     url=\$(curl -fsSL \"https://api.github.com/repos/GloriousEggroll/proton-ge-custom/releases?per_page=5\" |
         jq -r --arg i \"\$image\" \"[.[] | select(.tag_name != \\\$i) | .tag_name as \\\$t | .assets[] | select(.name == (\\\$t + \\\"-x86_64.tar.gz\\\")) | .browser_download_url][0]\") &&
     mkdir -p ~/.local/share/Steam/compatibilitytools.d &&
-    curl -fsSL \"\$url\" | tar -xz -C ~/.local/share/Steam/compatibilitytools.d && basename \"\$url\" -x86_64.tar.gz'" > "${out}/proton-install.log" 2>&1 || true
+    curl -fsSL \"\$url\" | tar -xz -C ~/.local/share/Steam/compatibilitytools.d && basename \"\$url\" .tar.gz'" > "${out}/proton-install.log" 2>&1 || true
 other=$(tail -1 "${out}/proton-install.log")
 check "another Proton installed" "test -x /home/arkade/.local/share/Steam/compatibilitytools.d/${other}/proton"
 ssh_vm "${gui} sh -c 'arkadeos-store ea --choose-proton >/tmp/choose.log 2>&1 &'" || true

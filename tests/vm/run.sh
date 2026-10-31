@@ -505,9 +505,10 @@ if [[ -n "${UPDATE_PUSH:-}" ]]; then
 else
     echo "info update and rollback: no registry (UPDATE_PUSH unset)" >> "${out}/apps.txt"
 fi
-# T023: Windows starts from the menu. It is the last entry: End, then Enter,
-# pressed once the system is down, until the stand-in says it started on the
-# serial line.
+# T023: Windows starts from the menu. It is the last entry: once the system
+# is down, End is pressed for a minute (it also stops the countdown, so the
+# menu waits), then Enter, and the stand-in says on the serial line that it
+# started.
 ssh_vm 'systemctl reboot --check-inhibitors=no' || true
 down=0
 for _ in $(seq 60); do
@@ -519,11 +520,16 @@ if (( ! down )); then
     printf '%s\n' '{"execute":"qmp_capabilities"}' '{"execute":"system_reset"}' |
         socat - "UNIX-CONNECT:${qmp}" >/dev/null
 fi
-started=0
-for _ in $(seq 240); do
-    key end; key ret
-    grep -qa ARKADEOS-TEST-WINDOWS-STARTED "${out}/serial.log" && { started=1; break; }
+for _ in $(seq 120); do
+    key end
     sleep 0.5
+done
+shot windows-chosen
+key ret
+started=0
+for _ in $(seq 60); do
+    grep -qa ARKADEOS-TEST-WINDOWS-STARTED "${out}/serial.log" && { started=1; break; }
+    sleep 1
 done
 shot windows-started
 if (( started )); then echo "ok Windows starts from the boot menu" >> "${out}/apps.txt"
