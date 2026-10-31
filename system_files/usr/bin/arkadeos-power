@@ -1,6 +1,8 @@
 #!/usr/bin/bash
 # ArkadeOS power profiles (T011).
-#   arkadeos-power status        profile=..., auto=game|battery|, on_battery=...
+#   arkadeos-power status        profile=..., auto=game|battery|, on_battery=..., rgb=on|off,
+#                                has_battery=true|false, charge=on|off|none
+#   arkadeos-power charge on|off battery care: charging stops at 80%
 #   arkadeos-power set PROFILE   battery | balanced | gaming | max (max: charger only)
 #   arkadeos-power game GAME PROFILE   profile while a game runs (T034); GAME is
 #                                a Steam AppId or a program name (Wow.exe)
@@ -34,10 +36,27 @@ case "${1:-status}" in
                 profile=battery auto=battery
             fi
         fi
-        printf 'profile=%s\nauto=%s\non_battery=%s\n' "${profile}" "${auto}" "${on_battery}"
+        # A desktop has no battery: the Akku profile is called Quiet there (T052).
+        has_battery=false
+        grep -qsx Battery /sys/class/power_supply/*/type && has_battery=true
+        # Battery care: on when charging stops below 100%.
+        charge=none
+        for f in /sys/bus/platform/drivers/ideapad_acpi/*/conservation_mode \
+            /sys/class/power_supply/BAT*/charge_control_end_threshold; do
+            [[ -f "${f}" ]] || continue
+            v=$(cat "${f}")
+            if [[ "${f}" == *conservation_mode ]]; then [[ "${v}" == 1 ]] && charge=on || charge=off
+            else (( v < 100 )) && charge=on || charge=off; fi
+            break
+        done
+        printf 'profile=%s\nauto=%s\non_battery=%s\nrgb=%s\nhas_battery=%s\ncharge=%s\n' "${profile}" "${auto}" \
+            "${on_battery}" "$(arkadeos-rgb sync status 2>/dev/null || echo off)" "${has_battery}" "${charge}"
         ;;
     set)
         exec pkexec /usr/libexec/arkadeos/power-set "${2:?profile}"
+        ;;
+    charge)
+        exec pkexec /usr/libexec/arkadeos/power-set charge "${2:?on|off}"
         ;;
     game)
         conf="${XDG_CONFIG_HOME:-${HOME}/.config}/arkadeos/game-profiles.conf"
@@ -56,7 +75,7 @@ case "${1:-status}" in
             "${XDG_CONFIG_HOME:-${HOME}/.config}/arkadeos/game-profiles.conf" 2>/dev/null || true
         ;;
     *)
-        echo "usage: arkadeos-power status | set <battery|balanced|gaming|max> | game <game> <profile> | games" >&2
+        echo "usage: arkadeos-power status | set <battery|balanced|gaming|max> | charge <on|off> | game <game> <profile> | games" >&2
         exit 2
         ;;
 esac

@@ -11,7 +11,28 @@ on_battery() {
         grep -q true
 }
 
+# Battery care (T046, T047, T013): charging stops at 80%. ASUS through asusd
+# (it keeps its own limit), Lenovo IdeaPad/Legion through conservation mode,
+# the rest (MSI and most laptops) through the kernel's standard limit.
+charge() {
+    local limit=100 f
+    [[ "$1" == on ]] && limit=80
+    if systemctl is-active -q asusd.service; then
+        asusctl battery limit "${limit}"
+        return
+    fi
+    for f in /sys/bus/platform/drivers/ideapad_acpi/*/conservation_mode; do
+        [[ -f "${f}" ]] && { [[ "${limit}" == 80 ]] && echo 1 > "${f}" || echo 0 > "${f}"; return; }
+    done
+    for f in /sys/class/power_supply/BAT*/charge_control_end_threshold; do
+        [[ -f "${f}" ]] && echo "${limit}" > "${f}"
+    done
+}
+
 case "${1:-}" in
+    charge)
+        case "${2:-}" in on|off) charge "$2"; exit 0 ;; *) echo "usage: $0 charge <on|off>" >&2; exit 2 ;; esac
+        ;;
     battery) ppd=power-saver ;;
     balanced) ppd=balanced ;;
     gaming) ppd=performance ;;
@@ -24,7 +45,7 @@ case "${1:-}" in
         touch "${flag}"
         exec tuned-adm profile arkadeos-max
         ;;
-    *) echo "usage: $0 <battery|balanced|gaming|max>" >&2; exit 2 ;;
+    *) echo "usage: $0 <battery|balanced|gaming|max> | charge <on|off>" >&2; exit 2 ;;
 esac
 
 rm -f "${flag}"

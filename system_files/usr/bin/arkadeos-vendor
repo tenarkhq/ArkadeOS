@@ -1,0 +1,41 @@
+#!/usr/bin/bash
+# The maker's parts of a gaming laptop (T026, T013, T046, T047): ASUS (asusd,
+# ROG Control Center), MSI (msi-ec modes, Cooler Boost), Lenovo Legion (the
+# kernel's Lenovo drivers). Only the chosen maker's parts run; without a choice
+# the maker this machine was detected as.
+#   arkadeos-vendor detect               asus | msi | legion | none
+#   arkadeos-vendor                      the makers whose parts run
+#   arkadeos-vendor MAKER status|on|off
+set -euo pipefail
+
+conf=/etc/arkadeos/vendor
+
+detect() {
+    local vendor family
+    vendor=$(cat /sys/class/dmi/id/sys_vendor 2>/dev/null || true)
+    family=$(cat /sys/class/dmi/id/product_family /sys/class/dmi/id/product_version 2>/dev/null || true)
+    case "${vendor}" in
+        ASUS*) echo asus ;;
+        Micro-Star*|MSI*) echo msi ;;
+        LENOVO*) [[ "${family}" == *Legion* || "${family}" == *LOQ* ]] && echo legion || echo none ;;
+        *) echo none ;;
+    esac
+}
+
+active() {
+    if [[ -f "${conf}" ]]; then grep -v '^#' "${conf}" || true
+    else d=$(detect); [[ "${d}" != none ]] && echo "${d}" || true; fi
+}
+
+case "${1:-}" in
+    detect) detect ;;
+    "") active ;;
+    asus|msi|legion)
+        case "${2:-status}" in
+            status) active | grep -qx "$1" && echo on || echo off ;;
+            on|off) exec pkexec /usr/libexec/arkadeos/vendor-set "$1" "$2" ;;
+            *) echo "usage: arkadeos-vendor $1 status|on|off" >&2; exit 2 ;;
+        esac
+        ;;
+    *) echo "usage: arkadeos-vendor [detect | asus|msi|legion status|on|off]" >&2; exit 2 ;;
+esac

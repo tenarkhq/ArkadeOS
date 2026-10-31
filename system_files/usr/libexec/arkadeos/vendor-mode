@@ -1,0 +1,27 @@
+#!/usr/bin/bash
+# TuneD script of the ArkadeOS profiles (T046, T047): the laptop maker's own
+# modes follow the power profile, when that maker's parts are on
+# (arkadeos-vendor). The platform profile (Lenovo, ASUS) is set by the
+# profiles' [acpi] part; this adds what it does not cover.
+#   vendor-mode PROFILE start|stop
+profile=$1 action=$2
+vendors=$(arkadeos-vendor 2>/dev/null)
+
+# MSI (msi-ec): shift mode by profile, Cooler Boost (fans at full) only on Max.
+ec=/sys/devices/platform/msi-ec
+if grep -qx msi <<< "${vendors}" && [[ -f "${ec}/shift_mode" ]]; then
+    case "${profile}" in
+        battery) want=eco ;;
+        balanced) want=comfort ;;
+        gaming) want=sport ;;
+        max) want=turbo ;;
+    esac
+    [[ "${action}" == stop ]] && want=comfort
+    available=$(cat "${ec}/available_shift_modes" 2>/dev/null)
+    grep -qw "${want}" <<< "${available}" || want=$(grep -ow 'sport\|comfort' <<< "${available}" | head -1)
+    [[ -n "${want}" ]] && echo "${want}" > "${ec}/shift_mode"
+    if [[ -f "${ec}/cooler_boost" ]]; then
+        [[ "${profile}" == max && "${action}" == start ]] && echo on > "${ec}/cooler_boost" || echo off > "${ec}/cooler_boost"
+    fi
+fi
+exit 0

@@ -1,0 +1,26 @@
+#!/usr/bin/bash
+# Turns one maker's parts on or off as root (arkadeos-vendor): writes the
+# choice to /etc/arkadeos/vendor and starts or stops the maker's services.
+set -euo pipefail
+
+maker=$1 state=$2
+case "${maker}" in asus|msi|legion) ;; *) exit 2 ;; esac
+conf=/etc/arkadeos/vendor
+mkdir -p /etc/arkadeos
+current=$(arkadeos-vendor)
+{
+    printf '%s\n' ${current} | grep -vx "${maker}" || true
+    [[ "${state}" == on ]] && echo "${maker}"
+} | grep . > "${conf}.new" || true
+mv "${conf}.new" "${conf}"
+
+if [[ "${maker}" == asus ]]; then
+    if [[ "${state}" == on ]]; then
+        systemctl unmask asusd.service
+        systemctl start --no-block asusd.service || true
+    else
+        systemctl mask --now asusd.service
+    fi
+fi
+# The power profile's maker modes follow at once.
+tuned-adm profile "$(tuned-adm active | sed -n 's/^Current active profile: //p')" || true
