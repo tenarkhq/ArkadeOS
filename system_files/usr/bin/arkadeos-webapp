@@ -65,9 +65,9 @@ case "${1:-}" in
     add) add "$2" "$3" ;;
     remove) remove "$2" ;;
     "")
-        if hu; then t1="Az app neve:"; t2="A weboldal címe:"; else t1="App name:"; t2="Website address:"; fi
-        name=$(kdialog --title "Web app" --inputbox "${t1}") || exit 0
-        url=$(kdialog --title "Web app" --inputbox "${t2}" "https://") || exit 0
+        if hu; then t0="Webapp"; t1="Az app neve:"; t2="A weboldal címe:"; else t0="Web app"; t1="App name:"; t2="Website address:"; fi
+        name=$(kdialog --title "${t0}" --inputbox "${t1}") || exit 0
+        url=$(kdialog --title "${t0}" --inputbox "${t2}" "https://") || exit 0
         [[ -n "${name}" && -n "${url}" ]] && add "${name}" "${url}"
         ;;
     *) sed -n '2,7p' "$0" | sed 's/^# \{0,1\}//'; exit 2 ;;

@@ -17,15 +17,21 @@ permissions:
 
 jobs:
   vm-test:
-    name: ${{ matrix.image }}
+    name: ${{ matrix.image }}${{ matrix.suite == 'choices' && ' choices' || '' }}
     if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
     # GitHub-hosted: these machines have KVM, the build server does not.
     runs-on: ubuntu-24.04
-    timeout-minutes: 60
+    timeout-minutes: ${{ matrix.suite == 'choices' && 90 || 60 }}
     strategy:
       fail-fast: false
       matrix:
-        image: [arkadeos, arkadeos-nvidia]
+        # run: the desktop and everything in the image, on both images.
+        # choices: the parts picked in the Portal (T019, T020, T035), installed
+        # and tried; one image is enough, the downloads are the same.
+        include:
+          - { image: arkadeos, suite: run }
+          - { image: arkadeos-nvidia, suite: run }
+          - { image: arkadeos, suite: choices }
     env:
       IMAGE: ghcr.io/tenarkhq/${{ matrix.image }}:${{ inputs.tag || 'testing' }}
     steps:
@@ -81,17 +87,25 @@ jobs:
           echo "disk image: $(( $(date +%s) - start )) s" >> "$GITHUB_STEP_SUMMARY"
 
       - name: Boot, desktop, apps
+        if: matrix.suite == 'run'
         run: |
           start=$(date +%s)
           UPDATE_PUSH="sudo podman push -q --tls-verify=false localhost/vm-test-update 127.0.0.1:5000/arkadeos:test" \
             tests/vm/run.sh /mnt/disk.raw vm-key vm-out
           echo "VM test: $(( $(date +%s) - start )) s" >> "$GITHUB_STEP_SUMMARY"
 
+      - name: Chosen parts
+        if: matrix.suite == 'choices'
+        run: |
+          start=$(date +%s)
+          tests/vm/choices.sh /mnt/disk.raw vm-key vm-out
+          echo "choices: $(( $(date +%s) - start )) s" >> "$GITHUB_STEP_SUMMARY"
+
       - name: Results
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: vm-test-${{ matrix.image }}
+          name: vm-test-${{ matrix.image }}${{ matrix.suite == 'choices' && '-choices' || '' }}
           path: vm-out/
           if-no-files-found: ignore
 
