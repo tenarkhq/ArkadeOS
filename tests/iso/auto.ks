@@ -22,6 +22,13 @@ systemctl enable sshd.service
 # T054: what the installer found of the Intel RST array on the test disks
 # (run.sh), kept for the check on the installed system.
 %pre --log=/tmp/arkadeos-rst-pre.log
+# The two SATA disks (sda, sdb; the install disk is virtio) become an RST
+# mirror, as made in the firmware's RST setup, before the installer scans.
+if grep -qw mdadm.imsm.test=1 /proc/cmdline && [ -b /dev/sda ] && [ -b /dev/sdb ]; then
+    mdadm --create /dev/md/imsm0 --run -e imsm -n 2 /dev/sda /dev/sdb
+    mdadm --create /dev/md/Volume0 --run --assume-clean -l 1 -n 2 /dev/md/imsm0
+    udevadm settle
+fi
 cat /proc/mdstat
 mdadm --detail --scan
 mdadm --detail-platform 2>&1 | head -5

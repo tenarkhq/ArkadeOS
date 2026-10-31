@@ -41,28 +41,17 @@ type_text() {
 }
 step() { echo "$(date -u +%T) $*"; }
 
-# T054: with RST=1 the installer also gets two SATA disks holding an Intel RST
-# (IMSM) mirror, made here as the RST firmware would. QEMU has no RST
-# controller, so the test ISO boots with mdadm.imsm.test=1 (iso.yml); the
-# disks' serials are the names mdadm saw them under when the array was made.
+# T054: with RST=1 the installer also gets two blank SATA disks; the test
+# kickstart (auto.ks) makes an Intel RST (IMSM) mirror on them before the
+# installer looks at the disks, as the RST firmware would have. QEMU has no
+# RST controller, so the test ISO boots with mdadm.imsm.test=1 (iso.yml).
 rst=()
 if [[ "${RST:-}" == 1 ]]; then
-    names=()
     for n in 0 1; do
-        truncate -s 4G "${out}/rst${n}.raw"
-        names+=("$(sudo losetup -f --show "${out}/rst${n}.raw")")
-    done
-    export IMSM_NO_PLATFORM=1 IMSM_DEVNAME_AS_SERIAL=1
-    sudo -E mdadm --create /dev/md/imsm0 --run -e imsm -n 2 "${names[@]}"
-    sudo -E mdadm --create /dev/md/Volume0 --run --assume-clean -l 1 -n 2 /dev/md/imsm0
-    sudo -E mdadm --examine "${names[0]}" > "${out}/rst-made.txt" 2>&1 || true
-    sudo mdadm --stop /dev/md/Volume0 /dev/md/imsm0
-    for n in 0 1; do
-        sudo losetup -d "${names[n]}"
+        qemu-img create -q -f raw "${out}/rst${n}.raw" 4G
         rst+=(-drive "if=none,id=rst${n},format=raw,file=${out}/rst${n}.raw"
-              -device "ide-hd,bus=ide.$((n + 4)),drive=rst${n},serial=${names[n]##*/}")
+              -device "ide-hd,bus=ide.$((n + 4)),drive=rst${n},serial=ARKRST${n}")
     done
-    sudo chown "${USER}" "${out}"/rst*.raw
 fi
 
 step "installing from the ISO"
