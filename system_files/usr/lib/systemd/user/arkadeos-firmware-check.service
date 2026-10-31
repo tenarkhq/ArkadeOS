@@ -1,0 +1,6 @@
+[Unit]
+Description=Tell the user about waiting firmware updates
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/arkadeos-firmware check

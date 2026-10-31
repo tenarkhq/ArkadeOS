@@ -1,0 +1,12 @@
+#!/usr/bin/bash
+# TuneD script of the Gaming profile (T052): on AMD processors with 3D V-cache
+# on one CCD (e.g. Ryzen 9 7950X3D, 9950X3D) the scheduler prefers the
+# V-cache cores while Gaming is on, and the faster cores again after it.
+# Nothing happens on other processors.
+mode=$(ls /sys/bus/platform/drivers/amd_x3d_vcache/*/amd_x3d_mode 2>/dev/null | head -1)
+[[ -n "${mode}" ]] || exit 0
+case "$1" in
+    start) echo cache > "${mode}" ;;
+    stop) echo frequency > "${mode}" ;;
+esac
+exit 0

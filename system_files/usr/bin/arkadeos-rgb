@@ -1,0 +1,69 @@
+#!/usr/bin/bash
+# One lighting for every RGB device (T042): the ASUS laptop keyboard (asusctl)
+# and everything OpenRGB knows (mainboard, RAM, GPU, keyboards, mice, ASUS
+# Aura monitors). The colour follows the power profile; it is set as the
+# devices' own static effect, so nothing keeps running on the computer (T050).
+#   arkadeos-rgb apply [PROFILE]     set the colour of PROFILE (default: current)
+#   arkadeos-rgb set PROFILE COLOUR  e.g. set gaming 00ff00, set battery off
+#   arkadeos-rgb sync on|off|status  follow the power profile or not
+#   arkadeos-rgb colour COLOUR       one colour now, everywhere (or off)
+set -euo pipefail
+
+user_conf="${XDG_CONFIG_HOME:-${HOME}/.config}/arkadeos/rgb.conf"
+get() {  # key -> value, the user's file first
+    local v
+    v=$(grep -hs "^$1=" "${user_conf}" | tail -1 | cut -d= -f2)
+    [[ -n "${v}" ]] || v=$(grep -hs "^$1=" /usr/share/arkadeos/rgb.conf | tail -1 | cut -d= -f2)
+    echo "${v}"
+}
+put() {
+    mkdir -p "$(dirname "${user_conf}")"
+    touch "${user_conf}"
+    sed -i "/^$1=/d" "${user_conf}"
+    echo "$1=$2" >> "${user_conf}"
+}
+
+colour() {
+    local c=$1
+    if command -v asusctl >/dev/null && systemctl is-active -q asusd.service; then
+        if [[ "${c}" == off ]]; then
+            asusctl leds set off || true
+        else
+            asusctl leds set high || true
+            asusctl aura effect static -c "${c}" || true
+        fi
+    fi
+    if command -v openrgb >/dev/null; then
+        if [[ "${c}" == off ]]; then
+            openrgb --noautoconnect --mode off >/dev/null 2>&1 ||
+                openrgb --noautoconnect --mode static --color 000000 >/dev/null 2>&1 || true
+        else
+            openrgb --noautoconnect --mode static --color "${c^^}" >/dev/null 2>&1 || true
+        fi
+    fi
+}
+
+case "${1:-}" in
+    apply)
+        [[ "$(get sync)" == on ]] || exit 0
+        profile=${2:-$(arkadeos-power status | sed -n 's/^profile=//p')}
+        c=$(get "${profile}")
+        [[ -n "${c}" ]] && colour "${c}"
+        ;;
+    set)
+        [[ "${3:-}" =~ ^([0-9a-fA-F]{6}|off)$ ]] || { echo "colour: rrggbb or off" >&2; exit 2; }
+        put "${2:?profile}" "${3,,}"
+        ;;
+    sync)
+        case "${2:-status}" in
+            on|off) put sync "$2"; [[ "$2" == on ]] && exec "$0" apply ;;
+            status) get sync ;;
+            *) exit 2 ;;
+        esac
+        ;;
+    colour)
+        [[ "${2:-}" =~ ^([0-9a-fA-F]{6}|off)$ ]] || { echo "colour: rrggbb or off" >&2; exit 2; }
+        colour "${2,,}"
+        ;;
+    *) sed -n '2,10p' "$0" | sed 's/^# \{0,1\}//'; exit 2 ;;
+esac

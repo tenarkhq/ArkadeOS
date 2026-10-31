@@ -1,0 +1,7 @@
+#!/usr/bin/bash
+# At boot (T052): a machine without a battery is a desktop; its fans and AIO
+# coolers get CoolerControl. Laptops leave fan control to the firmware.
+if grep -qsx Battery /sys/class/power_supply/*/type; then
+    exit 0
+fi
+systemctl start --no-block coolercontrold.service

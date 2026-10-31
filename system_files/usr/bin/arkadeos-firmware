@@ -1,0 +1,38 @@
+#!/usr/bin/bash
+# Firmware updates through fwupd and LVFS (T049): BIOS/UEFI, SSDs, docks and
+# some peripherals (e.g. Logitech receivers).
+#   arkadeos-firmware check     tell the user when updates are waiting (notification)
+#   arkadeos-firmware update    install them (asks for the password)
+#   arkadeos-firmware devices   which devices can and cannot be updated here
+set -euo pipefail
+
+hu() { [[ "${LANG:-}" == hu* || "${LANGUAGE:-}" == hu* ]]; }
+
+case "${1:-check}" in
+    check)
+        n=$(fwupdmgr get-updates --json 2>/dev/null |
+            python3 -c 'import json,sys; print(sum(len(d.get("Releases", [])) > 0 for d in json.load(sys.stdin).get("Devices", [])))' 2>/dev/null || echo 0)
+        [[ "${n}" -gt 0 ]] || exit 0
+        if hu; then title="Firmware-frissítés"; body="${n} eszközhöz van új firmware."; act="Frissítés"
+        else title="Firmware update"; body="New firmware for ${n} device(s)."; act="Update"; fi
+        choice=$(notify-send -a ArkadeOS -i system-software-update -A update="${act}" "${title}" "${body}" || true)
+        [[ "${choice}" == update ]] && exec konsole -e fwupdmgr update
+        ;;
+    update)
+        exec fwupdmgr update
+        ;;
+    devices)
+        fwupdmgr get-devices --json 2>/dev/null | python3 -c '
+import json, os, sys
+hu = os.environ.get("LANG", "").startswith("hu")
+for d in json.load(sys.stdin).get("Devices", []):
+    flags = d.get("Flags", [])
+    if "internal" not in flags and "updatable" not in flags and "updatable-hidden" not in flags:
+        continue
+    ok = "updatable" in flags
+    how = ("frissíthető innen" if hu else "can be updated here") if ok else \
+        ("a gyártó módján (BIOS-ból USB-ről vagy Windows-app)" if hu else "only the vendor way (from the BIOS over USB, or a Windows app)")
+    print(("✔ " if ok else "✘ ") + d.get("Name", "?") + " (" + d.get("Vendor", "?") + "): " + how)'
+        ;;
+    *) sed -n '2,7p' "$0" | sed 's/^# \{0,1\}//'; exit 2 ;;
+esac

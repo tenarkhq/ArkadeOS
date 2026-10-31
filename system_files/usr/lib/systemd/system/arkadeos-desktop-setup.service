@@ -1,0 +1,11 @@
+[Unit]
+Description=Desktop computers: fan curves and AIO coolers (CoolerControl)
+After=local-fs.target
+Before=coolercontrold.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/libexec/arkadeos/desktop-setup
+
+[Install]
+WantedBy=multi-user.target

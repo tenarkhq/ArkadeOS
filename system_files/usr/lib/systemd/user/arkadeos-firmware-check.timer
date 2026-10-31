@@ -1,0 +1,11 @@
+[Unit]
+Description=Daily check for firmware updates (T049)
+
+[Timer]
+OnStartupSec=15min
+OnCalendar=daily
+Persistent=true
+RandomizedDelaySec=1h
+
+[Install]
+WantedBy=timers.target

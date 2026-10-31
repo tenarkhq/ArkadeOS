@@ -1,0 +1,35 @@
+#!/usr/bin/bash
+# External monitors over DDC/CI (T043), e.g. ASUS ROG. Brightness also works
+# from Plasma's brightness slider; this adds what the slider does not:
+#   arkadeos-monitor list
+#   arkadeos-monitor brightness 0-100 [display]
+#   arkadeos-monitor contrast 0-100 [display]
+#   arkadeos-monitor input dp1|dp2|hdmi1|hdmi2|usbc [display]
+#   arkadeos-monitor vcp CODE [VALUE] [display]   other settings the monitor offers
+#                                                (ROG modes where it allows them)
+set -euo pipefail
+
+d=()
+case "${1:-list}" in
+    list) exec ddcutil detect --brief ;;
+    brightness|contrast)
+        [[ -n "${3:-}" ]] && d=(--display "$3")
+        exec ddcutil "${d[@]}" setvcp "$([[ $1 == brightness ]] && echo 10 || echo 12)" "${2:?0-100}"
+        ;;
+    input)
+        case "${2:-}" in
+            dp1) v=0x0f ;; dp2) v=0x10 ;; hdmi1) v=0x11 ;; hdmi2) v=0x12 ;; usbc) v=0x1b ;;
+            *) echo "input: dp1 | dp2 | hdmi1 | hdmi2 | usbc" >&2; exit 2 ;;
+        esac
+        [[ -n "${3:-}" ]] && d=(--display "$3")
+        exec ddcutil "${d[@]}" setvcp 60 "${v}"
+        ;;
+    vcp)
+        if [[ -n "${3:-}" ]]; then
+            [[ -n "${4:-}" ]] && d=(--display "$4")
+            exec ddcutil "${d[@]}" setvcp "$2" "$3"
+        fi
+        exec ddcutil getvcp "${2:?code}"
+        ;;
+    *) sed -n '2,10p' "$0" | sed 's/^# \{0,1\}//'; exit 2 ;;
+esac

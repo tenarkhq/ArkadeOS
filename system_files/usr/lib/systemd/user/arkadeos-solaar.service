@@ -1,0 +1,9 @@
+[Unit]
+Description=Solaar for the plugged-in Logitech receiver (battery level, pairing)
+After=graphical-session.target
+PartOf=graphical-session.target
+
+[Service]
+ExecStart=/usr/bin/solaar --window=hide
+Restart=on-failure
+RestartSec=10
