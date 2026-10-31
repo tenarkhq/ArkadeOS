@@ -163,6 +163,8 @@ check "ArkadeOS boot screen" "plymouth-set-default-theme | grep -qx arkadeos && 
 check "Ark wallpaper and launcher logo" "f=${home}/plasma-org.kde.plasma.desktop-appletsrc &&
     grep -qx 'Image=file:///usr/share/wallpapers/ArkadeOS/' \$f && grep -qx icon=arkadeos-launcher \$f"
 check "dark lock screen" "${session} kreadconfig6 --file kscreenlockerrc --group Greeter --group Wallpaper --group org.kde.image --group General --key Image | grep -q ArkadeOS-Lock"
+# No idle lock during the test (the lock screen itself is checked above).
+ssh_vm "${session} kwriteconfig6 --file kscreenlockerrc --group Daemon --key Autolock false" || true
 # T010: Hungarian is complete, our own texts included.
 check "Hungarian language" "rpm -q hunspell-hu && test -f /usr/share/locale/hu/LC_MESSAGES/dolphin.mo &&
     grep -q '^Name\\[hu\\]=' /usr/share/applications/org.arkadeos.GameMode.desktop &&
@@ -361,6 +363,8 @@ for app in org.mozilla.firefox com.google.Chrome com.discordapp.Discord com.gith
     org.videolan.VLC com.vysp3r.ProtonPlus org.qbittorrent.qBittorrent; do
     check "${app} installed" "flatpak info --system ${app}"
 done
+# The screen locks after five idle minutes; the app shots need the desktop.
+ssh_vm 'loginctl unlock-sessions' || true
 for app in org.mozilla.firefox:firefox com.google.Chrome:chrome com.discordapp.Discord:discord \
     org.qbittorrent.qBittorrent:qbittorrent; do
     ssh_vm "nohup ${session} flatpak run ${app%%:*} > /tmp/${app%%:*}.log 2>&1 &"
