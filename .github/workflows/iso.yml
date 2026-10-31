@@ -17,6 +17,10 @@ on:
         description: "Image tag the test ISO installs"
         default: testing
         required: true
+      channel:
+        description: "Channel the downloadable ISO installs (stable or testing)"
+        default: stable
+        required: true
 
 permissions:
   contents: read
@@ -62,7 +66,7 @@ jobs:
           export PODMAN="sudo podman" ISO_CACHE=$HOME/.cache/arkadeos-iso
           mkdir -p out
           # The ISO users get (installs the stable channel).
-          iso/build.sh out/arkadeos.iso stable
+          iso/build.sh out/arkadeos.iso "${{ inputs.channel || 'stable' }}"
           # The test ISO: same installer, answers prepared, installs $TAG.
           ssh-keygen -q -t ed25519 -N '' -f vm-key
           sed "s|@SSHKEY@|$(cat vm-key.pub)|" tests/iso/auto.ks > auto.ks

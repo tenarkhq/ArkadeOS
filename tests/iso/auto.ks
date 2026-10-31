@@ -37,7 +37,8 @@ firefox heroic qbittorrent msi
 if grep -qw mdadm.imsm.test=1 /proc/cmdline && [ -b /dev/sda ] && [ -b /dev/sdb ]; then
     export IMSM_NO_PLATFORM=1 IMSM_TEST_OROM=1 MDADM_NO_SYSTEMCTL=1
     mdadm --create /dev/md/imsm0 --run -e imsm -n 2 /dev/sda /dev/sdb
-    mdadm --create /dev/md/Volume0 --run --assume-clean -l 1 -n 2 /dev/md/imsm0
+    mdadm --create /dev/md/Volume0 --run --assume-clean -l 1 -n 2 /dev/md/imsm0 2>&1; echo "volume rc=$?"
+    pgrep -a mdmon || echo "no mdmon"
     udevadm settle
 fi
 cat /proc/mdstat
