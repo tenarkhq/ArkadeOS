@@ -66,7 +66,10 @@ jobs:
           # The test ISO: same installer, answers prepared, installs $TAG.
           ssh-keygen -q -t ed25519 -N '' -f vm-key
           sed "s|@SSHKEY@|$(cat vm-key.pub)|" tests/iso/auto.ks > auto.ks
-          ISO_CMDLINE="console=ttyS0,115200 console=tty0" ISO_AUTOBOOT=1 iso/build.sh out/arkadeos-test.iso "$TAG" auto.ks
+          # No serial console: the installer copies console= to the installed
+          # system, and Plymouth shows only text when it sees a serial console,
+          # so the boot screen and disk password prompt would not be the real ones.
+          ISO_AUTOBOOT=1 iso/build.sh out/arkadeos-test.iso "$TAG" auto.ks
           sudo chown -R "$USER" out "$HOME/.cache/arkadeos-iso"
           ls -la out
           echo "ISO build: $(( $(date +%s) - start )) s, $(du -h out/arkadeos.iso | cut -f1)" >> "$GITHUB_STEP_SUMMARY"

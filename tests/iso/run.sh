@@ -94,7 +94,7 @@ check() {
     ssh_vm "$2" >/dev/null 2>&1 || { r=FAILED; failed=1; }
     echo "${r} $1" | tee -a "${out}/result.txt"
 }
-ssh_vm 'bootc status; cat /etc/arkadeos/installed-image; findmnt -R /; lsblk -f' > "${out}/installed.txt" 2>&1 || true
+ssh_vm 'cat /proc/cmdline; bootc status; cat /etc/arkadeos/installed-image; findmnt -R /; lsblk -f; journalctl -b --no-pager | grep -i plymouth' > "${out}/installed.txt" 2>&1 || true
 check "installed and booted" 'grep -qx "PRETTY_NAME=\"ArkadeOS\"" /usr/lib/os-release'
 check "right image for the graphics card (${expect})" "test \"\$(cat /etc/arkadeos/installed-image)\" = '${expect}'"
 check "updates from the registry, signature checked" "bootc status --json | jq -e '.spec.image.image == \"${expect}\" and .spec.image.signature != null and .spec.image.signature != \"insecure\"'"
