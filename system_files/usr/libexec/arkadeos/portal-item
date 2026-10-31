@@ -66,7 +66,7 @@ case "${kind}:${action}" in
         else rm -f "${apps}/${ref}"; fi
         ;;
 
-    brew:status) status test -x "/home/linuxbrew/.linuxbrew/bin/${ref##*/}" ;;
+    brew:status) status "${brew}" list --formula "${ref}" ;;
     brew:install) "${brew}" install "${ref}" ;;
     brew:remove) "${brew}" uninstall "${ref}" ;;
 

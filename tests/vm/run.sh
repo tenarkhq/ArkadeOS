@@ -408,6 +408,9 @@ check "update steps for the user's settings" "runuser -u arkade -- env HOME=/hom
     test \$(kreadconfig6 --file arkadeos-test --group A --key changed) = mine && test \$(wc -l < /tmp/mig/runs) = 1'"
 # T023: Windows on the other disk is in the boot menu, and the menu shows.
 ssh_vm 'journalctl -b -u arkadeos-windows-entry --no-pager; lsblk -fp; cat /boot/grub2/custom.cfg' > "${out}/windows-entry.txt" 2>&1 || true
+# Bazzite's own welcome window does not open: the ArkadeOS Portal does its job.
+check "no Bazzite Portal" '! rpm -q bazzite-portal && ! test -e /home/arkade/.config/autostart/bazzite-portal.desktop &&
+    ! pgrep -f "yafti_gt[k]"'
 check "Windows in the boot menu" "grep -q 'chainloader /EFI/Microsoft/Boot/bootmgfw.efi' /boot/grub2/custom.cfg &&
     grep -q 'set timeout=5' /boot/grub2/grub.cfg"
 # T036: factory reset keeps the files and users, puts /etc back.
@@ -503,8 +506,19 @@ else
     echo "info update and rollback: no registry (UPDATE_PUSH unset)" >> "${out}/apps.txt"
 fi
 # T023: Windows starts from the menu. It is the last entry: End, then Enter,
-# pressed until the stand-in says it started on the serial line.
-ssh_vm 'systemctl reboot' || true
+# pressed once the system is down, until the stand-in says it started on the
+# serial line.
+ssh_vm 'systemctl reboot --check-inhibitors=no' || true
+down=0
+for _ in $(seq 60); do
+    ssh_vm true 2>/dev/null || { down=1; break; }
+    sleep 2
+done
+if (( ! down )); then
+    echo "info Windows boot: no reboot after 2 minutes, reset" >> "${out}/apps.txt"
+    printf '%s\n' '{"execute":"qmp_capabilities"}' '{"execute":"system_reset"}' |
+        socat - "UNIX-CONNECT:${qmp}" >/dev/null
+fi
 started=0
 for _ in $(seq 240); do
     key end; key ret

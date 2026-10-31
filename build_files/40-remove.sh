@@ -32,7 +32,11 @@ remove=(
     hypervvssd
     open-vm-tools
     open-vm-tools-desktop
+    # Bazzite's welcome window; the ArkadeOS Portal does its job (T037)
+    bazzite-portal
 )
+# Its start at the first login comes with every new user's files.
+rm -f /etc/skel/.config/autostart/bazzite-portal.desktop
 
 installed=()
 for pkg in "${remove[@]}"; do
