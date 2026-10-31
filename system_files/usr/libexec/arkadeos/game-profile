@@ -19,7 +19,8 @@ alone.
 
 It also sets the lighting of the profile in force whenever that changes, by
 hand or by itself (arkadeos-rgb, T042), and when a game starts, a model the
-local AI (Ollama, T019) holds lets go of the video memory (T050)."""
+local AI (Ollama, T019) holds lets go of the video memory (T050). While a game
+runs, notifications wait (do not disturb, T062)."""
 import os
 import re
 import subprocess
@@ -143,8 +144,25 @@ def unload_ai_models():
         pass  # no Ollama running
 
 
+def quiet(on, state):
+    """Do not disturb while a game runs: Plasma holds back the notifications
+    until UnInhibit (or until this program exits)."""
+    try:
+        notes = dbus.Interface(dbus.SessionBus().get_object("org.freedesktop.Notifications",
+                                                            "/org/freedesktop/Notifications"),
+                               "org.freedesktop.Notifications")
+        if on and state.get("quiet") is None:
+            state["quiet"] = notes.Inhibit("org.arkadeos.GameProfile", "Game running",
+                                           dbus.Dictionary({}, signature="sv"))
+        elif not on and state.get("quiet") is not None:
+            notes.UnInhibit(state.pop("quiet"))
+    except dbus.exceptions.DBusException:
+        state.pop("quiet", None)
+
+
 def main():
     bus = dbus.SystemBus()
+    state = {}
     ppd = dbus.Interface(bus.get_object("net.hadess.PowerProfiles", "/net/hadess/PowerProfiles"),
                          "net.hadess.PowerProfiles")
     cookie = None    # our PPD hold (battery or gaming)
@@ -198,6 +216,7 @@ def main():
                 mark.unlink(missing_ok=True)
             if want is not None and current is None:
                 unload_ai_models()
+            quiet(want is not None, state)
             current = want
         time.sleep(3)
 
