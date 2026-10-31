@@ -1,0 +1,5 @@
+[D-BUS Service]
+# The ArkadeOS app choice (org_arkadeos_apps/service).
+Name=org.fedoraproject.Anaconda.Addons.ArkadeosApps
+Exec=/usr/libexec/anaconda/start-module org_arkadeos_apps.service
+User=root

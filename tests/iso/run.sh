@@ -117,6 +117,13 @@ check "home on its own subvolume" 'btrfs subvolume show /var/home'
 check "boot screen arguments, as in the image" 'for a in $(grep ^kargs /usr/lib/bootc/kargs.d/10-arkadeos.toml | grep -o "[a-z0-9_.=-]*" | grep -vx -e kargs -e =);
     do grep -qw -- "$a" /proc/cmdline || exit 1; done'
 check "starts to the login screen" 'test "$(systemctl get-default)" = graphical.target && systemctl is-active display-manager'
+# T026: the installer's app choice reached the system and is what gets installed.
+check "installer's app choice saved" 'test "$(cat /etc/arkadeos/apps)" = "$(printf "firefox\nheroic\nqbittorrent")" &&
+    test ! -s /etc/arkadeos/vendor && test -f /etc/arkadeos/apps-from-installer'
+check "chosen apps installed, the rest not" 'for i in $(seq 90); do
+        systemctl show -P ActiveState arkadeos-apps.service | grep -qx inactive && break; sleep 10; done
+    flatpak info --system org.mozilla.firefox && flatpak info --system com.heroicgameslauncher.hgl &&
+    flatpak info --system org.qbittorrent.qBittorrent && ! flatpak info --system com.google.Chrome'
 if [[ "${RST:-}" == 1 ]]; then
     ssh_vm 'cat /var/log/arkadeos-rst.txt' > "${out}/rst.txt" 2>&1 || true
     check "installer sees the Intel RST array" 'grep -q imsm /var/log/arkadeos-rst.txt &&

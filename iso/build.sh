@@ -30,13 +30,19 @@ trap 'rm -rf "${work}"' EXIT
     sed "s/@TAG@/${tag}/" "${here}/arkadeos.ks"
 } > "${work}/arkadeos.ks"
 cp "${here}/buildstamp.sh" "${work}/"
+# The app choice (T026) lists what the image's Portal lists.
+cp -r "${here}/addon" "${work}/addon"
+mkdir -p "${work}/addon/org_arkadeos_apps/data"
+cp "${here}/../system_files/usr/share/arkadeos/portal/catalog.tsv" \
+    "${here}/../system_files/usr/share/arkadeos/apps.list" "${work}/addon/org_arkadeos_apps/data/"
+ls "${here}/../system_files/usr/share/applications" > "${work}/addon/org_arkadeos_apps/data/image-apps"
 
 ${PODMAN:-podman} run --rm -v "${work}:/work" -v "${cache}:/cache:ro" -v "$(dirname "${out}"):/out" \
     "registry.fedoraproject.org/fedora:${fedora}" bash -euo pipefail -c "
     dnf -y -q install lorax xorriso squashfs-tools cpio mtools >/dev/null 2>&1
     cd /work
     # The installer calls itself ArkadeOS (.buildstamp in an updates image).
-    bash buildstamp.sh /cache/${netinst} updates.img
+    bash buildstamp.sh /cache/${netinst} updates.img /work/addon
     mkdir -p /work/tmp
     mkksiso --tmp /work/tmp --skip-mkefiboot --ks arkadeos.ks --updates updates.img \
         ${ISO_CMDLINE:+-c \"${ISO_CMDLINE}\"} -V ArkadeOS /cache/${netinst} /work/stage.iso

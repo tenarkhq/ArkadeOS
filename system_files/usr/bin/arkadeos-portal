@@ -25,6 +25,9 @@ CATALOG = Path("/usr/share/arkadeos/portal/catalog.tsv")
 APPS_LIST = Path("/usr/share/arkadeos/apps.list")
 STATE = Path(os.environ.get("XDG_STATE_HOME", Path.home() / ".local/state")) / "arkadeos"
 FIRST_RUN_DONE = STATE / "portal-first-run"
+# Chosen in the installer (T026): the first start installs it without asking.
+FROM_INSTALLER = Path("/etc/arkadeos/apps-from-installer")
+CHOSEN = Path("/etc/arkadeos/apps")
 
 HU = QLocale().name().startswith("hu")
 
@@ -91,6 +94,8 @@ class AppsTab(QWidget):
     def __init__(self, first_run):
         super().__init__()
         self.first_run = first_run
+        self.from_installer = first_run and FROM_INSTALLER.exists()
+        self.chosen = set(CHOSEN.read_text().split()) if self.from_installer and CHOSEN.exists() else set()
         self.items = catalog()
         self.installed = {}
         self.boxes = {}
@@ -98,6 +103,10 @@ class AppsTab(QWidget):
 
         layout = QVBoxLayout(self)
         intro = QLabel(tr(
+            "Welcome to ArkadeOS! What you chose during the installation is being set up; "
+            "everything can be changed here later.",
+            "Üdv az ArkadeOS-en! Most települ, amit a telepítéskor kiválasztottál; később itt "
+            "bármikor módosíthatod.") if self.from_installer else tr(
             "Welcome to ArkadeOS! Tick what you want on this machine; everything can be "
             "changed here later too.",
             "Üdv az ArkadeOS-en! Pipáld ki, mi kerüljön a gépre; később itt bármikor "
@@ -173,17 +182,24 @@ class AppsTab(QWidget):
     def found(self, item_id, on):
         self.installed[item_id] = on
         check = self.boxes[item_id]
-        check.setChecked(on or (self.first_run and item_id in defaults()))
+        if self.from_installer:
+            # The installer's choice; makers follow /etc/arkadeos/vendor, so their status.
+            vendor = any(i["id"] == item_id and i["group"] == "vendor" for i in self.items)
+            check.setChecked(on if vendor else item_id in self.chosen)
+        else:
+            check.setChecked(on or (self.first_run and item_id in defaults()))
         check.setEnabled(item_id not in self.locked)
 
     def ready(self):
         self.state.setText("")
         self.apply.setEnabled(True)
+        if self.from_installer:
+            self.start()
 
     def start(self):
         self.queue = [(i, "install" if b.isChecked() else "remove") for i, b in self.boxes.items()
                       if b.isChecked() != self.installed.get(i, False)]
-        if self.first_run:
+        if self.first_run and not self.from_installer:
             chosen = [i for i, b in self.boxes.items() if b.isChecked()]
             subprocess.run(["pkexec", "/usr/libexec/arkadeos/apps-choose", *chosen])
         if not self.queue:

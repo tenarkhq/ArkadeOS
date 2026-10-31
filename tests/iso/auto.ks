@@ -19,6 +19,12 @@ reboot
 systemctl enable sshd.service
 %end
 
+# T026: the app choice of the installer: three apps; MSI is refused, the VM
+# is no MSI laptop.
+%addon org_arkadeos_apps
+firefox heroic qbittorrent msi
+%end
+
 # T054: what the installer found of the Intel RST array on the test disks
 # (run.sh), kept for the check on the installed system.
 %pre --log=/tmp/arkadeos-rst-pre.log
@@ -39,5 +45,8 @@ mdadm --detail-platform 2>&1 | head -5
     echo "== before the installer"; cat /tmp/arkadeos-rst-pre.log
     echo "== installer storage"; grep -i -E "imsm|md12[0-9]|mdraid|BIOSRAID" /tmp/storage.log | head -40
     echo "== now"; cat /proc/mdstat
-} > /mnt/sysimage/var/log/arkadeos-rst.txt 2>&1 || true
+} > /tmp/arkadeos-rst.txt 2>&1
+for root in /mnt/sysroot /mnt/sysimage; do
+    [ -d "${root}/var/log" ] && cp /tmp/arkadeos-rst.txt "${root}/var/log/" || true
+done
 %end

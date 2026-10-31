@@ -1,6 +1,7 @@
 #!/usr/bin/bash
 # Installs the apps of /usr/share/arkadeos/apps.list that should be on this
-# machine: the always ones, and the chosen ones (/etc/arkadeos/apps, written by
+# machine: the always ones (unless the installer's choice left them out), and
+# the chosen ones (/etc/arkadeos/apps, written by
 # the installer's choice or the Portal's first start) or the default ones when
 # nothing was chosen. Each app is installed once: one the user removed later
 # (in the Portal or by hand) does not come back, and apps are never removed here.
@@ -14,7 +15,8 @@ want=() ids=()
 while IFS='|' read -r id ref default; do
     [[ -z "${id}" || "${id}" == \#* ]] && continue
     grep -qx "${id}" "${done_list}" && continue
-    if [[ "${default}" == always ]] ||
+    # A choice made in the installer covers the always ones too.
+    if { [[ "${default}" == always && ! -f /etc/arkadeos/apps-from-installer ]]; } ||
         { [[ -f "${chosen}" ]] && grep -qx "${id}" "${chosen}"; } ||
         { [[ ! -f "${chosen}" && "${default}" == on ]]; }; then
         ids+=("${id}")
