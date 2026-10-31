@@ -2,10 +2,10 @@
 # Windows in the boot menu (T023). The boot menu of an ArkadeOS install is a
 # fixed one, so Windows is added by hand: every EFI system partition with
 # Windows's boot loader gets an entry in custom.cfg (read by the fixed menu),
-# and the menu then always shows, so there is a moment to choose. Runs at
-# every start: a Windows installed later or removed is picked up. /boot is
-# mounted read-only, so it is made writable only for a change and then put
-# back.
+# and the menu then waits 5 seconds (05_arkadeos.cfg), so there is a moment
+# to choose. Runs at every start: a Windows installed later or removed is
+# picked up. /boot is mounted read-only, so it is made writable only for a
+# change and then put back.
 set -euo pipefail
 
 cfg=/boot/grub2/custom.cfg
@@ -37,19 +37,11 @@ ENTRY
     fi
 done < <(lsblk -nrpo PATH,UUID,PARTTYPE | awk 'tolower($3) == "c12a7328-f81f-11d2-ba4b-00a0c93ec93b" { print $1, $2 }')
 rmdir "${mnt}" || true
-env=/boot/grub2/grubenv
-[[ -f "${env}" ]] || { writable; grub2-editenv "${env}" create; }
-
 if [[ -s "${new}" ]]; then
     { echo "# Windows (ArkadeOS, T023): written by arkadeos-windows-entry at every start."; cat "${new}"; } > "${new}.cfg"
     cmp -s "${new}.cfg" "${cfg}" || { writable; cp "${new}.cfg" "${cfg}"; }
-    if grub2-editenv "${env}" list | grep -q '^menu_auto_hide='; then
-        writable
-        grub2-editenv "${env}" unset menu_auto_hide
-    fi
-    echo "Windows found: boot menu entry written, the menu shows at start"
+    echo "Windows found: boot menu entry written, the menu waits at start"
 elif [[ -f "${cfg}" ]] && head -1 "${cfg}" | grep -q 'ArkadeOS, T023'; then
     writable
     rm -f "${cfg}"
-    grub2-editenv "${env}" set menu_auto_hide=1
 fi

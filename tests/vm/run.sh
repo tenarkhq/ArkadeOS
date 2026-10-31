@@ -36,13 +36,16 @@ key() {
 step() { echo "$(date -u +%T) $*"; }
 
 step "boot"
-# T023: a second disk with a Windows boot partition (only its boot loader file)
-# for the boot menu entry.
+# T023: a second disk with a Windows boot partition. Its boot loader stands
+# in for Windows: a small EFI program that says so on the serial line.
 truncate -s 64M "${out}/windows.img"
 printf 'label: gpt\nstart=2048, type=C12A7328-F81F-11D2-BA4B-00A0C93EC93B\n' | sfdisk -q "${out}/windows.img"
 mkfs.vfat -F 16 --offset 2048 "${out}/windows.img" >/dev/null
 mmd -i "${out}/windows.img@@1M" ::EFI ::EFI/Microsoft ::EFI/Microsoft/Boot
-echo test > "${out}/bootmgfw.efi"
+printf '%s\n' 'serial --unit=0 --speed=115200' 'terminal_output serial console' \
+    'echo ARKADEOS-TEST-WINDOWS-STARTED' 'sleep 600' > "${out}/fake-windows.cfg"
+grub-mkstandalone -O x86_64-efi -o "${out}/bootmgfw.efi" \
+    "boot/grub/grub.cfg=${out}/fake-windows.cfg"
 mcopy -i "${out}/windows.img@@1M" "${out}/bootmgfw.efi" ::EFI/Microsoft/Boot/
 qemu-system-x86_64 -enable-kvm -cpu host -smp 4 -m 8G -machine q35 \
     -drive if=pflash,format=raw,readonly=on,file=/usr/share/OVMF/OVMF_CODE_4M.fd \
@@ -406,7 +409,7 @@ check "update steps for the user's settings" "runuser -u arkade -- env HOME=/hom
 # T023: Windows on the other disk is in the boot menu, and the menu shows.
 ssh_vm 'journalctl -b -u arkadeos-windows-entry --no-pager; lsblk -fp; cat /boot/grub2/custom.cfg' > "${out}/windows-entry.txt" 2>&1 || true
 check "Windows in the boot menu" "grep -q 'chainloader /EFI/Microsoft/Boot/bootmgfw.efi' /boot/grub2/custom.cfg &&
-    ! grub2-editenv list | grep -q menu_auto_hide=1"
+    grep -q 'set timeout=5' /boot/grub2/grub.cfg"
 # T036: factory reset keeps the files and users, puts /etc back.
 check "factory reset: settings back, files and users stay" "echo '# changed' >> /etc/dnf/dnf.conf && touch /etc/arkadeos-test-added &&
     runuser -u arkade -- touch /home/arkade/keep-reset.txt &&
@@ -499,6 +502,18 @@ if [[ -n "${UPDATE_PUSH:-}" ]]; then
 else
     echo "info update and rollback: no registry (UPDATE_PUSH unset)" >> "${out}/apps.txt"
 fi
+# T023: Windows starts from the menu. It is the last entry: End, then Enter,
+# pressed until the stand-in says it started on the serial line.
+ssh_vm 'systemctl reboot' || true
+started=0
+for _ in $(seq 240); do
+    key end; key ret
+    grep -qa ARKADEOS-TEST-WINDOWS-STARTED "${out}/serial.log" && { started=1; break; }
+    sleep 0.5
+done
+shot windows-started
+if (( started )); then echo "ok Windows starts from the boot menu" >> "${out}/apps.txt"
+else echo "FAILED Windows starts from the boot menu" >> "${out}/apps.txt"; failed=1; fi
 kill "$(cat "${out}/qemu.pid")" || true
 
 cat "${out}/apps.txt"

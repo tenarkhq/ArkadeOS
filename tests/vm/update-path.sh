@@ -97,7 +97,7 @@ fi
 
 # A build from the last 90 days, picked by its tag.
 if [[ -n "${old_tag}" ]]; then
-    old=$(skopeo inspect --tls-verify=false --format '{{ .Digest }}' "docker://127.0.0.1:5000/arkadeos:${old_tag}")
+    old=$(skopeo inspect --no-creds --tls-verify=false --format '{{ .Digest }}' "docker://127.0.0.1:5000/arkadeos:${old_tag}")
     ssh_vm "arkadeos-update version ${old_tag} --yes" > "${out}/version.txt" 2>&1 || true
     ssh_vm 'systemctl reboot' || true
     sleep 40
