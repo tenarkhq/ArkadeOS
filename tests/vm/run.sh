@@ -235,10 +235,18 @@ check "Legion and MSI tools (only for their maker)" 'modinfo -F filename legion-
     grep -qx Hidden=true /usr/local/share/applications/legion_gui.desktop &&
     grep -qx Hidden=true /usr/local/share/applications/mcontrolcenter.desktop &&
     test "$(systemctl is-enabled legiond.service)" = masked && ! lsmod | grep -q legion'
-ssh_vm '/usr/libexec/arkadeos/vendor-set legion on; /usr/libexec/arkadeos/vendor-set msi on' || true
-check "Legion and MSI tools when turned on" 'test ! -e /usr/local/share/applications/legion_gui.desktop &&
-    test ! -e /usr/local/share/applications/mcontrolcenter.desktop && systemctl is-enabled legiond.service | grep -qv masked'
-ssh_vm '/usr/libexec/arkadeos/vendor-set legion off; /usr/libexec/arkadeos/vendor-set msi off' || true
+# The VM is identified as another maker's machine: Legion and MSI parts are
+# refused. On a made-up Legion laptop (ARKADEOS_DMI) Legion parts go on, MSI's
+# still cannot.
+check "other makers' parts refused" '! /usr/libexec/arkadeos/vendor-set legion on && ! /usr/libexec/arkadeos/vendor-set msi on &&
+    test "$(arkadeos-vendor legion allowed)" = no'
+ssh_vm 'mkdir -p /tmp/legion-dmi && cd /tmp/legion-dmi && echo LENOVO > sys_vendor && echo 82RG > product_name &&
+    echo "Legion 5 15ARH7H" > product_family && : > product_version && echo 10 > chassis_type' || true
+check "Legion parts on a Legion laptop" 'export ARKADEOS_DMI=/tmp/legion-dmi; test "$(arkadeos-vendor detect)" = legion &&
+    /usr/libexec/arkadeos/vendor-set legion on && ! /usr/libexec/arkadeos/vendor-set msi on &&
+    test ! -e /usr/local/share/applications/legion_gui.desktop && systemctl is-enabled legiond.service | grep -qv masked &&
+    grep -qx Hidden=true /usr/local/share/applications/mcontrolcenter.desktop'
+ssh_vm 'ARKADEOS_DMI=/tmp/legion-dmi /usr/libexec/arkadeos/vendor-set legion off; rm -f /etc/arkadeos/vendor' || true
 check "controller drivers" 'for m in xpad hid_playstation hid_nintendo xone_gip; do modinfo -F filename $m || exit 1; done'
 
 step "power profiles"
@@ -438,7 +446,7 @@ check "factory reset: settings back, files and users stay" "echo '# changed' >> 
     systemctl is-enabled -q sshd.service"
 # T026, T046, T047: no maker's parts on a machine that is none of them; no
 # battery care switch without a battery.
-check "maker parts: none detected, none running" "test \$(arkadeos-vendor detect) = none && test -z \"\$(arkadeos-vendor)\" &&
+check "maker parts: none detected, none running" "test \$(arkadeos-vendor detect) = other && test -z \"\$(arkadeos-vendor)\" &&
     ! systemctl is-active -q asusd.service && ${session} arkadeos-power status | grep -qx charge=none"
 ssh_vm 'kill $(cat /tmp/portal.pid)' || true
 

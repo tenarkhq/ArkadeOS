@@ -42,7 +42,8 @@ GROUPS = {
     "desktop": tr("Desktop", "Asztal"),
     "ai": tr("AI", "AI"),
     "dev": tr("Developer tools", "Fejlesztői eszközök"),
-    "vendor": tr("Laptop maker (detected one ticked)", "Gépgyártó (a felismert kipipálva)"),
+    "vendor": tr("Laptop maker (only the detected one can be chosen)",
+                 "Gépgyártó (csak a felismert választható)"),
 }
 
 
@@ -114,6 +115,7 @@ class AppsTab(QWidget):
             found.setWordWrap(True)
             layout.addWidget(found)
 
+        self.locked = set()
         body = QWidget()
         grid = QVBoxLayout(body)
         for group, title in GROUPS.items():
@@ -131,6 +133,11 @@ class AppsTab(QWidget):
                     check.setToolTip(tr("Always on this machine", "Mindig rajta van a gépen"))
                 else:
                     self.boxes[item["id"]] = check
+                if item["group"] == "vendor" and run("arkadeos-vendor", item["id"], "allowed") != "yes":
+                    # Another maker's machine (arkadeos-vendor): never selectable here.
+                    self.locked.add(item["id"])
+                    check.setToolTip(tr("This machine is not this maker's laptop",
+                                        "Ez a gép nem ennek a gyártónak a laptopja"))
                 box_layout.addWidget(check, n // 2, n % 2)
             grid.addWidget(box)
         grid.addStretch()
@@ -167,7 +174,7 @@ class AppsTab(QWidget):
         self.installed[item_id] = on
         check = self.boxes[item_id]
         check.setChecked(on or (self.first_run and item_id in defaults()))
-        check.setEnabled(True)
+        check.setEnabled(item_id not in self.locked)
 
     def ready(self):
         self.state.setText("")
@@ -218,8 +225,8 @@ class AppsTab(QWidget):
             FIRST_RUN_DONE.touch()
         self.state.setText(tr("Done.", "Kész."))
         self.apply.setEnabled(True)
-        for check in self.boxes.values():
-            check.setEnabled(True)
+        for item_id, check in self.boxes.items():
+            check.setEnabled(item_id not in self.locked)
 
 
 class SystemTab(QWidget):

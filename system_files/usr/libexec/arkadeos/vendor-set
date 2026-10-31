@@ -75,6 +75,11 @@ fi
 maker=$1 state=$2
 case "${maker}" in asus|msi|legion) ;; *) exit 2 ;; esac
 case "${state}" in on|off) ;; *) exit 2 ;; esac
+# Another maker's parts never go on an identified machine (arkadeos-vendor).
+if [[ "${state}" == on && "$(arkadeos-vendor "${maker}" allowed)" != yes ]]; then
+    echo "${maker}: this machine is identified as another maker's" >&2
+    exit 1
+fi
 conf=/etc/arkadeos/vendor
 mkdir -p /etc/arkadeos
 current=$(arkadeos-vendor)

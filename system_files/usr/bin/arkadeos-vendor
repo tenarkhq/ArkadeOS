@@ -4,28 +4,49 @@
 # Lenovo Legion (LenovoLegionLinux: legion-laptop driver, legiond, Legion app;
 # the kernel's Lenovo drivers). Only the chosen maker's parts run; without a
 # choice the maker this machine was detected as.
-#   arkadeos-vendor detect               asus | msi | legion | none
+#   arkadeos-vendor detect               asus | msi | legion | other | unknown
 #   arkadeos-vendor                      the makers whose parts run
 #   arkadeos-vendor MAKER status|on|off
+# A maker's parts can only be chosen on that maker's laptop: on a machine
+# identified as another maker's (or a desktop, or a VM) they cannot be turned
+# on; only an unidentifiable machine lets the user choose freely.
 set -euo pipefail
 
 conf=/etc/arkadeos/vendor
 
 detect() {
-    local vendor family
-    vendor=$(cat /sys/class/dmi/id/sys_vendor 2>/dev/null || true)
-    family=$(cat /sys/class/dmi/id/product_family /sys/class/dmi/id/product_version 2>/dev/null || true)
+    # ARKADEOS_DMI: a made-up machine for the VM test.
+    local dmi=${ARKADEOS_DMI:-/sys/class/dmi/id} vendor product chassis
+    vendor=$(cat "${dmi}/sys_vendor" 2>/dev/null || true)
+    product=$(cat "${dmi}/product_name" "${dmi}/product_family" "${dmi}/product_version" 2>/dev/null | tr '\n' ' ' || true)
+    chassis=$(cat "${dmi}/chassis_type" 2>/dev/null || true)
+    # Firmware without real data: nothing to go by.
+    case "${vendor,,}" in
+        ""|*"to be filled"*|*"system manufacturer"*|*"default string"*|*o.e.m*|*"not applicable"*|*"not specified"*)
+            echo unknown; return ;;
+    esac
+    case "${vendor}" in
+        ASUS*|Micro-Star*|MSI*|LENOVO*) ;;
+        *) echo other; return ;;
+    esac
+    # SMBIOS chassis types: 8 portable, 9 laptop, 10 notebook, 14 sub-notebook,
+    # 30 tablet, 31 convertible, 32 detachable. A desktop board of the same
+    # maker is not its laptop; an unknown type cannot be told apart.
+    case "${chassis}" in
+        8|9|10|14|30|31|32) ;;
+        3|4|5|6|7|13|15|16|17|23|24|25|35|36) echo other; return ;;
+        *) echo unknown; return ;;
+    esac
     case "${vendor}" in
         ASUS*) echo asus ;;
         Micro-Star*|MSI*) echo msi ;;
-        LENOVO*) [[ "${family}" == *Legion* || "${family}" == *LOQ* ]] && echo legion || echo none ;;
-        *) echo none ;;
+        LENOVO*) [[ "${product}" == *Legion* || "${product}" == *LOQ* ]] && echo legion || echo other ;;
     esac
 }
 
 active() {
     if [[ -f "${conf}" ]]; then grep -v '^#' "${conf}" || true
-    else d=$(detect); [[ "${d}" != none ]] && echo "${d}" || true; fi
+    else d=$(detect); [[ "${d}" == asus || "${d}" == msi || "${d}" == legion ]] && echo "${d}" || true; fi
 }
 
 case "${1:-}" in
@@ -35,8 +56,9 @@ case "${1:-}" in
         case "${2:-status}" in
             status) active | grep -qx "$1" && echo on || echo off ;;
             on|off) exec pkexec /usr/libexec/arkadeos/vendor-set "$1" "$2" ;;
-            *) echo "usage: arkadeos-vendor $1 status|on|off" >&2; exit 2 ;;
+            allowed) d=$(detect); [[ "${d}" == unknown || "${d}" == "$1" ]] && echo yes || echo no ;;
+            *) echo "usage: arkadeos-vendor $1 status|on|off|allowed" >&2; exit 2 ;;
         esac
         ;;
-    *) echo "usage: arkadeos-vendor [detect | asus|msi|legion status|on|off]" >&2; exit 2 ;;
+    *) echo "usage: arkadeos-vendor [detect | asus|msi|legion status|on|off|allowed]" >&2; exit 2 ;;
 esac
