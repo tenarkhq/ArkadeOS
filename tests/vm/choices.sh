@@ -106,12 +106,21 @@ check_wait "OBS starts" 'pgrep -u arkade -x obs' 120
 sleep 10
 shot obs
 ssh_vm 'pkill -u arkade -x obs' || true
+# Sunshine's own debug log, and the KDE portal's, show which screen sharing
+# step it waits on if it does not come up.
+ssh_vm "${user} sh -c 'mkdir -p .var/app/dev.lizardbyte.app.Sunshine/config/sunshine &&
+    echo min_log_level = debug > .var/app/dev.lizardbyte.app.Sunshine/config/sunshine/sunshine.conf &&
+    systemctl --user set-environment QT_LOGGING_RULES=\"xdp-kde*=true\" &&
+    systemctl --user restart plasma-xdg-desktop-portal-kde'" || true
 install sunshine 900
 check_wait "Sunshine running, its page answers" "systemctl --user -M arkade@ is-active app-dev.lizardbyte.app.Sunshine &&
     curl -ks -o /dev/null https://127.0.0.1:47990/" 400
 shot sunshine
 ssh_vm "${user} systemctl --user status --no-pager app-dev.lizardbyte.app.Sunshine; journalctl _UID=${uid} --no-pager | grep -i sunshine | tail -80; tail -80 /home/arkade/.var/app/dev.lizardbyte.app.Sunshine/config/sunshine/sunshine.log; ss -ltnp;
-    journalctl _UID=${uid} --no-pager | grep -i -E 'portal|screencast|remote.?desktop|kwin_wayland' | tail -80" > "${out}/sunshine.txt" 2>&1 || true
+    journalctl _UID=${uid} --no-pager | grep -i -E 'portal|screencast|remote.?desktop|kwin_wayland' | tail -80;
+    busctl --user -M arkade@ tree org.freedesktop.portal.Desktop | grep -i -E 'session|request';
+    flatpak permission-show dev.lizardbyte.app.Sunshine" > "${out}/sunshine.txt" 2>&1 || true
+ssh_vm "journalctl _UID=${uid} --no-pager --user-unit plasma-xdg-desktop-portal-kde | tail -150" > "${out}/portal-kde.txt" 2>&1 || true
 
 # T020: Mac keyboard.
 install toshy 1500
@@ -119,18 +128,26 @@ check_wait "Mac keyboard (Toshy) running" "systemctl --user -M arkade@ is-active
 
 # T035: Decky Loader.
 install decky 900
-check_wait "Decky Loader running" 'systemctl is-active plugin_loader.service' 120
+# Its installer asks the GitHub API without a token, which a shared CI address
+# can run out of (60 an hour): that is said, not counted as a failure.
+if grep -q 'rate-limited' "${out}/install-decky.log"; then
+    echo "info Decky Loader not tested: GitHub API limit on this runner" | tee -a "${out}/choices.txt"
+else
+    check_wait "Decky Loader running" 'systemctl is-active plugin_loader.service' 120
+fi
 
 # T035: another Proton version, put where ProtonPlus puts it, then picked for
 # a store in its own window (the newly installed one is listed first: Home,
 # Space to select, Enter). Steam lists the same folder in a game's
 # Compatibility settings.
 step "installing another Proton"
-ssh_vm "${user} sh -c 'image=\$(basename /usr/share/steam/compatibilitytools.d/GE-Proton* -x86_64) &&
-    url=\$(curl -fsSL \"https://api.github.com/repos/GloriousEggroll/proton-ge-custom/releases?per_page=5\" |
-        jq -r --arg i \"\$image\" \"[.[] | select(.tag_name != \\\$i) | .tag_name as \\\$t | .assets[] | select(.name == (\\\$t + \\\"-x86_64.tar.gz\\\")) | .browser_download_url][0]\") &&
-    mkdir -p ~/.local/share/Steam/compatibilitytools.d &&
-    curl -fsSL \"\$url\" | tar -xz -C ~/.local/share/Steam/compatibilitytools.d && basename \"\$url\" .tar.gz'" > "${out}/proton-install.log" 2>&1 || true
+# The release list is read here with the job's token: the VM's own unsigned
+# GitHub API requests share the runner's limit.
+image=$(ssh_vm 'basename /usr/share/steam/compatibilitytools.d/GE-Proton* -x86_64')
+url=$(gh api 'repos/GloriousEggroll/proton-ge-custom/releases?per_page=5' --jq "[.[] | select(.tag_name != \"${image}\") |
+    .tag_name as \$t | .assets[] | select(.name == (\$t + \"-x86_64.tar.gz\")) | .browser_download_url][0]") || true
+ssh_vm "${user} sh -c 'mkdir -p ~/.local/share/Steam/compatibilitytools.d &&
+    curl -fsSL \"${url}\" | tar -xz -C ~/.local/share/Steam/compatibilitytools.d && basename \"${url}\" .tar.gz'" > "${out}/proton-install.log" 2>&1 || true
 other=$(tail -1 "${out}/proton-install.log")
 check "another Proton installed" "test -x /home/arkade/.local/share/Steam/compatibilitytools.d/${other}/proton"
 ssh_vm "${gui} sh -c 'arkadeos-store ea --choose-proton >/tmp/choose.log 2>&1 &'" || true

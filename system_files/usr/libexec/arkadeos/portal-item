@@ -85,15 +85,8 @@ case "${kind}:${action}" in
     ujust:install)
         # Sunshine is chosen to share the screen and take input: the desktop
         # allows it up front instead of asking when it starts unattended.
-        # Its tray icon stays off: with it on, Sunshine 2026.914 hangs when it
-        # reopens the screen share (LizardByte/Sunshine#5750); its page and the
-        # app menu entry still open it.
-        if [[ "${item}" == sunshine ]]; then
+        [[ "${item}" == sunshine ]] &&
             flatpak permission-set kde-authorized remote-desktop dev.lizardbyte.app.Sunshine yes
-            conf="${HOME}/.var/app/dev.lizardbyte.app.Sunshine/config/sunshine/sunshine.conf"
-            mkdir -p "$(dirname "${conf}")"
-            grep -qs '^system_tray' "${conf}" || echo 'system_tray = disabled' >> "${conf}"
-        fi
         in_terminal ujust ${ref}
         ;;
     ujust:remove)

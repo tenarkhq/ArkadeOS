@@ -103,6 +103,8 @@ jobs:
 
       - name: Chosen parts
         if: matrix.suite == 'choices'
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           start=$(date +%s)
           tests/vm/choices.sh /mnt/disk.raw vm-key vm-out
