@@ -82,11 +82,20 @@ case "${kind}:${action}" in
             sunshine) status flatpak info dev.lizardbyte.app.Sunshine ;;
         esac
         ;;
-    ujust:install) in_terminal ujust ${ref} ;;
+    ujust:install)
+        # Sunshine is chosen to share the screen and take input: the desktop
+        # allows it up front instead of asking when it starts unattended.
+        [[ "${item}" == sunshine ]] &&
+            flatpak permission-set kde-authorized remote-desktop dev.lizardbyte.app.Sunshine yes
+        in_terminal ujust ${ref}
+        ;;
     ujust:remove)
         case "${item}" in
             decky) in_terminal ujust setup-decky uninstall ;;
-            sunshine) in_terminal ujust setup-sunshine uninstall ;;
+            sunshine)
+                in_terminal ujust setup-sunshine uninstall
+                flatpak permission-remove kde-authorized remote-desktop dev.lizardbyte.app.Sunshine || true
+                ;;
         esac
         ;;
 

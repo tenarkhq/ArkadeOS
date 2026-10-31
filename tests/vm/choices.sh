@@ -107,15 +107,9 @@ sleep 10
 shot obs
 ssh_vm 'pkill -u arkade -x obs' || true
 install sunshine 900
-# Sunshine asks once to share the screen (the desktop's own dialog); the
-# user says yes.
-sleep 20
-shot sunshine-ask
-key ret
-sleep 5
-shot sunshine-after
 check_wait "Sunshine running, its page answers" "systemctl --user -M arkade@ is-active app-dev.lizardbyte.app.Sunshine &&
     curl -ks -o /dev/null https://127.0.0.1:47990/" 400
+shot sunshine
 ssh_vm "${user} systemctl --user status --no-pager app-dev.lizardbyte.app.Sunshine; journalctl _UID=${uid} --no-pager | grep -i sunshine | tail -80; tail -80 /home/arkade/.var/app/dev.lizardbyte.app.Sunshine/config/sunshine/sunshine.log; ss -ltnp" > "${out}/sunshine.txt" 2>&1 || true
 
 # T020: Mac keyboard.
