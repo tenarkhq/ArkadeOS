@@ -1,0 +1,10 @@
+[Unit]
+Description=ArkadeOS: only the chosen laptop maker's parts run
+Before=tuned.service display-manager.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/libexec/arkadeos/vendor-set boot
+
+[Install]
+WantedBy=multi-user.target

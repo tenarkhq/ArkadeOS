@@ -10,4 +10,4 @@ dnf5 -y install --setopt=install_weak_deps=False asusctl asusctl-rog-gui
 dnf5 -y copr disable lukenukem/asus-linux
 rm -f /etc/yum.repos.d/_copr:copr.fedorainfracloud.org:lukenukem:asus-linux.repo
 
-systemctl enable arkadeos-asus-defaults.service
+systemctl enable arkadeos-asus-defaults.service arkadeos-vendor.service

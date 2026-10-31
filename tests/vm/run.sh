@@ -229,6 +229,16 @@ check "NTSYNC device" 'test -c /dev/ntsync'
 check "GameMode installed" 'command -v gamemoded'
 check "GE-Proton for every user" 'ls -d /usr/share/steam/compatibilitytools.d/GE-Proton*/proton'
 check "ASUS tools (start only on ASUS)" 'rpm -q asusctl asusctl-rog-gui && systemctl is-enabled arkadeos-asus-defaults.service'
+# T046, T047: Legion and MSI parts in the image, hidden and stopped on a
+# machine of another maker (the VM), there when the maker is turned on.
+check "Legion and MSI tools (only for their maker)" 'modinfo -F filename legion-laptop && command -v legion_gui mcontrolcenter &&
+    grep -qx Hidden=true /usr/local/share/applications/legion_gui.desktop &&
+    grep -qx Hidden=true /usr/local/share/applications/mcontrolcenter.desktop &&
+    test "$(systemctl is-enabled legiond.service)" = masked && ! lsmod | grep -q legion'
+ssh_vm '/usr/libexec/arkadeos/vendor-set legion on; /usr/libexec/arkadeos/vendor-set msi on' || true
+check "Legion and MSI tools when turned on" 'test ! -e /usr/local/share/applications/legion_gui.desktop &&
+    test ! -e /usr/local/share/applications/mcontrolcenter.desktop && systemctl is-enabled legiond.service | grep -qv masked'
+ssh_vm '/usr/libexec/arkadeos/vendor-set legion off; /usr/libexec/arkadeos/vendor-set msi off' || true
 check "controller drivers" 'for m in xpad hid_playstation hid_nintendo xone_gip; do modinfo -F filename $m || exit 1; done'
 
 step "power profiles"

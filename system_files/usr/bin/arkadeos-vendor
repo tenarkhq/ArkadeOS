@@ -1,8 +1,9 @@
 #!/usr/bin/bash
 # The maker's parts of a gaming laptop (T026, T013, T046, T047): ASUS (asusd,
-# ROG Control Center), MSI (msi-ec modes, Cooler Boost), Lenovo Legion (the
-# kernel's Lenovo drivers). Only the chosen maker's parts run; without a choice
-# the maker this machine was detected as.
+# ROG Control Center), MSI (msi-ec modes, Cooler Boost, MControlCenter),
+# Lenovo Legion (LenovoLegionLinux: legion-laptop driver, legiond, Legion app;
+# the kernel's Lenovo drivers). Only the chosen maker's parts run; without a
+# choice the maker this machine was detected as.
 #   arkadeos-vendor detect               asus | msi | legion | none
 #   arkadeos-vendor                      the makers whose parts run
 #   arkadeos-vendor MAKER status|on|off

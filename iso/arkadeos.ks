@@ -145,11 +145,13 @@ ref=$(cat /etc/arkadeos/installed-image)
 test -n "${ref}"
 # Updates come from the registry, with ArkadeOS's signature checked.
 bootc switch --mutate-in-place --enforce-container-sigpolicy --transport registry "${ref}"
-# Secure Boot: queue the key the drivers are signed with. At the first reboot
-# a blue screen (MokManager) asks: Enroll MOK -> Continue -> Yes, password
-# universalblue. arkadeos-secureboot reminds the user if it was skipped.
+# Secure Boot: queue the keys the drivers are signed with (Bazzite's and the
+# ArkadeOS module key, T047). At the first reboot a blue screen (MokManager)
+# asks: Enroll MOK -> Continue -> Yes, password universalblue.
 if mokutil --sb-state 2>/dev/null | grep -q enabled; then
     mokutil --timeout -1 || true
-    printf 'universalblue\nuniversalblue\n' | mokutil --import /etc/pki/akmods/certs/akmods-ublue.der || true
+    printf 'universalblue\nuniversalblue\n' |
+        mokutil --import /etc/pki/akmods/certs/akmods-ublue.der /etc/pki/arkadeos/arkadeos-mok.der || true
+    mkdir -p /var/lib/arkadeos && touch /var/lib/arkadeos/mok-queued
 fi
 %end

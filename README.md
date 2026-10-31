@@ -25,7 +25,7 @@ A macOS-style KDE desktop, NVIDIA and AMD images, Steam and Proton, Battle.net, 
 | 🎙️ | Microphone noise filter and low-latency audio | in testing |
 | ⚡ | Gaming kernel, sched_ext scheduler, NTSYNC | in testing |
 | 🔋 | Power profiles: Battery, Balanced, Gaming, Max, switching automatically, per game | in testing |
-| 💻 | Gaming laptops: ASUS (asusctl), MSI (msi-ec), Lenovo Legion; battery care at 80% | in testing |
+| 💻 | Gaming laptops: ASUS (asusctl), MSI (msi-ec, MControlCenter), Lenovo Legion (LenovoLegionLinux); battery care at 80% | in testing |
 | 🌈 | RGB that follows the power profile (OpenRGB), Logitech and Razer mice, monitor control | in testing |
 | 🍎 | macOS-style KDE Plasma 6 with the WhiteSur theme, light and dark | in testing |
 | 🧩 | ArkadeOS Portal: pick apps at first login, add or remove anything later | in testing |

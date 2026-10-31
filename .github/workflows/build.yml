@@ -60,8 +60,14 @@ jobs:
           echo "${{ matrix.image }} ${version} on ${base} (${base_version}), ${proton_ge}" >> "$GITHUB_STEP_SUMMARY"
 
       - name: Build
+        env:
+          # Signs the drivers built in the image (Secure Boot); without it they
+          # are built unsigned.
+          MOK_KEY: ${{ secrets.MOK_KEY }}
         run: |
-          podman build \
+          secret=()
+          [ -n "${MOK_KEY}" ] && secret=(--secret id=mok,env=MOK_KEY)
+          podman build "${secret[@]}" \
             --build-arg BASE_IMAGE=${{ steps.ver.outputs.base }} \
             --build-arg IMAGE_NAME=${{ matrix.image }} \
             --build-arg PROTON_GE_VERSION=${{ steps.ver.outputs.proton_ge }} \

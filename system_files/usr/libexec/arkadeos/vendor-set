@@ -1,10 +1,80 @@
 #!/usr/bin/bash
 # Turns one maker's parts on or off as root (arkadeos-vendor): writes the
-# choice to /etc/arkadeos/vendor and starts or stops the maker's services.
+# choice to /etc/arkadeos/vendor and starts or stops the maker's services,
+# drivers and apps. "vendor-set boot" puts every maker in its state at boot
+# (arkadeos-vendor.service), so a detected maker's parts run without a choice.
 set -euo pipefail
+
+apps=/usr/local/share/applications
+
+# The maker's apps leave the menu when its parts are off.
+show_apps() {
+    local state=$1 app
+    shift
+    # /usr/local links to /var/usrlocal, which may not exist yet.
+    mkdir -p "$(readlink -f /usr/local)/share/applications"
+    for app in "$@"; do
+        [[ -f "/usr/share/applications/${app}" ]] || continue
+        if [[ "${state}" == on ]]; then rm -f "${apps}/${app}"
+        else printf '[Desktop Entry]\nHidden=true\n' > "${apps}/${app}"; fi
+    done
+}
+
+# Secure Boot loads the Legion driver only with the ArkadeOS module key
+# enrolled: queued once (the installer queues it too), the blue screen at the
+# next restart asks for it (Enroll MOK, Continue, Yes, password universalblue).
+enroll_key() {
+    local der=/etc/pki/arkadeos/arkadeos-mok.der queued=/var/lib/arkadeos/mok-queued
+    mokutil --sb-state 2>/dev/null | grep -q enabled || return 0
+    mokutil --test-key "${der}" 2>/dev/null | grep -q "is already enrolled" && return 0
+    [[ -f "${queued}" ]] && return 0
+    printf 'universalblue\nuniversalblue\n' | mokutil --import "${der}" || return 0
+    mkdir -p "${queued%/*}" && touch "${queued}"
+}
+
+apply() {
+    local maker=$1 state=$2 unit
+    case "${maker}" in
+        asus)
+            if [[ "${state}" == on ]]; then
+                systemctl unmask asusd.service
+                systemctl start --no-block asusd.service || true
+            else
+                systemctl mask --now asusd.service
+            fi
+            show_apps "${state}" rog-control-center.desktop
+            ;;
+        legion)
+            if [[ "${state}" == on ]]; then
+                enroll_key
+                modprobe legion-laptop || true
+                systemctl unmask legiond.service legiond-onresume.service legiond-cpuset.service legiond-cpuset.timer
+                systemctl start --no-block legiond.service legiond-cpuset.timer || true
+            else
+                for unit in legiond.service legiond-onresume.service legiond-cpuset.service legiond-cpuset.timer; do
+                    systemctl mask --now "${unit}" || true
+                done
+                modprobe -r legion-laptop 2>/dev/null || true
+            fi
+            show_apps "${state}" legion_gui.desktop
+            ;;
+        msi)
+            show_apps "${state}" mcontrolcenter.desktop
+            ;;
+    esac
+}
+
+if [[ "${1:-}" == boot ]]; then
+    active=$(arkadeos-vendor)
+    for maker in asus legion msi; do
+        grep -qx "${maker}" <<< "${active}" && apply "${maker}" on || apply "${maker}" off
+    done
+    exit 0
+fi
 
 maker=$1 state=$2
 case "${maker}" in asus|msi|legion) ;; *) exit 2 ;; esac
+case "${state}" in on|off) ;; *) exit 2 ;; esac
 conf=/etc/arkadeos/vendor
 mkdir -p /etc/arkadeos
 current=$(arkadeos-vendor)
@@ -14,13 +84,6 @@ current=$(arkadeos-vendor)
 } | grep . > "${conf}.new" || true
 mv "${conf}.new" "${conf}"
 
-if [[ "${maker}" == asus ]]; then
-    if [[ "${state}" == on ]]; then
-        systemctl unmask asusd.service
-        systemctl start --no-block asusd.service || true
-    else
-        systemctl mask --now asusd.service
-    fi
-fi
+apply "${maker}" "${state}"
 # The power profile's maker modes follow at once.
 tuned-adm profile "$(tuned-adm active | sed -n 's/^Current active profile: //p')" || true

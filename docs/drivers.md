@@ -22,7 +22,7 @@ update ever drops one, the build fails and the update never ships.
 | Graphics | AMD Radeon (Mesa), Intel (i915, Xe / Arc), NVIDIA GTX 16 / RTX 20 and newer (NVIDIA image) |
 | Sensors and fans | AMD and Intel processor temperature; ITE (it87), Nuvoton (nct6775, nct6687), ASUS ROG/TUF, Gigabyte mainboard sensors; fan curves in CoolerControl on desktops |
 | Controllers | Xbox (USB and Wireless Adapter), DualShock 4, DualSense, Switch Pro, Joy-Con, Steam Controller |
-| Laptop makers | ASUS (asusctl), MSI (msi-ec), Lenovo Legion and IdeaPad (the kernel's Lenovo drivers) |
+| Laptop makers | ASUS (asusctl), MSI (msi-ec, MControlCenter), Lenovo Legion (LenovoLegionLinux: legion-laptop driver, built with every kernel) and IdeaPad (the kernel's Lenovo drivers) |
 | Peripherals | Razer (OpenRazer), Logitech (Solaar, Piper), RGB (OpenRGB), monitors over DDC/CI |
 
 ## Needs something first
