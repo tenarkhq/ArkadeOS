@@ -1,8 +1,14 @@
 #!/usr/bin/bash
-# TuneD script of the WoW profile (T055): holds the graphics card back to a
-# share of its full power (TGP) while the profile is on, and lets it go after.
+# TuneD script of the WoW profile (T055): on a laptop, holds the graphics card
+# back to a share of its full power (TGP) while the profile is on, so the
+# shared power and cooling go to the CPU, and lets it go after.
 #   gpu-cap start|stop
-# The share is percent= in /etc/arkadeos/gpu-cap.conf (default 60).
+# Only laptops: on a desktop the CPU and the card have their own power and
+# cooling, holding the card back gives the CPU nothing.
+# The share follows the card: while the card is the bottleneck (busy 95% or
+# more) it gets 10% more, up to all of it; when it idles (70% or less) it goes
+# back down, never below percent= in /etc/arkadeos/gpu-cap.conf (default 80).
+# A weaker card that needs all its power keeps it.
 #   NVIDIA, the first that the machine allows:
 #     ASUS laptop: the firmware's GPU TGP (asus-armoury, as G-Helper sets it),
 #       and Dynamic Boost at its lowest, so the shared budget stays with the CPU;
@@ -15,16 +21,29 @@
 drm=${ARKADEOS_DRM:-/sys/class/drm}  # a stand-in tree in the VM test
 fw=${ARKADEOS_FW:-/sys/class/firmware-attributes/asus-armoury/attributes}
 saved=/run/arkadeos/gpu-cap.saved
+pidfile=/run/arkadeos/gpu-cap.watch
+interval=${ARKADEOS_GPU_CAP_INTERVAL:-2}  # seconds between two looks at the card
 log() { logger -t arkadeos-gpu-cap "gpu-cap: $*"; }
 
 percent=$(sed -n 's/^percent=\([0-9]\+\)$/\1/p' /etc/arkadeos/gpu-cap.conf 2>/dev/null | tail -1)
-[[ -n "${percent}" ]] && (( percent >= 10 && percent <= 100 )) || percent=60
+[[ -n "${percent}" ]] && (( percent >= 10 && percent <= 100 )) || percent=80
+
+# Chassis types 8-10, 14, 31, 32: portable, laptop, notebook, sub notebook,
+# convertible, detachable. ARKADEOS_LAPTOP=1 for the VM test.
+laptop() {
+    [[ "${ARKADEOS_LAPTOP:-}" == 1 ]] && return 0
+    compgen -G '/sys/class/power_supply/BAT*' >/dev/null && return 0
+    grep -qxE '8|9|10|14|31|32' /sys/class/dmi/id/chassis_type 2>/dev/null
+}
 
 # path value: remember the old value once, then write the new one.
 put() {
     grep -qs "^$1 " "${saved}" || echo "$1 $(cat "$1")" >> "${saved}"
     echo "$2" > "$1"
 }
+
+# The value before we changed it, else the one now.
+orig() { local v; v=$(sed -n "s|^$1 ||p" "${saved}" 2>/dev/null); echo "${v:-$(cat "$1")}"; }
 
 # ASUS laptop: Dynamic Boost to its lowest, the GPU TGP to the share. Fails
 # when the firmware has no TGP setting.
@@ -37,7 +56,7 @@ asus_tgp() {
     fi
     [[ -f "${a}/current_value" && -f "${a}/max_value" ]] || return 1
     max=$(cat "${a}/max_value") min=$(cat "${a}/min_value" 2>/dev/null || echo 0)
-    cap=$(( max * percent / 100 ))
+    cap=$(( max * $1 / 100 ))
     (( cap < min )) && cap=${min}
     put "${a}/current_value" "${cap}" && log "ASUS GPU TGP ${cap} of ${max} W"
 }
@@ -48,40 +67,49 @@ nvidia_pl() {
     def=$(nvidia-smi --query-gpu=power.default_limit --format=csv,noheader,nounits 2>/dev/null | head -1)
     def=${def%%.*}
     [[ "${def}" =~ ^[0-9]+$ ]] || return 1
-    nvidia-smi -pl "$(( def * percent / 100 ))" >/dev/null 2>&1 || return 1
+    nvidia-smi -pl "$(( def * $1 / 100 ))" >/dev/null 2>&1 || return 1
     grep -qs "^nvidia-pl " "${saved}" || echo "nvidia-pl ${def}" >> "${saved}"
-    log "NVIDIA power limit $(( def * percent / 100 )) of ${def} W"
+    log "NVIDIA power limit $(( def * $1 / 100 )) of ${def} W"
 }
 
 nvidia_clock() {
     local max
     max=$(nvidia-smi --query-gpu=clocks.max.graphics --format=csv,noheader,nounits | head -1)
-    if [[ "${max}" =~ ^[0-9]+$ ]] && nvidia-smi -lgc "0,$(( max * percent / 100 ))" >/dev/null 2>&1; then
-        log "NVIDIA clock at most $(( max * percent / 100 )) of ${max} MHz"
+    if [[ "${max}" =~ ^[0-9]+$ ]] && nvidia-smi -lgc "0,$(( max * $1 / 100 ))" >/dev/null 2>&1; then
+        log "NVIDIA clock at most $(( max * $1 / 100 )) of ${max} MHz"
     else
         log "NVIDIA: no power or clock limit available"
     fi
 }
 
-start() {
-    local discrete=false f max min cap
-    mkdir -p /run/arkadeos
-    if command -v nvidia-smi >/dev/null && nvidia-smi -L >/dev/null 2>&1; then
-        discrete=true
-        asus_tgp || nvidia_pl || nvidia_clock
-    fi
+nvidia() { command -v nvidia-smi >/dev/null && nvidia-smi -L >/dev/null 2>&1; }
+
+# AMD cards' power limit files; the Steam Deck's chip (slowPPT) is CPU and GPU
+# in one: left alone.
+amd_caps() {
+    local f
     for f in ${drm}/card*/device/hwmon/hwmon*/power1_cap; do
         [[ -f "${f}" ]] || continue
-        # The Steam Deck's chip (slowPPT) is CPU and GPU in one: left alone.
-        [[ "$(cat "${f%_cap}_label" 2>/dev/null || echo PPT)" == PPT ]] || continue
+        [[ "$(cat "${f%_cap}_label" 2>/dev/null || echo PPT)" == PPT ]] && echo "${f}"
+    done
+}
+
+# Every card held back to share $1. False when there is no separate card.
+apply() {
+    local discrete=false f max min cap
+    if nvidia; then
         discrete=true
-        max=$(cat "${f%_cap}_cap_default" 2>/dev/null || cat "${f}")
+        asus_tgp "$1" || nvidia_pl "$1" || nvidia_clock "$1"
+    fi
+    for f in $(amd_caps); do
+        discrete=true
+        max=$(cat "${f%_cap}_cap_default" 2>/dev/null || orig "${f}")
         min=$(cat "${f%_cap}_cap_min" 2>/dev/null || echo 0)
-        cap=$(( max * percent / 100 ))
+        cap=$(( max * $1 / 100 ))
         (( cap < min )) && cap=${min}
         put "${f}" "${cap}" && log "AMD power limit ${cap} of ${max} µW"
     done
-    "${discrete}" || { log "no separate graphics card: nothing held back"; return; }
+    "${discrete}" || return 1
     # i915: gt_max_freq_mhz beside gt_RP0_freq_mhz; xe: max_freq beside rp0_freq.
     for f in ${drm}/card*/gt_max_freq_mhz ${drm}/card*/device/tile*/gt*/freq0/max_freq; do
         [[ -f "${f}" ]] || continue
@@ -91,13 +119,14 @@ start() {
             max=$(cat "${f%/*}/rp0_freq" 2>/dev/null) min=$(cat "${f%/*}/min_freq" 2>/dev/null)
         fi
         [[ "${max}" =~ ^[0-9]+$ ]] || continue
-        cap=$(( max * percent / 100 ))
+        cap=$(( max * $1 / 100 ))
         (( cap < ${min:-0} )) && cap=${min}
         put "${f}" "${cap}" && log "Intel built-in clock at most ${cap} of ${max} MHz"
     done
 }
 
-stop() {
+# Everything back as it was.
+release() {
     command -v nvidia-smi >/dev/null && nvidia-smi -rgc >/dev/null 2>&1
     if [[ -f "${saved}" ]]; then
         while read -r f v; do
@@ -105,11 +134,69 @@ stop() {
         done < "${saved}"
         rm -f "${saved}"
     fi
+}
+
+# How busy the separate card is, in percent (the busiest one).
+busy() {
+    local b=0 v f
+    if nvidia; then
+        for v in $(nvidia-smi --query-gpu=utilization.gpu --format=csv,noheader,nounits 2>/dev/null); do
+            [[ "${v}" =~ ^[0-9]+$ ]] && (( v > b )) && b=${v}
+        done
+    fi
+    for f in $(amd_caps); do
+        v=$(cat "${f%/hwmon/*}/gpu_busy_percent" 2>/dev/null)
+        [[ "${v}" =~ ^[0-9]+$ ]] && (( v > b )) && b=${v}
+    done
+    echo "${b}"
+}
+
+# Follows the card while the profile is on: more power while it is the
+# bottleneck (3 looks in a row at 95% or more), less when it idles (15 looks
+# at 70% or less), between percent= and 100.
+watch() {
+    local share=${percent} high=0 low=0 b
+    while sleep "${interval}"; do
+        b=$(busy)
+        if (( b >= 95 )); then high=$(( high + 1 )) low=0
+        elif (( b <= 70 )); then low=$(( low + 1 )) high=0
+        else high=0 low=0
+        fi
+        if (( high >= 3 && share < 100 )); then
+            share=$(( share + 10 > 100 ? 100 : share + 10 )) high=0
+        elif (( low >= 15 && share > percent )); then
+            share=$(( share - 10 < percent ? percent : share - 10 )) low=0
+        else
+            continue
+        fi
+        log "card busy ${b}%: share ${share}%"
+        if (( share == 100 )); then release; else apply "${share}"; fi
+    done
+}
+
+start() {
+    mkdir -p /run/arkadeos
+    laptop || { log "desktop: the CPU and the card have their own power, nothing held back"; return; }
+    (( percent < 100 )) || { log "percent=100: nothing held back"; return; }
+    apply "${percent}" || { log "no separate graphics card: nothing held back"; return; }
+    # Detached and silent, so TuneD does not wait for it.
+    setsid -f "$0" watch < /dev/null > /dev/null 2>&1
+}
+
+stop() {
+    local pid i
+    pid=$(cat "${pidfile}" 2>/dev/null)
+    if [[ -n "${pid}" ]] && kill "${pid}" 2>/dev/null; then
+        for i in $(seq 30); do kill -0 "${pid}" 2>/dev/null || break; sleep 0.1; done
+    fi
+    rm -f "${pidfile}"
+    release
     log "graphics card back to full speed"
 }
 
 case "${1:-}" in
     start) start ;;
     stop) stop ;;
+    watch) echo $$ > "${pidfile}"; watch ;;
 esac
 exit 0

@@ -294,22 +294,33 @@ ssh_vm 'mkdir -p /run/gpu-test/card0/device/hwmon/hwmon0 /run/gpu-test/card1 && 
     echo PPT > card0/device/hwmon/hwmon0/power1_label && echo 150000000 > card0/device/hwmon/hwmon0/power1_cap &&
     echo 150000000 > card0/device/hwmon/hwmon0/power1_cap_default && echo 1500 > card1/gt_max_freq_mhz &&
     echo 1500 > card1/gt_RP0_freq_mhz && echo 300 > card1/gt_min_freq_mhz'
-check "GPU held back to 60% and let go" 'ARKADEOS_DRM=/run/gpu-test /usr/libexec/arkadeos/gpu-cap start &&
-    test "$(cat /run/gpu-test/card0/device/hwmon/hwmon0/power1_cap)" = 90000000 &&
-    test "$(cat /run/gpu-test/card1/gt_max_freq_mhz)" = 900 &&
-    ARKADEOS_DRM=/run/gpu-test /usr/libexec/arkadeos/gpu-cap stop &&
+check "desktop: GPU not held back" 'ARKADEOS_DRM=/run/gpu-test /usr/libexec/arkadeos/gpu-cap start &&
+    test "$(cat /run/gpu-test/card0/device/hwmon/hwmon0/power1_cap)" = 150000000 &&
+    ARKADEOS_DRM=/run/gpu-test /usr/libexec/arkadeos/gpu-cap stop'
+check "laptop: GPU held back to 80% and let go" 'export ARKADEOS_DRM=/run/gpu-test ARKADEOS_LAPTOP=1 && /usr/libexec/arkadeos/gpu-cap start &&
+    test "$(cat /run/gpu-test/card0/device/hwmon/hwmon0/power1_cap)" = 120000000 &&
+    test "$(cat /run/gpu-test/card1/gt_max_freq_mhz)" = 1200 &&
+    /usr/libexec/arkadeos/gpu-cap stop &&
     test "$(cat /run/gpu-test/card0/device/hwmon/hwmon0/power1_cap)" = 150000000 &&
     test "$(cat /run/gpu-test/card1/gt_max_freq_mhz)" = 1500 && test ! -e /run/arkadeos/gpu-cap.saved'
 # ASUS laptop with NVIDIA: the firmware's GPU TGP and Dynamic Boost (stand-in
 # nvidia-smi that refuses -pl, as laptop GPUs do, and stand-in attributes).
 ssh_vm 'mkdir -p /run/tgp-test/bin /run/tgp-test/fw/dgpu_tgp /run/tgp-test/fw/nv_dynamic_boost && cd /run/tgp-test &&
-    printf "#!/bin/sh\ncase \"\$1\" in -pl) exit 1;; -L) echo GPU 0;; esac\n" > bin/nvidia-smi && chmod +x bin/nvidia-smi &&
+    printf "#!/bin/sh\ncase \"\$1\" in -pl) exit 1;; -L) echo GPU 0;; --query-gpu=utilization*) cat /run/tgp-test/util;; esac\n" > bin/nvidia-smi && chmod +x bin/nvidia-smi &&
     echo 115 > fw/dgpu_tgp/current_value && echo 115 > fw/dgpu_tgp/max_value && echo 55 > fw/dgpu_tgp/min_value &&
     echo 25 > fw/nv_dynamic_boost/current_value && echo 5 > fw/nv_dynamic_boost/min_value'
-check "ASUS GPU TGP to 60%, Dynamic Boost off, then back" 'export PATH=/run/tgp-test/bin:$PATH ARKADEOS_FW=/run/tgp-test/fw ARKADEOS_DRM=/run/tgp-test &&
-    /usr/libexec/arkadeos/gpu-cap start && test "$(cat /run/tgp-test/fw/dgpu_tgp/current_value)" = 69 &&
+check "ASUS GPU TGP to 80%, Dynamic Boost off, then back" 'export PATH=/run/tgp-test/bin:$PATH ARKADEOS_FW=/run/tgp-test/fw ARKADEOS_DRM=/run/tgp-test ARKADEOS_LAPTOP=1 &&
+    /usr/libexec/arkadeos/gpu-cap start && test "$(cat /run/tgp-test/fw/dgpu_tgp/current_value)" = 92 &&
     test "$(cat /run/tgp-test/fw/nv_dynamic_boost/current_value)" = 5 && /usr/libexec/arkadeos/gpu-cap stop &&
     test "$(cat /run/tgp-test/fw/dgpu_tgp/current_value)" = 115 && test "$(cat /run/tgp-test/fw/nv_dynamic_boost/current_value)" = 25'
+# A card that is the bottleneck gets its power back step by step, and is held
+# back again once it idles (stand-in busy figure, a look every 0.2 s).
+check "GPU busy: share goes up to 100%, then back to 80%" 'export PATH=/run/tgp-test/bin:$PATH ARKADEOS_FW=/run/tgp-test/fw ARKADEOS_DRM=/run/tgp-test ARKADEOS_LAPTOP=1 ARKADEOS_GPU_CAP_INTERVAL=0.2 &&
+    echo 99 > /run/tgp-test/util && /usr/libexec/arkadeos/gpu-cap start && sleep 3 &&
+    test "$(cat /run/tgp-test/fw/dgpu_tgp/current_value)" = 115 && test "$(cat /run/tgp-test/fw/nv_dynamic_boost/current_value)" = 25 &&
+    echo 30 > /run/tgp-test/util && sleep 8 && test "$(cat /run/tgp-test/fw/dgpu_tgp/current_value)" = 92 &&
+    /usr/libexec/arkadeos/gpu-cap stop && test "$(cat /run/tgp-test/fw/dgpu_tgp/current_value)" = 115 &&
+    test ! -e /run/arkadeos/gpu-cap.watch && ! pgrep -f "^/usr/bin/bash /usr/libexec/arkadeos/gpu-cap watch"'
 ssh_vm /usr/libexec/arkadeos/power-set wow || true
 sleep 4
 check "WoW profile" 'tuned-adm active | grep -q arkadeos-wow'
