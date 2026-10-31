@@ -15,6 +15,7 @@ on:
       - ".github/workflows/iso.yml"
       - "iso/**"
       - "tests/**"
+      - "art/**"
 
 permissions:
   contents: read

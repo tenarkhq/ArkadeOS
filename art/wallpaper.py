@@ -1,5 +1,6 @@
-"""ArkadeOS wallpaper "Ark" (T009). Renders in linear light, Display P3
-primaries, 16 bits per channel. Usage: wallpaper.py A <w> <h> <dark|light> <out.png>
+"""ArkadeOS wallpaper "Ark" (T009, picked by Roland from four drafts).
+Renders in linear light, Display P3 primaries, 16 bits per channel.
+Usage: wallpaper.py A <w> <h> <dark|light> <out.png>
 (art/render-wallpaper.sh makes every size and encodes JPEG XL)."""
 import struct
 import sys
@@ -85,7 +86,7 @@ if draft == "A":  # Ark: four light filaments sweep in from the edges to one bri
     d = np.hypot(xx - cx, yy - cy) / S
     canvas += (np.exp(-(d / 0.012) ** 2) * 1.4 + np.exp(-(d / 0.05) ** 2) * 0.10)[..., None] * lin([1, 1, 1])
 
-elif mode == "light":
+if mode == "light":
     # Same strokes as coloured ink on pale paper: hue kept, glow becomes tint.
     paper = lin([0.955, 0.955, 0.97])
     lum = canvas.max(axis=-1, keepdims=True)
