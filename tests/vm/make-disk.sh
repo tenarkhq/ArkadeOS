@@ -4,6 +4,8 @@
 # btrfs root.
 # bootc's own whole-disk install keeps /boot inside a read-only root, where
 # staged updates cannot be finalized and the boot menu cannot be changed.
+# Kernel messages also go to the serial line for the logs; the screen stays
+# the main console, so the boot screen shows as on a real machine.
 # Usage (root): make-disk.sh <disk.raw> <image> <ssh public key> <source imgref> <target imgref>
 set -euo pipefail
 
@@ -29,5 +31,5 @@ podman run --rm --privileged --pid=host --net=host --security-opt label=type:unc
     "${image}" \
     bootc install to-filesystem --generic-image \
         --source-imgref "${source}" --target-imgref "${target}" \
-        --karg console=ttyS0,115200 \
+        --karg console=ttyS0,115200 --karg console=tty0 \
         --root-ssh-authorized-keys /vm-key.pub /target

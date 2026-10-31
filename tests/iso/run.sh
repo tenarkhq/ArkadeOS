@@ -23,6 +23,22 @@ shot() {
     sleep 1
     convert "${out}/$1.ppm" "${out}/$1.png" && rm "${out}/$1.ppm"
 }
+# Presses one key on the VM keyboard (a QEMU key name: a, 1, minus, ret).
+key() {
+    printf '%s\n' '{"execute":"qmp_capabilities"}' \
+        "{\"execute\":\"send-key\",\"arguments\":{\"keys\":[{\"type\":\"qcode\",\"data\":\"$1\"}]}}" |
+        socat - "UNIX-CONNECT:${qmp}" >/dev/null
+}
+# Types lower-case letters, digits and - on the VM keyboard, then Enter.
+type_text() {
+    local i c
+    for ((i = 0; i < ${#1}; i++)); do
+        c=${1:i:1}
+        [[ "${c}" == - ]] && c=minus
+        key "${c}"
+    done
+    key ret
+}
 step() { echo "$(date -u +%T) $*"; }
 
 step "installing from the ISO"
@@ -63,9 +79,9 @@ ok=0 typed=0
 for n in $(seq 150); do
     if ssh_vm true 2>/dev/null; then ok=$((ok + 1)); [[ ${ok} -ge 3 ]] && break; else ok=0; fi
     if [[ -n "${LUKS_PASSWORD:-}" && ${typed} -lt 3 && $((n % 6)) == 0 ]]; then
+        # The boot screen asks for it, as on a real machine: typed on the keyboard.
         shot "unlock-${n}"
-        # The test boots with console=ttyS0, so the password prompt is there.
-        printf '%s\r' "${LUKS_PASSWORD}" | socat - "UNIX-CONNECT:${out}/serial.sock" || true
+        type_text "${LUKS_PASSWORD}"
         typed=$((typed + 1))
     fi
     sleep 5
