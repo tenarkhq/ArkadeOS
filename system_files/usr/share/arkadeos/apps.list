@@ -7,4 +7,5 @@ vesktop|dev.vencord.Vesktop|off
 easyeffects|com.github.wwmm.easyeffects|always
 vlc|org.videolan.VLC|always
 protonplus|com.vysp3r.ProtonPlus|always
+qbittorrent|org.qbittorrent.qBittorrent|on
 heroic|com.heroicgameslauncher.hgl|off

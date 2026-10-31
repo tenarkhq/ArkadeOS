@@ -7,6 +7,7 @@ chrome	base	flatpak	com.google.Chrome	Google Chrome	Google Chrome
 vlc	base	flatpak	org.videolan.VLC	VLC	VLC
 easyeffects	base	flatpak	com.github.wwmm.easyeffects	EasyEffects (microphone filter)	EasyEffects (mikrofonszűrő)
 protonplus	base	flatpak	com.vysp3r.ProtonPlus	ProtonPlus (Proton versions)	ProtonPlus (Proton-verziók)
+qbittorrent	base	flatpak	org.qbittorrent.qBittorrent	qBittorrent (torrent, no ads)	qBittorrent (torrent, reklám nélkül)
 discord	chat	flatpak	com.discordapp.Discord	Discord	Discord
 vesktop	chat	flatpak	dev.vencord.Vesktop	Vesktop (Discord with Vencord)	Vesktop (Discord Vencorddal)
 battlenet	stores	launcher	org.arkadeos.BattleNet.desktop	Battle.net	Battle.net

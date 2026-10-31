@@ -319,10 +319,11 @@ for _ in $(seq 90); do
 done
 ssh_vm 'systemctl status --no-pager arkadeos-apps.service; journalctl -b -u arkadeos-apps --no-pager | tail -40' > "${out}/apps-install.txt" 2>&1 || true
 for app in org.mozilla.firefox com.google.Chrome com.discordapp.Discord com.github.wwmm.easyeffects \
-    org.videolan.VLC com.vysp3r.ProtonPlus; do
+    org.videolan.VLC com.vysp3r.ProtonPlus org.qbittorrent.qBittorrent; do
     check "${app} installed" "flatpak info --system ${app}"
 done
-for app in org.mozilla.firefox:firefox com.google.Chrome:chrome com.discordapp.Discord:discord; do
+for app in org.mozilla.firefox:firefox com.google.Chrome:chrome com.discordapp.Discord:discord \
+    org.qbittorrent.qBittorrent:qbittorrent; do
     ssh_vm "nohup ${session} flatpak run ${app%%:*} > /tmp/${app%%:*}.log 2>&1 &"
     sleep 25
     shot "app-${app#*:}"

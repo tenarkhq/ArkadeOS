@@ -22,6 +22,7 @@ A macOS-style KDE desktop, NVIDIA and AMD images, Steam and Proton, Battle.net, 
 | 🕹️ | Game Mode session: boot straight into full-screen Steam, or switch from the desktop | in testing |
 | ⚔️ | One-click Battle.net (World of Warcraft first), EA app and Ubisoft Connect, WowUp for addons | in testing |
 | 💬 | Discord preinstalled, Vesktop optional for Wayland screen sharing with audio | in testing |
+| 🧲 | qBittorrent: free, open-source torrent client without ads (ticked by default, can be left out) | in testing |
 | 🎙️ | Microphone noise filter and low-latency audio | in testing |
 | ⚡ | Gaming kernel, sched_ext scheduler, NTSYNC | in testing |
 | 🔋 | Power profiles: Battery, Balanced, Gaming, Max, switching automatically, per game | in testing |
