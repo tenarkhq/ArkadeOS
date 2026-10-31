@@ -1,0 +1,38 @@
+#!/usr/bin/bash
+# Windows in the boot menu (T023). The boot menu of an ArkadeOS install is a
+# fixed one, so Windows is added by hand: every EFI system partition with
+# Windows's boot loader gets an entry in custom.cfg (read by the fixed menu),
+# and the menu then always shows, so there is a moment to choose. Runs at
+# every start: a Windows installed later or removed is picked up.
+set -euo pipefail
+
+cfg=/boot/grub2/custom.cfg
+new=$(mktemp)
+trap 'rm -f "${new}"' EXIT
+mnt=$(mktemp -d)
+while read -r dev uuid; do
+    if mount -o ro "${dev}" "${mnt}" 2>/dev/null; then
+        if [[ -f "${mnt}/EFI/Microsoft/Boot/bootmgfw.efi" ]]; then
+            cat >> "${new}" <<ENTRY
+menuentry 'Windows' --class windows --class os \$menuentry_id_option 'windows-${uuid}' {
+    insmod part_gpt
+    insmod fat
+    search --no-floppy --fs-uuid --set=root ${uuid}
+    chainloader /EFI/Microsoft/Boot/bootmgfw.efi
+}
+ENTRY
+        fi
+        umount "${mnt}"
+    fi
+done < <(lsblk -nrpo PATH,UUID,PARTTYPE | awk 'tolower($3) == "c12a7328-f81f-11d2-ba4b-00a0c93ec93b" { print $1, $2 }')
+rmdir "${mnt}"
+
+if [[ -s "${new}" ]]; then
+    { echo "# Windows (ArkadeOS, T023): written by arkadeos-windows-entry at every start."; cat "${new}"; } > "${new}.cfg"
+    cmp -s "${new}.cfg" "${cfg}" || cp "${new}.cfg" "${cfg}"
+    rm -f "${new}.cfg"
+    grub2-editenv - unset menu_auto_hide
+elif [[ -f "${cfg}" ]] && head -1 "${cfg}" | grep -q 'ArkadeOS, T023'; then
+    rm -f "${cfg}"
+    grub2-editenv - set menu_auto_hide=1
+fi

@@ -1,0 +1,12 @@
+[Unit]
+Description=Windows in the ArkadeOS boot menu
+After=local-fs.target boot.mount
+RequiresMountsFor=/boot
+ConditionPathIsDirectory=/boot/grub2
+
+[Service]
+Type=oneshot
+ExecStart=/usr/libexec/arkadeos/windows-entry
+
+[Install]
+WantedBy=multi-user.target

@@ -12,6 +12,8 @@ on:
       - ".github/workflows/prefetch.yml"
       - ".github/workflows/vm-test.yml"
       - ".github/workflows/promote.yml"
+      - ".github/workflows/iso.yml"
+      - "iso/**"
       - "tests/**"
 
 permissions:

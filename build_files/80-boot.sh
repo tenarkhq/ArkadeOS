@@ -14,3 +14,6 @@ dracut --no-hostonly --kver "${kver}" --reproducible --zstd --add ostree \
     -f "/usr/lib/modules/${kver}/initramfs.img"
 chmod 0600 "/usr/lib/modules/${kver}/initramfs.img"
 lsinitrd "/usr/lib/modules/${kver}/initramfs.img" | grep -c themes/arkadeos/watermark.png
+
+# T023: Windows next to ArkadeOS gets an entry in the boot menu.
+systemctl enable arkadeos-windows-entry.service

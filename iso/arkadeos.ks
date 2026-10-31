@@ -2,9 +2,89 @@
 # The user picks language, disk (also "next to Windows", T023) and account as
 # usual; the system itself is the ArkadeOS image that fits the graphics card,
 # pulled from the registry:
-#   NVIDIA card (also next to an Intel/AMD iGPU)  ->  arkadeos-nvidia
-#   AMD or Intel only                              ->  arkadeos
+#   NVIDIA GTX 16xx / RTX 20xx or newer (also next to an Intel/AMD iGPU)
+#                                                  ->  arkadeos-nvidia
+#   AMD or Intel only, or an older NVIDIA card     ->  arkadeos
+#   (NVIDIA's driver needs Turing, device id 0x1e00 and up; older cards run
+#   on the open nouveau driver of the plain image)
 # Boot options override it: arkadeos.image=<name>, arkadeos.tag=<tag>.
+
+# Hardware check before anything is written (T053). A disk mode Linux cannot
+# use stops the installer with the steps to fix it; other findings are kept
+# and shown after the first login. arkadeos.hwcheck=off skips the stop.
+%pre --erroronfail --log=/tmp/arkadeos-hwcheck.log
+#!/bin/bash
+sys=${ARKADEOS_SYSFS:-/sys}
+out=${ARKADEOS_TMP:-/tmp}/arkadeos-hwcheck.txt
+: > "${out}"
+note() { printf '%s\n%s\n\n' "$1" "$2" >> "${out}"; }
+stop=0
+grep -qw arkadeos.hwcheck=off "${ARKADEOS_CMDLINE:-/proc/cmdline}" && stop=off
+for dev in "${sys}"/bus/pci/devices/*; do
+    [ -f "${dev}/class" ] || continue
+    class=$(cat "${dev}/class") vendor=$(cat "${dev}/vendor") device=$(cat "${dev}/device")
+    case "${class}" in
+        0x0104*) [ "${vendor}" = 0x1022 ] && [ "${stop}" = 0 ] && stop=1 ;;
+        0x03*)
+            if [ "${vendor}" = 0x10de ] && [ $(( device )) -lt $(( 0x1e00 )) ]; then
+                note "Older NVIDIA card (before GTX 16 / RTX 20): it runs on the open nouveau driver, games are slower than on Windows." \
+                    "Régebbi NVIDIA kártya (GTX 16 / RTX 20 előtti): a nyílt nouveau driverrel megy, a játékok lassabbak, mint Windowson."
+            fi
+            ;;
+        0x0280*|0x0200*)
+            if [ ! -e "${dev}/driver" ]; then
+                note "Network chip ${vendor#0x}:${device#0x} has no driver yet: use another connection (Ethernet, a USB Wi-Fi adapter) until an update brings one." \
+                    "A(z) ${vendor#0x}:${device#0x} hálózati chiphez még nincs driver: addig más kapcsolat kell (Ethernet, USB Wi-Fi adapter), amíg egy frissítés el nem hozza."
+            fi
+            ;;
+    esac
+done
+if [ "${stop}" = 1 ]; then
+    cat <<'MSG'
+=====================================================================
+The disks are in AMD RAID mode, which Linux cannot use.
+A lemezek AMD RAID módban vannak, ezt a Linux nem tudja használni.
+
+Switch the disk mode to AHCI in the BIOS, then start the installer again.
+Kapcsold a lemez módját AHCI-ra a BIOS-ban, majd indítsd újra a telepítőt.
+
+If Windows is on this machine, set Windows up for AHCI first, or it will
+not start after the switch (no reinstall needed):
+Ha Windows is van a gépen, előbb azt készítsd fel AHCI-ra, különben a váltás
+után nem indul el (újratelepítés nem kell):
+ 1. If BitLocker is on: save the recovery key (aka.ms/myrecoverykey) and
+    suspend BitLocker (Control Panel > BitLocker > Suspend protection).
+    Ha be van kapcsolva a BitLocker: mentsd el a helyreállító kulcsot
+    (aka.ms/myrecoverykey), és függeszd fel a BitLockert.
+ 2. In Windows, as administrator: bcdedit /set {current} safeboot minimal
+    Windowsban, rendszergazdaként: bcdedit /set {current} safeboot minimal
+ 3. Restart into the BIOS, set the disk mode (SATA / RAID mode) to AHCI.
+    Újraindítás a BIOS-ba, a lemez módja (SATA / RAID mode) legyen AHCI.
+ 4. Windows starts in safe mode; as administrator:
+    bcdedit /deletevalue {current} safeboot, then restart.
+    A Windows csökkentett módban indul; rendszergazdaként:
+    bcdedit /deletevalue {current} safeboot, majd újraindítás.
+ 5. Windows works normally again: start the ArkadeOS installer.
+    A Windows újra rendesen megy: indítsd az ArkadeOS telepítőt.
+=====================================================================
+MSG
+    exit 1
+fi
+sb=$(ls "${sys}"/firmware/efi/efivars/SecureBoot-* 2>/dev/null | head -1)
+if [ -n "${sb}" ] && [ "$(od -An -t u1 -j 4 -N 1 "${sb}" | tr -d ' ')" = 1 ]; then
+    note "Secure Boot is on: at the first restart a blue screen asks to enroll a key: Enroll MOK, Continue, Yes, password universalblue." \
+        "A Secure Boot be van kapcsolva: az első újraindításkor egy kék képernyő kulcs felvételét kéri: Enroll MOK, Continue, Yes, jelszó: universalblue."
+fi
+[ -e "${sys}/class/tpm/tpm0" ] || note "No TPM found: disk encryption asks for its password at every start." \
+    "Nincs TPM: a lemeztitkosítás minden induláskor kéri a jelszavát."
+fs=$(cat "${ARKADEOS_LSBLK:-/dev/null}" 2>/dev/null || true)
+[ -n "${ARKADEOS_LSBLK:-}" ] || fs=$(lsblk -nro FSTYPE 2>/dev/null)
+if echo "${fs}" | grep -qx BitLocker; then
+    note "Windows is encrypted with BitLocker: save its recovery key before installing next to it." \
+        "A Windows BitLockerrel titkosított: a mellé telepítés előtt mentsd el a helyreállító kulcsát."
+fi
+cat "${out}"
+%end
 
 %pre --erroronfail --log=/tmp/arkadeos-pre.log
 #!/bin/bash
@@ -20,7 +100,11 @@ if [ -z "${image}" ]; then
     image=arkadeos
     for dev in "${ARKADEOS_SYSFS:-/sys}"/bus/pci/devices/*; do
         case "$(cat "${dev}/class")" in
-            0x03*) [ "$(cat "${dev}/vendor")" = 0x10de ] && image=arkadeos-nvidia ;;
+            0x03*)
+                if [ "$(cat "${dev}/vendor")" = 0x10de ] && [ $(( $(cat "${dev}/device") )) -ge $(( 0x1e00 )) ]; then
+                    image=arkadeos-nvidia
+                fi
+                ;;
         esac
     done
 fi
@@ -37,6 +121,7 @@ echo "ostreecontainer --url=${ref} --transport=registry --no-signature-verificat
 %post --nochroot --erroronfail --log=/mnt/sysimage/var/log/arkadeos-install.log
 mkdir -p /mnt/sysimage/etc/arkadeos
 cp /tmp/arkadeos-image /mnt/sysimage/etc/arkadeos/installed-image
+[ -s /tmp/arkadeos-hwcheck.txt ] && cp /tmp/arkadeos-hwcheck.txt /mnt/sysimage/etc/arkadeos/hardware-check.txt
 %end
 
 %post --erroronfail --log=/var/log/arkadeos-install-chroot.log

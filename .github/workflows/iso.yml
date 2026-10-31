@@ -34,8 +34,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Graphics card check
-        run: tests/iso/gpu-detect.sh
+      - name: Installer checks (graphics card, hardware)
+        run: tests/iso/gpu-detect.sh && tests/iso/hwcheck.sh
 
       - name: KVM
         run: |
@@ -49,6 +49,9 @@ jobs:
         run: |
           sudo apt-get update -q
           sudo apt-get install -y -q qemu-system-x86 qemu-utils ovmf socat imagemagick
+          # mkksiso builds the EFI boot image on a loop device.
+          sudo modprobe loop
+          sudo losetup -f
 
       - name: Fedora installer cache
         uses: actions/cache@v4

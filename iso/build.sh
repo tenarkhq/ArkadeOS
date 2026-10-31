@@ -37,7 +37,10 @@ podman run --rm -v "${work}:/work" -v "${cache}:/cache:ro" -v "$(dirname "${out}
     cd /work
     # The installer calls itself ArkadeOS (.buildstamp in an updates image).
     bash buildstamp.sh /cache/${netinst} updates.img
-    mkksiso --ks arkadeos.ks --updates updates.img ${ISO_CMDLINE:+-c \"${ISO_CMDLINE}\"} -V ArkadeOS \
+    # Its EFI image is built on a loop device: temporary files on the bind-mounted
+    # work folder, not on the container's overlay.
+    mkdir -p /work/tmp
+    mkksiso --tmp /work/tmp --ks arkadeos.ks --updates updates.img ${ISO_CMDLINE:+-c \"${ISO_CMDLINE}\"} -V ArkadeOS \
         /cache/${netinst} /work/stage.iso
     # Boot menu: ArkadeOS instead of Fedora.
     xorriso -osirrox on -indev /work/stage.iso -extract /EFI/BOOT/grub.cfg grub.cfg >/dev/null 2>&1
