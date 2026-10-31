@@ -106,6 +106,11 @@ check_wait "OBS starts" 'pgrep -u arkade -x obs' 120
 sleep 10
 shot obs
 ssh_vm 'pkill -u arkade -x obs' || true
+# The VM has no video encoder chip (a real machine's NVIDIA, AMD or Intel
+# card has one): Sunshine's hardware probe hangs there, so the test points it
+# at the software encoder, which every machine has.
+ssh_vm "${user} sh -c 'mkdir -p .var/app/dev.lizardbyte.app.Sunshine/config/sunshine &&
+    echo encoder = software > .var/app/dev.lizardbyte.app.Sunshine/config/sunshine/sunshine.conf'"
 install sunshine 900
 check_wait "Sunshine running, its page answers" "systemctl --user -M arkade@ is-active app-dev.lizardbyte.app.Sunshine &&
     curl -ks -o /dev/null https://127.0.0.1:47990/" 400
