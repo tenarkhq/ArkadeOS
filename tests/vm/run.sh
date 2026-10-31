@@ -401,6 +401,8 @@ for app in org.mozilla.firefox com.google.Chrome com.discordapp.Discord com.gith
     org.videolan.VLC com.vysp3r.ProtonPlus org.qbittorrent.qBittorrent; do
     check "${app} installed" "flatpak info --system ${app}"
 done
+# T059: GPU Screen Recorder only from the Portal, not there by default.
+check "GPU Screen Recorder not installed by default" '! flatpak info --system com.dec05eba.gpu_screen_recorder'
 # The screen locks after five idle minutes; the app shots need the desktop.
 ssh_vm 'loginctl unlock-sessions' || true
 for app in org.mozilla.firefox:firefox com.google.Chrome:chrome com.discordapp.Discord:discord \
