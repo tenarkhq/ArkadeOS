@@ -24,17 +24,6 @@ shot() {
     convert "${out}/$1.ppm" "${out}/$1.png" && rm "${out}/$1.ppm"
 }
 step() { echo "$(date -u +%T) $*"; }
-# Types text on the VM keyboard (lower-case letters, digits, minus), then Enter.
-type_line() {
-    local keys="" c
-    for (( i = 0; i < ${#1}; i++ )); do
-        c=${1:i:1}
-        [[ "${c}" == - ]] && c=minus
-        keys+="{\"execute\":\"send-key\",\"arguments\":{\"keys\":[{\"type\":\"qcode\",\"data\":\"${c}\"}]}}"$'\n'
-    done
-    keys+='{"execute":"send-key","arguments":{"keys":[{"type":"qcode","data":"ret"}]}}'
-    printf '%s\n%s\n' '{"execute":"qmp_capabilities"}' "${keys}" | socat - "UNIX-CONNECT:${qmp}" >/dev/null
-}
 
 step "installing from the ISO"
 # -no-reboot: the installer's reboot ends this QEMU, the next one boots the disk.
@@ -66,15 +55,17 @@ qemu-system-x86_64 -enable-kvm -cpu host -smp 4 -m 8G -machine q35 \
     -drive file="${disk}",if=virtio,format=qcow2 \
     -device virtio-vga -display none \
     -nic user,model=virtio-net-pci,hostfwd=tcp:127.0.0.1:2222-:22 \
-    -serial file:"${out}/serial.log" -qmp unix:"${qmp}",server,nowait \
+    -chardev socket,id=s0,path="${out}/serial.sock",server=on,wait=off,logfile="${out}/serial.log" \
+    -serial chardev:s0 -qmp unix:"${qmp}",server,nowait \
     -daemonize -pidfile "${out}/qemu.pid"
-# T024: the disk is encrypted; its password is typed at the boot screen.
+# T024: the disk is encrypted; its password is given at the boot prompt.
 ok=0 typed=0
 for n in $(seq 150); do
     if ssh_vm true 2>/dev/null; then ok=$((ok + 1)); [[ ${ok} -ge 3 ]] && break; else ok=0; fi
     if [[ -n "${LUKS_PASSWORD:-}" && ${typed} -lt 3 && $((n % 6)) == 0 ]]; then
         shot "unlock-${n}"
-        type_line "${LUKS_PASSWORD}"
+        # The test boots with console=ttyS0, so the password prompt is there.
+        printf '%s\r' "${LUKS_PASSWORD}" | socat - "UNIX-CONNECT:${out}/serial.sock" || true
         typed=$((typed + 1))
     fi
     sleep 5
