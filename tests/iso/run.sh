@@ -41,13 +41,37 @@ type_text() {
 }
 step() { echo "$(date -u +%T) $*"; }
 
+# T054: with RST=1 the installer also gets two SATA disks holding an Intel RST
+# (IMSM) mirror, made here as the RST firmware would. QEMU has no RST
+# controller, so the test ISO boots with mdadm.imsm.test=1 (iso.yml); the
+# disks' serials are the names mdadm saw them under when the array was made.
+rst=()
+if [[ "${RST:-}" == 1 ]]; then
+    names=()
+    for n in 0 1; do
+        truncate -s 4G "${out}/rst${n}.raw"
+        names+=("$(sudo losetup -f --show "${out}/rst${n}.raw")")
+    done
+    export IMSM_NO_PLATFORM=1 IMSM_DEVNAME_AS_SERIAL=1
+    sudo -E mdadm --create /dev/md/imsm0 --run -e imsm -n 2 "${names[@]}"
+    sudo -E mdadm --create /dev/md/Volume0 --run --assume-clean -l 1 -n 2 /dev/md/imsm0
+    sudo -E mdadm --examine "${names[0]}" > "${out}/rst-made.txt" 2>&1 || true
+    sudo mdadm --stop /dev/md/Volume0 /dev/md/imsm0
+    for n in 0 1; do
+        sudo losetup -d "${names[n]}"
+        rst+=(-drive "if=none,id=rst${n},format=raw,file=${out}/rst${n}.raw"
+              -device "ide-hd,bus=ide.$((n + 4)),drive=rst${n},serial=${names[n]##*/}")
+    done
+    sudo chown "${USER}" "${out}"/rst*.raw
+fi
+
 step "installing from the ISO"
 # -no-reboot: the installer's reboot ends this QEMU, the next one boots the disk.
 qemu-system-x86_64 -enable-kvm -cpu host -smp 4 -m 8G -machine q35 \
     -drive if=pflash,format=raw,readonly=on,file=/usr/share/OVMF/OVMF_CODE_4M.fd \
     -drive if=pflash,format=raw,file="${out}/vars.fd" \
     -drive file="${disk}",if=virtio,format=qcow2 \
-    -cdrom "${iso}" -boot once=d -no-reboot \
+    "${rst[@]}" -cdrom "${iso}" -boot once=d -no-reboot \
     -device virtio-vga -display none -nic user,model=virtio-net-pci \
     -serial file:"${out}/install-serial.log" -qmp unix:"${qmp}",server,nowait \
     -pidfile "${out}/qemu.pid" &
@@ -104,6 +128,11 @@ check "home on its own subvolume" 'btrfs subvolume show /var/home'
 check "boot screen arguments, as in the image" 'for a in $(grep ^kargs /usr/lib/bootc/kargs.d/10-arkadeos.toml | grep -o "[a-z0-9_.=-]*" | grep -vx -e kargs -e =);
     do grep -qw -- "$a" /proc/cmdline || exit 1; done'
 check "starts to the login screen" 'test "$(systemctl get-default)" = graphical.target && systemctl is-active display-manager'
+if [[ "${RST:-}" == 1 ]]; then
+    ssh_vm 'cat /var/log/arkadeos-rst.txt' > "${out}/rst.txt" 2>&1 || true
+    check "installer sees the Intel RST array" 'grep -q imsm /var/log/arkadeos-rst.txt &&
+        grep -A3 "== installer storage" /var/log/arkadeos-rst.txt | grep -qi -E "volume0|md12[0-9]"'
+fi
 check "firewall on, ArkadeOS zone" 'firewall-cmd --state && test "$(firewall-cmd --get-default-zone)" = ArkadeOS'
 ssh_vm 'journalctl -b --no-pager -p warning' > "${out}/journal-warnings.txt" 2>&1 || true
 kill "$(cat "${out}/qemu.pid")" || true

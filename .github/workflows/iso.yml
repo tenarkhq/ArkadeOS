@@ -48,7 +48,7 @@ jobs:
       - name: Tools
         run: |
           sudo apt-get update -q
-          sudo apt-get install -y -q qemu-system-x86 qemu-utils ovmf socat imagemagick
+          sudo apt-get install -y -q qemu-system-x86 qemu-utils ovmf socat imagemagick mdadm
 
       - name: Fedora installer cache
         uses: actions/cache@v4
@@ -69,7 +69,9 @@ jobs:
           # No serial console: the installer copies console= to the installed
           # system, and Plymouth shows only text when it sees a serial console,
           # so the boot screen and disk password prompt would not be the real ones.
-          ISO_AUTOBOOT=1 iso/build.sh out/arkadeos-test.iso "$TAG" auto.ks
+          # mdadm.imsm.test=1: the installer takes the VM's disks as Intel RST
+          # capable (T054, tests/iso/run.sh).
+          ISO_CMDLINE=mdadm.imsm.test=1 ISO_AUTOBOOT=1 iso/build.sh out/arkadeos-test.iso "$TAG" auto.ks
           sudo chown -R "$USER" out "$HOME/.cache/arkadeos-iso"
           ls -la out
           echo "ISO build: $(( $(date +%s) - start )) s, $(du -h out/arkadeos.iso | cut -f1)" >> "$GITHUB_STEP_SUMMARY"
@@ -77,7 +79,7 @@ jobs:
       - name: Install from the ISO in a VM
         run: |
           start=$(date +%s)
-          LUKS_PASSWORD=arkade-luks tests/iso/run.sh out/arkadeos-test.iso vm-key iso-out "ghcr.io/tenarkhq/arkadeos:${TAG}"
+          RST=1 LUKS_PASSWORD=arkade-luks tests/iso/run.sh out/arkadeos-test.iso vm-key iso-out "ghcr.io/tenarkhq/arkadeos:${TAG}"
           echo "install test: $(( $(date +%s) - start )) s" >> "$GITHUB_STEP_SUMMARY"
 
       - name: Results
