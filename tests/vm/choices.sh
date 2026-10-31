@@ -123,6 +123,26 @@ check_wait "Mac keyboard (Toshy) running" "systemctl --user -M arkade@ is-active
 install decky 900
 check_wait "Decky Loader running" 'systemctl is-active plugin_loader.service' 120
 
+# T035: another Proton version, put where ProtonPlus puts it, then picked for
+# a store in its own window (the newly installed one is listed first: Home,
+# Space to select, Enter). Steam lists the same folder in a game's
+# Compatibility settings.
+step "installing another Proton"
+ssh_vm "${user} sh -c 'image=\$(basename /usr/share/steam/compatibilitytools.d/GE-Proton*) &&
+    tag=\$(curl -fsSL \"https://api.github.com/repos/GloriousEggroll/proton-ge-custom/releases?per_page=5\" |
+        jq -r --arg i \"\$image\" \"[.[] | select(.tag_name != \\\$i)][0].tag_name\") &&
+    mkdir -p ~/.local/share/Steam/compatibilitytools.d &&
+    curl -fsSL \"https://github.com/GloriousEggroll/proton-ge-custom/releases/download/\$tag/\$tag.tar.gz\" |
+        tar -xz -C ~/.local/share/Steam/compatibilitytools.d && echo \$tag'" > "${out}/proton-install.log" 2>&1 || true
+other=$(tail -1 "${out}/proton-install.log")
+check "another Proton installed" "test -x /home/arkade/.local/share/Steam/compatibilitytools.d/${other}/proton"
+ssh_vm "${gui} sh -c 'arkadeos-store ea --choose-proton >/tmp/choose.log 2>&1 &'" || true
+sleep 8
+shot proton-choose
+key home; sleep 1; key spc; sleep 1; key ret
+sleep 3
+check "Proton picked for a store" "${user} arkadeos-store ea --check | grep -qx 'proton=/home/arkade/.local/share/Steam/compatibilitytools.d/${other}'"
+
 # T019: the AI pack.
 install ollama 1800
 check "Ollama answers" "curl -fs http://127.0.0.1:11434/api/generate -d '{\"model\":\"qwen3:4b\",\"prompt\":\"Hi\",\"stream\":false,\"options\":{\"num_predict\":3}}' | jq -e .response"
