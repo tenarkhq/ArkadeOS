@@ -160,6 +160,7 @@ check "top bar and dock" "f=${home}/plasma-org.kde.plasma.desktop-appletsrc &&
 # T009: ArkadeOS name, boot screen, wallpaper, launcher logo, lock screen.
 check "ArkadeOS name" "grep -qx 'PRETTY_NAME=\"ArkadeOS\"' /usr/lib/os-release"
 check "ArkadeOS version: the Fedora it is built on, then the build" '. /usr/lib/os-release; [[ "${VERSION}" =~ ^${VERSION_ID}\.[0-9]{8}$ ]]'
+check "boot menu entry named ArkadeOS (system-release)" 'grep -qx "ArkadeOS release [0-9]*" /etc/system-release'
 check "ArkadeOS boot screen" "plymouth-set-default-theme | grep -qx arkadeos && grep -qw splash /proc/cmdline"
 check "Ark wallpaper and launcher logo" "f=${home}/plasma-org.kde.plasma.desktop-appletsrc &&
     grep -qx 'Image=file:///usr/share/wallpapers/ArkadeOS/' \$f && grep -qx icon=arkadeos-launcher \$f"

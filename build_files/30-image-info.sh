@@ -32,3 +32,8 @@ sed -i -e 's|^NAME=.*|NAME="ArkadeOS"|' \
     /usr/lib/os-release
 grep -qx 'PRETTY_NAME="ArkadeOS"' /usr/lib/os-release
 grep -qx "VERSION=\"${IMAGE_VERSION}\"" /usr/lib/os-release
+
+# The firmware's boot menu entry is named from the system-release file
+# (bootupd, at install): ArkadeOS, not the base's "Bazzite release 44 (Kinoite)".
+echo "ArkadeOS release $(rpm -E %fedora)" > /usr/lib/fedora-release
+grep -qx "ArkadeOS release [0-9]*" /etc/system-release
