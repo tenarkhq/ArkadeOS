@@ -210,6 +210,8 @@ ssh_vm "${session} plasma-apply-lookandfeel -a org.arkadeos.light.desktop; sleep
 sleep 20
 shot dolphin-light
 check "Kvantum WhiteSur with the light look" "grep -qx theme=WhiteSur ${home}/Kvantum/kvantum.kvconfig"
+# A new image's icons reach the dock: KDE's icon cache goes when they change.
+check "icon cache follows the image's icons" "test -s ${home%/.config}/.cache/arkadeos/icons-key"
 
 # T010: the same Dolphin in Hungarian.
 ssh_vm "pkill -u arkade -x dolphin" || true
