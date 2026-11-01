@@ -31,6 +31,10 @@ for f in "${apps_dir}"/com.google.Chrome.flextop.chrome-*.desktop; do
     [[ -f "${f}" ]] || continue
     id=$(basename "${f}" .desktop)
     id=${id#com.google.Chrome.flextop.}
+    # Chrome points the icon into its sandbox (~/.var/app/...), which the dock
+    # cannot read; the same icon is in ~/.local/share/icons under the app's name.
+    grep -q '^Icon=.*/\.var/app/.*/apps/chrome-.*\.png$' "${f}" &&
+        sed -i 's|^Icon=.*/apps/\(chrome-.*\)\.png$|Icon=\1|' "${f}"
     twin=$(sed -e '/^NoDisplay=/d' -e "s/^StartupWMClass=.*/StartupWMClass=${id}/" \
         -e '/^\[Desktop Entry\]/a NoDisplay=true' "${f}")
     [[ "$(cat "${apps_dir}/${id}.desktop" 2>/dev/null)" == "${twin}" ]] || printf '%s\n' "${twin}" > "${apps_dir}/${id}.desktop"

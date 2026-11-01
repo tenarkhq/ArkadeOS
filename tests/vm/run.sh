@@ -406,10 +406,11 @@ done
 # T067: Chrome may put web apps in the menu, and they stay pinned on the dock.
 check "Chrome may make web app shortcuts" 'flatpak override --system --show com.google.Chrome | grep -q "~/.local/share/applications" &&
     test -d /home/arkade/.local/share/applications -a -d /home/arkade/.local/share/icons'
-ssh_vm "runuser -u arkade -- bash -c 'printf \"[Desktop Entry]\\nType=Application\\nName=Test\\nExec=true\\nStartupWMClass=crx_arktest\\n\" > /home/arkade/.local/share/applications/com.google.Chrome.flextop.chrome-arktest-Default.desktop'" || true
+ssh_vm "runuser -u arkade -- bash -c 'printf \"[Desktop Entry]\\nType=Application\\nName=Test\\nExec=true\\nIcon=/home/arkade/.var/app/com.google.Chrome/data/icons/hicolor/256x256/apps/chrome-arktest-Default.png\\nStartupWMClass=crx_arktest\\n\" > /home/arkade/.local/share/applications/com.google.Chrome.flextop.chrome-arktest-Default.desktop'" || true
 sleep 15
 check "Chrome web app keeps its dock pin (hidden entry under the window's name)" 'f=/home/arkade/.local/share/applications/chrome-arktest-Default.desktop;
-    grep -qx NoDisplay=true $f && grep -qx StartupWMClass=chrome-arktest-Default $f && grep -qx Name=Test $f'
+    grep -qx NoDisplay=true $f && grep -qx StartupWMClass=chrome-arktest-Default $f && grep -qx Name=Test $f &&
+    grep -qx Icon=chrome-arktest-Default $f'
 # T059: GPU Screen Recorder only from the Portal, not there by default.
 check "GPU Screen Recorder not installed by default" '! flatpak info --system com.dec05eba.gpu_screen_recorder'
 # The screen locks after five idle minutes; the app shots need the desktop.
