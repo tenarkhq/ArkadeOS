@@ -90,29 +90,38 @@ jobs:
         # it, on the built tree.
         run: |
           out="${RUNNER_TEMP}/chunked-${{ matrix.image }}"
-          rm -rf "${out}"
-          mkdir -p "${out}/blobs/sha256"
-          echo '{"imageLayoutVersion":"1.0.0"}' > "${out}/oci-layout"
-          echo '{"schemaVersion":2,"manifests":[]}' > "${out}/index.json"
-          previous=()
-          skopeo inspect --raw "docker://${REGISTRY}/${{ matrix.image }}:testing" >/dev/null 2>&1 &&
-            previous=(--previous-build "docker://${REGISTRY}/${{ matrix.image }}:testing")
-          podman unshare bash -euo pipefail -c '
-            image=localhost/${{ matrix.image }}:build
-            root=$(podman image mount "${image}")
-            trap "podman image unmount ${image} >/dev/null" EXIT
-            podman run --rm --privileged --security-opt label=disable \
-              -v "${root}:/rootfs:ro" -v "$1:/out" "${image}" \
-              rpm-ostree compose build-chunked-oci --bootc --format-version=2 --max-layers=96 \
-                --rootfs /rootfs "${@:2}" \
-                -l org.opencontainers.image.title=ArkadeOS \
-                -l "org.opencontainers.image.description=Fast, gaming-first Linux built on Fedora Atomic" \
-                -l org.opencontainers.image.source=https://github.com/${{ github.repository }} \
-                -l org.opencontainers.image.licenses=Apache-2.0 \
-                -l org.opencontainers.image.version=${{ steps.ver.outputs.version }} \
-                -l org.opencontainers.image.revision=${{ github.sha }} \
-                --output oci:/out:${{ matrix.image }}
-          ' _ "${out}" "${previous[@]}"
+          rechunk() {
+            rm -rf "${out}"
+            mkdir -p "${out}/blobs/sha256"
+            echo '{"imageLayoutVersion":"1.0.0"}' > "${out}/oci-layout"
+            echo '{"schemaVersion":2,"manifests":[]}' > "${out}/index.json"
+            podman unshare bash -euo pipefail -c '
+              image=localhost/${{ matrix.image }}:build
+              root=$(podman image mount "${image}")
+              trap "podman image unmount ${image} >/dev/null" EXIT
+              podman run --rm --privileged --security-opt label=disable \
+                -v "${root}:/rootfs:ro" -v "$1:/out" "${image}" \
+                rpm-ostree compose build-chunked-oci --bootc --format-version=2 --max-layers=96 \
+                  --rootfs /rootfs "${@:2}" \
+                  -l org.opencontainers.image.title=ArkadeOS \
+                  -l "org.opencontainers.image.description=Fast, gaming-first Linux built on Fedora Atomic" \
+                  -l org.opencontainers.image.source=https://github.com/${{ github.repository }} \
+                  -l org.opencontainers.image.licenses=Apache-2.0 \
+                  -l org.opencontainers.image.version=${{ steps.ver.outputs.version }} \
+                  -l org.opencontainers.image.revision=${{ github.sha }} \
+                  --output oci:/out:${{ matrix.image }}
+            ' _ "${out}" "$@"
+          }
+          # rpm-ostree 2026.3 now and then stops on the previous plan (an
+          # assertion in ostree-ext's chunking): then a new plan, and this one
+          # update downloads more.
+          if skopeo inspect --raw "docker://${REGISTRY}/${{ matrix.image }}:testing" >/dev/null 2>&1 &&
+            rechunk --previous-build "docker://${REGISTRY}/${{ matrix.image }}:testing"; then
+            echo "layer plan: the previous build's" >> "$GITHUB_STEP_SUMMARY"
+          else
+            rechunk
+            echo "layer plan: new" >> "$GITHUB_STEP_SUMMARY"
+          fi
           echo "layers: $(jq '.layers | length' "${out}/blobs/sha256/$(jq -r '.manifests[0].digest' "${out}/index.json" | cut -d: -f2)")" >> "$GITHUB_STEP_SUMMARY"
 
       - name: Push
