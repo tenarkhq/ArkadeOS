@@ -410,7 +410,7 @@ ssh_vm "runuser -u arkade -- bash -c 'printf \"[Desktop Entry]\\nType=Applicatio
 sleep 15
 check "Chrome web app keeps its dock pin (hidden entry under the window's name)" 'f=/home/arkade/.local/share/applications/chrome-arktest-Default.desktop;
     grep -qx NoDisplay=true $f && grep -qx StartupWMClass=chrome-arktest-Default $f && grep -qx Name=Test $f &&
-    grep -qx Icon=chrome-arktest-Default $f'
+    grep -qx Icon=/home/arkade/.local/share/icons/hicolor/256x256/apps/chrome-arktest-Default.png $f'
 # T059: GPU Screen Recorder only from the Portal, not there by default.
 check "GPU Screen Recorder not installed by default" '! flatpak info --system com.dec05eba.gpu_screen_recorder'
 # The screen locks after five idle minutes; the app shots need the desktop.

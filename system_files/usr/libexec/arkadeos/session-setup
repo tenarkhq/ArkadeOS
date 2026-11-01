@@ -32,9 +32,13 @@ for f in "${apps_dir}"/com.google.Chrome.flextop.chrome-*.desktop; do
     id=$(basename "${f}" .desktop)
     id=${id#com.google.Chrome.flextop.}
     # Chrome points the icon into its sandbox (~/.var/app/...), which the dock
-    # cannot read; the same icon is in ~/.local/share/icons under the app's name.
-    grep -q '^Icon=.*/\.var/app/.*/apps/chrome-.*\.png$' "${f}" &&
-        sed -i 's|^Icon=.*/apps/\(chrome-.*\)\.png$|Icon=\1|' "${f}"
+    # cannot read; the same file is in ~/.local/share/icons. A full path: by
+    # name the icon loader falls back to Chrome's own icon.
+    grep -q '^Icon=.*/\.var/app/.*/icons/' "${f}" &&
+        sed -i "s|^Icon=.*/\.var/app/[^/]*/data/icons/|Icon=${HOME}/.local/share/icons/|" "${f}"
+    # (also an icon given by that name)
+    grep -q '^Icon=chrome-[^/]*$' "${f}" &&
+        sed -i "s|^Icon=\(chrome-[^/]*\)$|Icon=${HOME}/.local/share/icons/hicolor/256x256/apps/\1.png|" "${f}"
     twin=$(sed -e '/^NoDisplay=/d' -e "s/^StartupWMClass=.*/StartupWMClass=${id}/" \
         -e '/^\[Desktop Entry\]/a NoDisplay=true' "${f}")
     [[ "$(cat "${apps_dir}/${id}.desktop" 2>/dev/null)" == "${twin}" ]] || printf '%s\n' "${twin}" > "${apps_dir}/${id}.desktop"
