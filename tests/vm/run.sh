@@ -447,14 +447,15 @@ ssh_vm "pkill -u arkade -f notepad; ${session} WINEPREFIX=/home/arkade/Games/bat
 sleep 20
 
 ssh_vm "loginctl unlock-sessions; ${session} kscreen-doctor --dpms on" >/dev/null 2>&1 || true
-# T070: a borderless window the size of the screen (a game in windowed full
-# screen) goes full screen, above the top bar and the dock.
+# T070: a borderless game window the size of the screen (a Windows game in
+# windowed full screen) goes full screen, above the top bar and the dock.
 check "borderless full-screen script in KWin" "${session} busctl --user call org.kde.KWin /Scripting org.kde.kwin.Scripting isScriptLoaded s arkadeos-borderless-fullscreen | grep -qx 'b true'"
 ssh_vm "nohup ${session} DISPLAY=:0 XAUTHORITY=\$(ls /run/user/1000/xauth_* | head -1) GDK_BACKEND=x11 timeout 60 python3 -c '
 import gi
 gi.require_version(\"Gtk\", \"3.0\")
 from gi.repository import Gtk, Gdk
 w = Gtk.Window(title=\"arkadeos-borderless\")
+w.set_wmclass(\"wowtest.exe\", \"wowtest.exe\")
 r = Gdk.Display.get_default().get_monitor(0).get_geometry()
 w.set_decorated(False)
 w.move(r.x, r.y)
