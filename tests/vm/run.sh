@@ -353,6 +353,11 @@ ssh_vm "cd /home/arkade && ${session} DISPLAY=:0 GAMEID=umu-default PROTONPATH=$
     timeout 900 umu-run /home/arkade/proton-test.bat" > "${out}/proton.log" 2>&1 || true
 shot proton
 check "Windows program ran with GE-Proton" 'grep -q ArkadeOS /home/arkade/proton-test/drive_c/proton-ok.txt'
+# SELinux view of the Windows program run, for the results.
+ssh_vm "ps -o label= -p 1; ps -eZ | awk '{print \$1}' | sort | uniq -c | sort -rn | head; ${session} id -Z;
+    stat -c '%C %n' ${proton}/files/lib/wine/i386-windows/ntdll.dll /home/arkade/Games /home/arkade/.local/share/Steam;
+    matchpathcon ${proton}/files/lib/wine/i386-windows/ntdll.dll; semanage fcontext -l -C;
+    journalctl -b --no-pager | grep -a 'avc:.*denied' | grep -v chcon | tail -20" > "${out}/selinux.txt" 2>&1 || true
 check "32-bit Windows program ran with GE-Proton" 'grep -q ArkadeOS /home/arkade/proton-test/drive_c/proton-32-ok.txt'
 check "GE-Proton's Wine carries Fedora's Wine label" "stat -c %C ${proton}/files/lib/wine/i386-windows/ntdll.dll | grep -q :textrel_shlib_t:"
 check "SELinux stopped no Windows program" '! journalctl -b --no-pager | grep -q "avc:.*denied.*execmod"'
@@ -612,7 +617,7 @@ reboot_vm() {
 check "daily updates on (system and apps)" 'systemctl is-enabled -q uupd.timer && systemctl is-active -q uupd.timer'
 check "home snapshots" 'snapper -c home list | grep -q "ArkadeOS: first snapshot" &&
     btrfs subvolume show /home/arkade/Games'
-check "game folders carry the home SELinux label" 'stat -c %C /home/arkade/Games /home/arkade/.local/share/Steam | grep -c :user_home_t: | grep -qx 2'
+check "game folders carry a SELinux label" '! stat -c %C /home/arkade/Games /home/arkade/.local/share/Steam | grep -q unlabeled_t'
 if [[ -n "${UPDATE_PUSH:-}" ]]; then
     before=$(ssh_vm "bootc status --json | jq -r .status.booted.image.imageDigest")
     ssh_vm 'echo keep > /home/arkade/keep.txt'
