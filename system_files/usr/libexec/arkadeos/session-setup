@@ -24,16 +24,25 @@ scheme=$(kreadconfig6 --file kdeglobals --group General --key ColorScheme)
 [[ -n "${scheme}" ]] || scheme=$(kreadconfig6 --file "${HOME}/.config/kdedefaults/kdeglobals" --group General --key ColorScheme)
 kv=WhiteSur
 [[ "${scheme}" == *Dark* ]] && kv=WhiteSurDark
-now=$(kreadconfig6 --file Kvantum/kvantum.kvconfig --group General --key theme)
+# The user's own file: the image's default (/etc/xdg) must not count as set.
+kvconf="${XDG_CONFIG_HOME:-${HOME}/.config}/Kvantum/kvantum.kvconfig"
+now=$(sed -n 's/^theme=//p' "${kvconf}" 2>/dev/null | tail -1)
 if [[ "${now}" != "${kv}" && ( -z "${now}" || "${now}" == WhiteSur || "${now}" == WhiteSurDark ) ]]; then
-    kwriteconfig6 --file Kvantum/kvantum.kvconfig --group General --key theme "${kv}"
+    mkdir -p "$(dirname "${kvconf}")"
+    kwriteconfig6 --file "${kvconf}" --group General --key theme "${kv}"
+    echo "session-setup: Kvantum ${now:-unset} -> ${kv} (look ${scheme:-unset})" >&2
 fi
 
 # Finder-like sidebar (T069): Games in it, Remote and Recent hidden; once,
 # when KDE has written the places file.
 places_done="${XDG_STATE_HOME:-${HOME}/.local/state}/arkadeos/places-v1"
-if [[ ! -e "${places_done}" ]] && /usr/libexec/arkadeos/places-setup; then
-    mkdir -p "$(dirname "${places_done}")" && touch "${places_done}"
+if [[ ! -e "${places_done}" ]]; then
+    if /usr/libexec/arkadeos/places-setup; then
+        mkdir -p "$(dirname "${places_done}")" && touch "${places_done}"
+        echo "session-setup: sidebar set up" >&2
+    else
+        echo "session-setup: sidebar waits for the places file" >&2
+    fi
 fi
 
 # The folders browsers put web apps in (T067): Flatpak only lets Chrome reach

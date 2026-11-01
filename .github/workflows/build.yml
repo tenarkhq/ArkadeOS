@@ -71,6 +71,8 @@ jobs:
             --build-arg BASE_IMAGE=${{ steps.ver.outputs.base }} \
             --build-arg IMAGE_NAME=${{ matrix.image }} \
             --build-arg PROTON_GE_VERSION=${{ steps.ver.outputs.proton_ge }} \
+            --build-arg PROTON_GE_SCRIPT=${{ hashFiles('build_files/proton-ge.sh') }} \
+            --build-arg WHITESUR_SCRIPT=${{ hashFiles('build_files/whitesur.sh') }} \
             --build-arg IMAGE_VERSION=${{ steps.ver.outputs.version }} \
             --label org.opencontainers.image.title=ArkadeOS \
             --label org.opencontainers.image.description="Fast, gaming-first Linux built on Fedora Atomic" \

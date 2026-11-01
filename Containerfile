@@ -10,13 +10,17 @@ COPY cosign.pub /cosign.pub
 FROM ${BASE_IMAGE}
 
 # Proton-GE gets its own layer before everything else, so the build server's
-# layer cache reuses it until a new GE-Proton release comes out.
+# layer cache reuses it until a new GE-Proton release comes out or its script
+# changes. The cache does not look into the bound build files: the build
+# passes each script's checksum, or a changed script reuses the old layer.
 ARG PROTON_GE_VERSION
+ARG PROTON_GE_SCRIPT
 RUN --mount=type=bind,from=ctx,source=/,target=/ctx \
     --mount=type=tmpfs,dst=/tmp \
     /ctx/build_files/proton-ge.sh "${PROTON_GE_VERSION}"
 
 # WhiteSur theme files (T006), pinned upstream commits; cached the same way.
+ARG WHITESUR_SCRIPT
 RUN --mount=type=bind,from=ctx,source=/,target=/ctx \
     --mount=type=tmpfs,dst=/tmp \
     /ctx/build_files/whitesur.sh

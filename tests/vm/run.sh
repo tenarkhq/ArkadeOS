@@ -199,7 +199,8 @@ check "Finder-like sidebar: Games in it, Remote and Recent hidden" "grep -q 'hre
     grep -q '<GroupState-Remote-IsHidden>true' ${home%/.config}/.local/share/user-places.xbel &&
     grep -q '<GroupState-RecentlySaved-IsHidden>true' ${home%/.config}/.local/share/user-places.xbel"
 ssh_vm "${session} systemctl --user status --no-pager arkadeos-session-setup.path arkadeos-session-setup.service;
-    ${session} journalctl --user -b -u arkadeos-session-setup --no-pager | tail -30; cat ${home}/Kvantum/kvantum.kvconfig" > "${out}/session-setup.txt" 2>&1 || true
+    ${session} journalctl --user -b -u arkadeos-session-setup --no-pager | tail -60; ls -la ${home}/Kvantum; cat ${home}/Kvantum/kvantum.kvconfig;
+    grep -h ColorScheme ${home}/kdeglobals ${home}/kdedefaults/kdeglobals; ls -la ${home%/.config}/.local/share/user-places.xbel ${home%/.config}/.local/state/arkadeos" > "${out}/session-setup.txt" 2>&1 || true
 check "blue sidebar icons, thin Dolphin status bar" 'grep -q ColorScheme-Highlight /usr/share/icons/WhiteSur/places/16/user-home.svg &&
     grep -qx ShowStatusBar=FullWidth /etc/xdg/dolphinrc'
 ssh_vm "pkill -u arkade -x dolphin; sleep 2; nohup ${session} dolphin >/dev/null 2>&1 &"
