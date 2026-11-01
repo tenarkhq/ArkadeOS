@@ -46,7 +46,7 @@ stop() {
     [[ -f "${saved}" ]] || return 0
     while read -r f v; do
         if [[ "${f}" == wifi:* ]]; then
-            iw dev "${f#wifi:}" set power_save "${v}" 2>/dev/null || true
+            iw dev "${f#wifi:}" set power_save "${v}" </dev/null 2>/dev/null || true
         elif [[ "${f}" == eee:* ]]; then
             ethtool --set-eee "${f#eee:}" eee "${v}" 2>/dev/null || true
         else

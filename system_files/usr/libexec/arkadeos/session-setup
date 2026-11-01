@@ -52,6 +52,9 @@ done
 if [[ "$(stat -f -c %T "${HOME}")" == btrfs ]]; then
     for d in "${HOME}/Games" "${HOME}/.local/share/Steam"; do
         [[ -e "${d}" ]] || { mkdir -p "$(dirname "${d}")"; btrfs subvolume create "${d}" >/dev/null; }
+        # A new subvolume gets no SELinux label, and Wine cannot run from
+        # unlabeled files.
+        [[ "$(stat -c %C "${d}" 2>/dev/null)" == *:user_home_t:* ]] || restorecon -R "${d}" 2>/dev/null || true
     done
 fi
 

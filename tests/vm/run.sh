@@ -604,6 +604,7 @@ reboot_vm() {
 check "daily updates on (system and apps)" 'systemctl is-enabled -q uupd.timer && systemctl is-active -q uupd.timer'
 check "home snapshots" 'snapper -c home list | grep -q "ArkadeOS: first snapshot" &&
     btrfs subvolume show /home/arkade/Games'
+check "game folders carry the home SELinux label" 'stat -c %C /home/arkade/Games /home/arkade/.local/share/Steam | grep -c :user_home_t: | grep -qx 2'
 if [[ -n "${UPDATE_PUSH:-}" ]]; then
     before=$(ssh_vm "bootc status --json | jq -r .status.booted.image.imageDigest")
     ssh_vm 'echo keep > /home/arkade/keep.txt'
