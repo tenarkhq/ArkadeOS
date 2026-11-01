@@ -182,6 +182,21 @@ install claude-code 600
 check "Claude Code starts" "${user} claude --version"
 install codex 900
 check "Codex starts" "${user} codex --version"
+# T072: the desktop apps in the user's home, started from their menu entry.
+opt=/home/arkade/.local/opt/arkadeos
+apps=/home/arkade/.local/share/applications
+install claude-desktop 900
+check "Claude Desktop in the menu, its program in the user's home" "grep -q '^Exec=${opt}/claude/current/claude-desktop' ${apps}/com.anthropic.Claude.desktop &&
+    test -x ${opt}/claude/current/claude-desktop"
+install codex-desktop 900
+check "Codex Desktop in the menu, its program in the user's home" "grep -q '^Exec=${opt}/chatgpt/current/codex-launcher' ${apps}/chatgpt.desktop &&
+    test -x ${opt}/chatgpt/current/ChatGPT"
+check "Chrome still opens web links" "${user} xdg-mime query default x-scheme-handler/https | grep -qx com.google.Chrome.desktop"
+ssh_vm "nohup ${gui} gtk-launch com.anthropic.Claude >/dev/null 2>&1 &" || true
+ssh_vm "nohup ${gui} gtk-launch chatgpt >/dev/null 2>&1 &" || true
+check_wait "Claude Desktop starts" "pgrep -u arkade -f '${opt}/claude/'" 120
+check_wait "Codex Desktop starts" "pgrep -u arkade -f '${opt}/chatgpt/'" 120
+shot ai-desktop-apps
 install gh 600
 check "GitHub CLI starts" "${user} gh --version"
 

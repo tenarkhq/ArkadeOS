@@ -131,6 +131,12 @@ case "${kind}:${action}" in
         systemctl --user daemon-reload
         ;;
 
+    # Claude Desktop and Codex Desktop (T072): the makers' packages, unpacked
+    # into the user's home, where they can update.
+    desktop:status) /usr/libexec/arkadeos/ai-desktop "${ref}" status ;;
+    desktop:install) /usr/libexec/arkadeos/ai-desktop "${ref}" install ;;
+    desktop:remove) /usr/libexec/arkadeos/ai-desktop "${ref}" remove ;;
+
     # Installers from the tool's own makers, into the user's home.
     script:status)
         case "${item}" in

@@ -1,0 +1,228 @@
+#!/usr/bin/python3 -I
+"""Claude Desktop and Codex Desktop (the ChatGPT app) in the user's home
+(T072), chosen in the ArkadeOS Portal. The makers ship them as Debian and
+Fedora packages from signed repositories; on ArkadeOS the system is
+read-only, so the app goes to ~/.local/opt/arkadeos/<app>, where it can be
+updated while the system stays as it is. Every download is checked against
+the maker's signed index (the signing keys ship in the image).
+  ai-desktop APP install|remove|status|update    status prints on or off
+  ai-desktop APP latest                          newest version in the repository
+APP: claude | chatgpt"""
+import gzip
+import hashlib
+import io
+import lzma
+import os
+import re
+import shutil
+import subprocess
+import sys
+import tarfile
+import tempfile
+import urllib.request
+import xml.etree.ElementTree as ET
+from pathlib import Path
+
+HOME = Path.home()
+DATA = Path(os.environ.get("XDG_DATA_HOME", HOME / ".local/share"))
+OPT = HOME / ".local/opt/arkadeos"
+KEYS = Path("/usr/share/arkadeos/keys")
+APPS = {
+    "claude": {
+        "repo": "https://downloads.claude.ai/claude-desktop/apt/stable",
+        "key": KEYS / "claude-desktop.gpg",
+        "lib": "usr/lib/claude-desktop",
+        "exe": "claude-desktop",
+        "entry": "com.anthropic.Claude.desktop",
+    },
+    "chatgpt": {
+        "repo": "https://persistent.oaistatic.com/codex-app-prod/linux/rpm/x86_64",
+        "key": KEYS / "chatgpt.gpg",
+        "lib": "usr/lib/chatgpt",
+        "exe": "chatgpt",
+        "entry": "chatgpt.desktop",
+    },
+}
+# The browser stays the web's default: the ChatGPT app claims web links too.
+NOT_OURS = {"x-scheme-handler/http", "x-scheme-handler/https", "text/html"}
+
+
+def fetch(url):
+    req = urllib.request.Request(url, headers={"User-Agent": "ArkadeOS ai-desktop"})
+    with urllib.request.urlopen(req, timeout=120) as r:
+        return r.read()
+
+
+def verified(data, signature, key):
+    """The signed text, when the maker's key signed it; else the program stops."""
+    with tempfile.TemporaryDirectory() as tmp:
+        msg = Path(tmp) / "msg"
+        msg.write_bytes(data)
+        args = ["gpgv", "--keyring", str(key)]
+        if signature is None:  # clear-signed (InRelease)
+            out = Path(tmp) / "out"
+            args += ["--output", str(out), str(msg)]
+        else:
+            sig = Path(tmp) / "msg.asc"
+            sig.write_bytes(signature)
+            args += [str(sig), str(msg)]
+        if subprocess.run(args, capture_output=True).returncode != 0:
+            sys.exit("ai-desktop: the repository's signature does not check out")
+        return out.read_bytes() if signature is None else data
+
+
+def checked(data, sha256):
+    if hashlib.sha256(data).hexdigest() != sha256:
+        sys.exit("ai-desktop: a download does not match the signed index")
+    return data
+
+
+def vkey(version):
+    return [int(n) for n in re.findall(r"\d+", version)]
+
+
+def latest_claude(app):
+    repo = app["repo"]
+    release = verified(fetch(f"{repo}/dists/stable/InRelease"), None, app["key"]).decode()
+    m = re.search(r"^ ([0-9a-f]{64})\s+\d+ main/binary-amd64/Packages$", release.split("SHA256:")[1], re.M)
+    packages = checked(fetch(f"{repo}/dists/stable/main/binary-amd64/Packages"), m.group(1)).decode()
+    best = None
+    for block in packages.split("\n\n"):
+        f = dict(re.findall(r"^([A-Za-z0-9-]+): (.*)$", block, re.M))
+        if f.get("Package") == "claude-desktop" and (best is None or vkey(f["Version"]) > vkey(best["Version"])):
+            best = f
+    return best["Version"], f"{repo}/{best['Filename']}", best["SHA256"]
+
+
+def latest_chatgpt(app):
+    repo = app["repo"]
+    repomd = fetch(f"{repo}/repodata/repomd.xml")
+    verified(repomd, fetch(f"{repo}/repodata/repomd.xml.asc"), app["key"])
+    ns = {"r": "http://linux.duke.edu/metadata/repo", "c": "http://linux.duke.edu/metadata/common"}
+    prim = ET.fromstring(repomd).find("r:data[@type='primary']", ns)
+    primary = checked(fetch(f"{repo}/{prim.find('r:location', ns).get('href')}"),
+                      prim.find("r:checksum", ns).text)
+    best = None
+    for p in ET.fromstring(gzip.decompress(primary)).findall("c:package", ns):
+        if p.findtext("c:name", namespaces=ns) != "chatgpt":
+            continue
+        v = p.find("c:version", ns)
+        version = f"{v.get('ver')}-{v.get('rel')}"
+        if best is None or vkey(version) > vkey(best[0]):
+            best = (version, f"{repo}/{p.find('c:location', ns).get('href')}",
+                    p.find("c:checksum", ns).text)
+    return best
+
+
+def unpack(name, package, into):
+    """The package's files under into/."""
+    if name == "claude":  # Debian: an ar archive holding data.tar.*
+        buf, pos = package, 8
+        while pos < len(buf):
+            member, size = buf[pos:pos + 16].decode().strip(), int(buf[pos + 48:pos + 58])
+            body = buf[pos + 60:pos + 60 + size]
+            if member.startswith("data.tar"):
+                if member.endswith(".zst"):
+                    from compression import zstd
+                    body = zstd.decompress(body)
+                elif member.endswith(".xz"):
+                    body = lzma.decompress(body)
+                with tarfile.open(fileobj=io.BytesIO(body)) as t:
+                    t.extractall(into, filter="tar")
+                return
+            pos += 60 + size + (size % 2)
+        sys.exit("ai-desktop: the package holds no files")
+    rpm = Path(into) / "package.rpm"
+    rpm.write_bytes(package)
+    subprocess.run(f"rpm2cpio '{rpm}' | cpio -idm --quiet", shell=True, cwd=into, check=True)
+    rpm.unlink()
+
+
+def entry_text(src, target):
+    lines = []
+    for line in src.read_text().splitlines():
+        if line.startswith("Exec="):
+            line = re.sub(r"^Exec=\S+", f"Exec={target}", line)
+        elif line.startswith("TryExec="):
+            line = f"TryExec={target}"
+        elif line.startswith("MimeType="):
+            kept = [m for m in line[9:].split(";") if m and m not in NOT_OURS]
+            line = "MimeType=" + "".join(m + ";" for m in kept)
+        lines.append(line)
+    return "\n".join(lines) + "\n"
+
+
+def install(name, app):
+    before = installed(name)
+    version, url, sha = (latest_claude if name == "claude" else latest_chatgpt)(app)
+    home = OPT / name
+    home.mkdir(parents=True, exist_ok=True)
+    package = checked(fetch(url), sha)
+    with tempfile.TemporaryDirectory(dir=home) as tmp:
+        unpack(name, package, tmp)
+        root = Path(tmp)
+        dest = home / version
+        shutil.rmtree(dest, ignore_errors=True)
+        shutil.move(str(root / app["lib"]), dest)
+        # Menu entry and icons, the program from the user's copy.
+        exe = dest / app["exe"]
+        if not exe.exists():
+            link = root / "usr/bin" / app["exe"]
+            exe = dest / Path(os.readlink(link)).name if link.is_symlink() else exe
+        current = home / "current"
+        target = current / exe.relative_to(dest)
+        apps = DATA / "applications"
+        apps.mkdir(parents=True, exist_ok=True)
+        (apps / app["entry"]).write_text(entry_text(root / "usr/share/applications" / app["entry"], target))
+        icons = root / "usr/share/icons"
+        if icons.is_dir():
+            shutil.copytree(icons, DATA / "icons", dirs_exist_ok=True)
+        pixmaps = root / "usr/share/pixmaps"
+        if pixmaps.is_dir():
+            shutil.copytree(pixmaps, DATA / "icons/hicolor/512x512/apps", dirs_exist_ok=True)
+    tmp_link = home / "current.new"
+    tmp_link.unlink(missing_ok=True)
+    tmp_link.symlink_to(version)
+    tmp_link.replace(home / "current")
+    # The version before stays until the next update: it may still be running.
+    for old in home.iterdir():
+        if old.is_dir() and not old.is_symlink() and old.name not in (version, before):
+            shutil.rmtree(old, ignore_errors=True)
+    subprocess.run(["kbuildsycoca6"], capture_output=True)
+    print(f"{name} {version}")
+
+
+def installed(name):
+    current = OPT / name / "current"
+    return os.readlink(current) if current.is_symlink() and current.exists() else None
+
+
+def remove(name, app):
+    shutil.rmtree(OPT / name, ignore_errors=True)
+    (DATA / "applications" / app["entry"]).unlink(missing_ok=True)
+    subprocess.run(["kbuildsycoca6"], capture_output=True)
+
+
+def main():
+    if len(sys.argv) != 3 or sys.argv[1] not in APPS:
+        sys.exit(__doc__)
+    name, action = sys.argv[1:]
+    app = APPS[name]
+    if action == "status":
+        print("on" if installed(name) else "off")
+    elif action == "install":
+        install(name, app)
+    elif action == "update":
+        newest = (latest_claude if name == "claude" else latest_chatgpt)(app)[0]
+        if installed(name) and vkey(newest) > vkey(installed(name)):
+            install(name, app)
+    elif action == "latest":
+        print((latest_claude if name == "claude" else latest_chatgpt)(app)[0])
+    elif action == "remove":
+        remove(name, app)
+    else:
+        sys.exit(__doc__)
+
+
+if __name__ == "__main__":
+    main()

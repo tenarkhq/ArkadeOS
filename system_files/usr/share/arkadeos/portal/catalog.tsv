@@ -1,5 +1,5 @@
 # ArkadeOS Portal catalog (T037, T026): id, group, kind, ref, English name, Hungarian name
-# kind: flatpak | launcher | brew | switch | ujust | quadlet | script (portal-item),
+# kind: flatpak | launcher | brew | switch | ujust | quadlet | script | desktop (portal-item),
 # fixed: part of the image, shown ticked and cannot be removed
 steam	base	fixed	steam	Steam	Steam
 firefox	base	flatpak	org.mozilla.firefox	Firefox	Firefox
@@ -25,8 +25,10 @@ tiling	desktop	switch	arkadeos-tiling	Tiling windows	Csempés ablakok
 toshy	desktop	script	toshy	Mac keyboard shortcuts (Toshy)	Mac-billentyűkiosztás (Toshy)
 ollama	ai	quadlet	ollama	Ollama (local AI models)	Ollama (helyi AI modellek)
 open-webui	ai	quadlet	open-webui	Open WebUI (chat for local AI)	Open WebUI (csevegés a helyi AI-val)
-claude-code	ai	script	claude-code	Claude Code	Claude Code
+claude-code	ai	script	claude-code	Claude CLI (Claude Code)	Claude CLI (Claude Code)
+claude-desktop	ai	desktop	claude	Claude Desktop	Claude Desktop
 codex	ai	brew	codex	Codex CLI	Codex CLI
+codex-desktop	ai	desktop	chatgpt	Codex Desktop (the ChatGPT app)	Codex Desktop (a ChatGPT-app)
 gh	dev	brew	gh	GitHub CLI	GitHub CLI
 asus	vendor	switch	arkadeos-vendor asus	ASUS (Armoury Crate features: asusctl, ROG Control Center)	ASUS (Armoury Crate funkciók: asusctl, ROG Control Center)
 msi	vendor	switch	arkadeos-vendor msi	MSI (performance modes, Cooler Boost)	MSI (teljesítménymódok, Cooler Boost)
