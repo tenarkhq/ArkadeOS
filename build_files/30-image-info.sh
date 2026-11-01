@@ -16,9 +16,11 @@ mv "${info}.new" "${info}"
 cat "${info}"
 
 # ArkadeOS name and logo (T009) in os-release: About page, boot menu entries,
-# hostname. ID stays bazzite, the inherited update helpers check it.
+# hostname. ID stays bazzite, the inherited update helpers check it. The
+# version is ArkadeOS 44.<build date>: the Fedora it is built on, then the day.
 sed -i -e 's|^NAME=.*|NAME="ArkadeOS"|' \
     -e 's|^PRETTY_NAME=.*|PRETTY_NAME="ArkadeOS"|' \
+    -e "s|^VERSION=.*|VERSION=\"${IMAGE_VERSION}\"|" \
     -e 's|^LOGO=.*|LOGO=arkadeos-logo|' \
     -e 's|^ANSI_COLOR=.*|ANSI_COLOR="0;38;2;244;63;94"|' \
     -e 's|^DEFAULT_HOSTNAME=.*|DEFAULT_HOSTNAME="arkadeos"|' \
@@ -29,3 +31,4 @@ sed -i -e 's|^NAME=.*|NAME="ArkadeOS"|' \
     -e "s|^BOOTLOADER_NAME=.*|BOOTLOADER_NAME=\"ArkadeOS ${IMAGE_VERSION}\"|" \
     /usr/lib/os-release
 grep -qx 'PRETTY_NAME="ArkadeOS"' /usr/lib/os-release
+grep -qx "VERSION=\"${IMAGE_VERSION}\"" /usr/lib/os-release
