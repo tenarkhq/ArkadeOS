@@ -429,6 +429,7 @@ ssh_vm 'truncate -s 64M /tmp/win.img && printf "label: gpt\nsize=8M, type=C12A73
 check "Windows' hidden partitions stay hidden" 'l=$(cat /tmp/win.loop); for n in 1 2 3; do udevadm info -q property ${l}p${n} | grep -qx UDISKS_IGNORE=1 || exit 1; done'
 check "Windows drive named Windows" 'udevadm info -q property $(cat /tmp/win.loop)p4 | grep -qx UDISKS_NAME=Windows'
 check "ArkadeOS system partitions hidden" 'p=$(findmnt -nvo SOURCE /sysroot); udevadm info -q property ${p} | grep -qx UDISKS_IGNORE=1'
+check "the read-only system layer is no drive in the sidebar" "${session} solid-hardware6 details /org/kde/fstab/overlay/ | grep -q 'StorageAccess.ignored = true'"
 ssh_vm 'losetup -d $(cat /tmp/win.loop); rm -f /tmp/win.img' || true
 check "only the wallpapers Roland kept" 'cd /usr/share/wallpapers && test -d ArkadeOS && test -d ArkadeOS-Gauge/contents/images && test -d Air && for w in F44 Fedora Altai ColorfulCups Next Path giants.jxl; do test ! -e $w || exit 1; done'
 check "Chrome opens web links" 'grep -qx x-scheme-handler/https=com.google.Chrome.desktop /etc/xdg/mimeapps.list && ! grep -q "^x-scheme-handler/https=.*firefox" /etc/xdg/mimeapps.list'

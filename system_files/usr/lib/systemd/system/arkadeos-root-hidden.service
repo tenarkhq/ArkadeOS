@@ -1,0 +1,11 @@
+[Unit]
+Description=The read-only system layer stays out of the file manager's drives
+After=local-fs.target
+Before=systemd-user-sessions.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/libexec/arkadeos/root-hidden
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,13 @@
+#!/usr/bin/bash
+# Dolphin's sidebar and the file dialogs leave out the system's read-only root
+# layer (T069). KDE lists an overlay mounted on / as a drive with no name and
+# no free space; the userspace mount option x-gvfs-hide tells KDE and GNOME to
+# leave a mount out, and libmount keeps such options in /run/mount/utab.
+set -euo pipefail
+[[ "$(findmnt -no FSTYPE /)" == overlay ]] || exit 0
+utab=/run/mount/utab
+mkdir -p /run/mount
+exec 9>"${utab}.lock"
+flock 9
+grep -q ' TARGET=/ ' "${utab}" 2>/dev/null && exit 0
+printf 'SRC=%s TARGET=/ ROOT=%s OPTS=x-gvfs-hide\n' "$(findmnt -nvo SOURCE /)" "$(findmnt -no FSROOT /)" >> "${utab}"

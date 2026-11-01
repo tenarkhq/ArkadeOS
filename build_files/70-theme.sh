@@ -55,6 +55,8 @@ for theme in WhiteSur WhiteSur-dark WhiteSur-light; do
     done
     gtk-update-icon-cache -f -q "/usr/share/icons/${theme}"
 done
+# The read-only system layer is no drive in the sidebar (arkadeos-root-hidden).
+systemctl enable arkadeos-root-hidden.service
 
 # Fewer wallpapers to choose from (Roland, 2026-11-01): the Fedora ones and
 # the KDE ones he picked go; the rest of KDE's, Bazzite's and ours stay.
