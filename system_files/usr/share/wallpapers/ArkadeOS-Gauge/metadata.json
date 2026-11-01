@@ -1,0 +1,13 @@
+{
+    "KPlugin": {
+        "Authors": [
+            {
+                "Name": "ArkadeOS"
+            }
+        ],
+        "Id": "ArkadeOS-Gauge",
+        "License": "CC-BY-SA-4.0",
+        "Name": "Ark Gauge",
+        "Name[hu]": "Ark műszer"
+    }
+}
