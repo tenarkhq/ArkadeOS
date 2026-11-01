@@ -408,7 +408,8 @@ check "Chrome may make web app shortcuts" 'flatpak override --system --show com.
     test -d /home/arkade/.local/share/applications -a -d /home/arkade/.local/share/icons'
 ssh_vm "runuser -u arkade -- bash -c 'printf \"[Desktop Entry]\\nType=Application\\nName=Test\\nExec=true\\nStartupWMClass=crx_arktest\\n\" > /home/arkade/.local/share/applications/com.google.Chrome.flextop.chrome-arktest-Default.desktop'" || true
 sleep 15
-check "Chrome web app keeps its dock pin (window name)" 'grep -qx StartupWMClass=chrome-arktest-Default /home/arkade/.local/share/applications/com.google.Chrome.flextop.chrome-arktest-Default.desktop'
+check "Chrome web app keeps its dock pin (hidden entry under the window's name)" 'f=/home/arkade/.local/share/applications/chrome-arktest-Default.desktop;
+    grep -qx NoDisplay=true $f && grep -qx StartupWMClass=chrome-arktest-Default $f && grep -qx Name=Test $f'
 # T059: GPU Screen Recorder only from the Portal, not there by default.
 check "GPU Screen Recorder not installed by default" '! flatpak info --system com.dec05eba.gpu_screen_recorder'
 # The screen locks after five idle minutes; the app shots need the desktop.

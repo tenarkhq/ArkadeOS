@@ -21,13 +21,22 @@ has_app() {
 # The folders browsers put web apps in (T067): Flatpak only lets Chrome reach
 # them when they exist, and a new user has neither.
 mkdir -p "${HOME}/.local/share/applications" "${HOME}/.local/share/icons"
-# Chrome names a web app's window chrome-<app>-<profile> on Wayland, but its
-# menu entry says crx_<app>: the dock then cannot keep the app pinned.
-for f in "${HOME}"/.local/share/applications/com.google.Chrome.flextop.chrome-*.desktop; do
+# Chrome web apps on the dock: on Wayland KWin looks for the window's menu
+# entry by the name chrome-<app>-<profile>.desktop, but Chrome saves it with a
+# com.google.Chrome.flextop. prefix, so a pinned web app disappears once it is
+# closed. A hidden copy under the expected name fixes that; it goes with the
+# web app.
+apps_dir="${HOME}/.local/share/applications"
+for f in "${apps_dir}"/com.google.Chrome.flextop.chrome-*.desktop; do
     [[ -f "${f}" ]] || continue
     id=$(basename "${f}" .desktop)
     id=${id#com.google.Chrome.flextop.}
-    grep -qx "StartupWMClass=${id}" "${f}" || sed -i "s/^StartupWMClass=.*/StartupWMClass=${id}/" "${f}"
+    twin=$(sed -e '/^NoDisplay=/d' -e "s/^StartupWMClass=.*/StartupWMClass=${id}/" \
+        -e '/^\[Desktop Entry\]/a NoDisplay=true' "${f}")
+    [[ "$(cat "${apps_dir}/${id}.desktop" 2>/dev/null)" == "${twin}" ]] || printf '%s\n' "${twin}" > "${apps_dir}/${id}.desktop"
+done
+for f in "${apps_dir}"/chrome-*.desktop; do
+    [[ -f "${f}" && ! -f "${apps_dir}/com.google.Chrome.flextop.$(basename "${f}")" ]] && rm -f "${f}"
 done
 
 # Game folders as their own btrfs subvolumes (T025): the daily home snapshots
