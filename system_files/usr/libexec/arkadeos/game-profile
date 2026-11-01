@@ -18,7 +18,8 @@ gaming), wow (full CPU, held-back GPU, T055). Max or WoW set by hand is left
 alone.
 
 It also sets the lighting of the profile in force whenever that changes, by
-hand or by itself (arkadeos-rgb, T042), and when a game starts, a model the
+hand or by itself (arkadeos-rgb, T042), and dims or brightens it with the
+keyboard brightness slider (T044), and when a game starts, a model the
 local AI (Ollama, T019) holds lets go of the video memory (T050). While a game
 runs, notifications wait (do not disturb, T062)."""
 import os
@@ -130,6 +131,18 @@ def running_game():
     return "gaming"
 
 
+def kbd_level():
+    """The keyboard backlight in percent (the brightness slider), or None."""
+    for led in sorted(Path("/sys/class/leds").glob("*kbd_backlight")):
+        try:
+            top = int((led / "max_brightness").read_text())
+            if top:
+                return round(int((led / "brightness").read_text()) * 100 / top)
+        except (OSError, ValueError):
+            continue
+    return None
+
+
 def on_battery(bus):
     up = bus.get_object("org.freedesktop.UPower", "/org/freedesktop/UPower")
     return bool(up.Get("org.freedesktop.UPower", "OnBattery", dbus_interface="org.freedesktop.DBus.Properties"))
@@ -200,14 +213,26 @@ def main():
     ours = None      # Max or WoW we switched on for the game
     current = None   # profile we applied for the running game
     lit = None       # profile whose lighting is set
+    kbd = None       # keyboard brightness the lighting follows
     heals = 0        # times TuneD was put back under this game
     while True:
         try:
             now = profile_in_force(bus)
+            level = kbd_level()
             if now != lit:
                 lit = now
+                kbd = level
+                if level is not None:  # the slider's level for the new lighting
+                    Path(f"/run/user/{UID}/arkadeos-rgb-level").write_text(f"{level}\n")
                 subprocess.Popen(["arkadeos-rgb", "apply", now], stdout=subprocess.DEVNULL,
                                  stderr=subprocess.DEVNULL)
+            elif level != kbd:
+                # A profile's own keyboard switch (lighting off and on again)
+                # comes back here once too; that run sets the same lighting.
+                kbd = level
+                if level is not None:
+                    subprocess.Popen(["arkadeos-rgb", "apply", now, str(level)],
+                                     stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         except dbus.exceptions.DBusException:
             pass
         want = running_game()

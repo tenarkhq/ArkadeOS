@@ -3,7 +3,9 @@
 # and everything OpenRGB knows (mainboard, RAM, GPU, keyboards, mice, ASUS
 # Aura monitors). The colour follows the power profile; it is set as the
 # devices' own static effect, so nothing keeps running on the computer (T050).
-#   arkadeos-rgb apply [PROFILE]     set the colour of PROFILE (default: current)
+# Its brightness follows the keyboard brightness slider (T044).
+#   arkadeos-rgb apply [PROFILE] [LEVEL]  set the colour of PROFILE (default:
+#                                    current) at LEVEL percent (the slider)
 #   arkadeos-rgb set PROFILE COLOUR  e.g. set gaming 00ff00, set battery off
 #   arkadeos-rgb sync on|off|status  follow the power profile or not
 #   arkadeos-rgb colour COLOUR       one colour now, everywhere (or off)
@@ -23,23 +25,45 @@ put() {
     echo "$1=$2" >> "${user_conf}"
 }
 
-colour() {
-    local c=$1
+# The keyboard brightness slider's level in percent, as last given to apply.
+level_file="${XDG_RUNTIME_DIR:-/tmp}/arkadeos-rgb-level"
+
+colour() {  # colour [slider]: the slider's own change never lights an off keyboard
+    local c=$1 level
+    level=$(cat "${level_file}" 2>/dev/null || echo 100)
+    # One change at a time: the slider moved twice quickly runs this twice.
+    exec 9>"${XDG_RUNTIME_DIR:-/tmp}/arkadeos-rgb.lock"
+    flock 9
+    if [[ "${c}" != off && "${level}" == 0 && "${2:-}" != slider ]]; then
+        # Off (the battery profile's lighting): a new profile's colour lights it again.
+        level=100
+        echo 100 > "${level_file}"
+        command -v asusctl >/dev/null && systemctl is-active -q asusd.service && { asusctl leds set high || true; }
+    fi
     if command -v asusctl >/dev/null && systemctl is-active -q asusd.service; then
+        # The laptop keyboard's own brightness is the slider's; only its colour here.
         if [[ "${c}" == off ]]; then
             asusctl leds set off || true
         else
-            asusctl leds set high || true
             asusctl aura effect static -c "${c}" || true
         fi
     fi
-    if command -v openrgb >/dev/null; then
-        if [[ "${c}" == off ]]; then
-            openrgb --noautoconnect --mode off >/dev/null 2>&1 ||
-                openrgb --noautoconnect --mode static --color 000000 >/dev/null 2>&1 || true
-        else
-            openrgb --noautoconnect --mode static --color "${c^^}" >/dev/null 2>&1 || true
-        fi
+    command -v openrgb >/dev/null || return 0
+    if [[ "${c}" == off ]]; then
+        openrgb --noautoconnect --mode off >/dev/null 2>&1 ||
+            openrgb --noautoconnect --mode static --color 000000 >/dev/null 2>&1 || true
+    elif (( level >= 100 )); then
+        openrgb --noautoconnect --mode static --color "${c^^}" >/dev/null 2>&1 || true
+    else
+        # The other devices have no brightness of their own: their colour is
+        # dimmed. A laptop keyboard OpenRGB also knows is dimmed by the slider
+        # itself, so it keeps the full colour.
+        local dim i type args=()
+        dim=$(printf '%02X%02X%02X' $((16#${c:0:2} * level / 100)) $((16#${c:2:2} * level / 100)) $((16#${c:4:2} * level / 100)))
+        while read -r i type; do
+            [[ "${type}" == Laptop ]] && args+=(-d "${i}" -m static -c "${c^^}") || args+=(-d "${i}" -m static -c "${dim}")
+        done < <(openrgb --noautoconnect -l 2>/dev/null | awk '/^[0-9]+: /{i=$1; sub(":", "", i)} /^ *Type:/{print i, $2}')
+        if (( ${#args[@]} )); then openrgb --noautoconnect "${args[@]}" >/dev/null 2>&1 || true; fi
     fi
 }
 
@@ -47,8 +71,15 @@ case "${1:-}" in
     apply)
         [[ "$(get sync)" == on ]] || exit 0
         profile=${2:-$(arkadeos-power status | sed -n 's/^profile=//p')}
+        how=profile
+        if [[ "${3:-}" =~ ^[0-9]+$ ]]; then
+            echo "$3" > "${level_file}"
+            how=slider
+        fi
         c=$(get "${profile}")
-        [[ -n "${c}" ]] && colour "${c}"
+        # A profile without lighting: the slider is the laptop keyboard's alone.
+        [[ "${how}" == slider && "${c}" == off ]] && exit 0
+        [[ -n "${c}" ]] && colour "${c}" "${how}"
         ;;
     set)
         [[ "${3:-}" =~ ^([0-9a-fA-F]{6}|off)$ ]] || { echo "colour: rrggbb or off" >&2; exit 2; }
