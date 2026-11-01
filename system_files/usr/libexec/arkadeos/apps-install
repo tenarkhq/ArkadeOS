@@ -30,4 +30,14 @@ if [[ ${#want[@]} -gt 0 ]]; then
 fi
 [[ ${#ids[@]} -gt 0 ]] && printf '%s\n' "${ids[@]}" >> "${done_list}"
 
+# Chromium-based browsers install web apps (Claude, YouTube, ...) as menu
+# entries: they need the user's applications and icons folders, which their
+# Flathub sandbox leaves out. Given as home paths: xdg-data/applications is
+# also mounted on the app's own data/applications, which is a symlink there,
+# and the browser then does not start. Set every boot, also for ones
+# installed later.
+for app in com.google.Chrome org.chromium.Chromium com.brave.Browser com.microsoft.Edge; do
+    flatpak override --system \
+        --filesystem=~/.local/share/applications --filesystem=~/.local/share/icons "${app}"
+done
 exit 0

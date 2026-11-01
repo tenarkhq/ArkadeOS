@@ -5,6 +5,8 @@ PartOf=graphical-session.target
 [Path]
 PathChanged=/var/lib/flatpak/exports/share/applications
 PathChanged=%h/.local/share/flatpak/exports/share/applications
+# Web apps the browser adds (their dock name, T067).
+PathChanged=%h/.local/share/applications
 Unit=arkadeos-session-setup.service
 
 [Install]

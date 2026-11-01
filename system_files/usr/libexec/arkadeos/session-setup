@@ -21,6 +21,14 @@ has_app() {
 # The folders browsers put web apps in (T067): Flatpak only lets Chrome reach
 # them when they exist, and a new user has neither.
 mkdir -p "${HOME}/.local/share/applications" "${HOME}/.local/share/icons"
+# Chrome names a web app's window chrome-<app>-<profile> on Wayland, but its
+# menu entry says crx_<app>: the dock then cannot keep the app pinned.
+for f in "${HOME}"/.local/share/applications/com.google.Chrome.flextop.chrome-*.desktop; do
+    [[ -f "${f}" ]] || continue
+    id=$(basename "${f}" .desktop)
+    id=${id#com.google.Chrome.flextop.}
+    grep -qx "StartupWMClass=${id}" "${f}" || sed -i "s/^StartupWMClass=.*/StartupWMClass=${id}/" "${f}"
+done
 
 # Game folders as their own btrfs subvolumes (T025): the daily home snapshots
 # then leave out games, which are large and can be downloaded again.
