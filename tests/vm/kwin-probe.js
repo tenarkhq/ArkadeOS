@@ -1,16 +1,32 @@
-// VM test only: prints what KWin sees of the borderless test window (T070).
+// VM test only: what KWin sees of the borderless test window (T070), each step
+// of the full-screen script's check on its own; the lines go to
+// kwin-probe-log.py.
+function log(text) {
+    callDBus("org.arkadeos.Probe", "/", "org.arkadeos.Probe", "Log", "kwin-probe " + text);
+}
+
+function step(name, f) {
+    try {
+        log(name + "=" + JSON.stringify(f()));
+    } catch (e) {
+        log(name + " error " + e);
+    }
+}
+
+log("windows=" + workspace.windowList().length);
 workspace.windowList().forEach(function (w) {
     if (String(w.caption).indexOf("arkadeos-borderless") < 0) {
         return;
     }
-    var a;
-    try {
-        a = JSON.stringify(workspace.clientArea(KWin.MaximizeArea, w));
-    } catch (e) {
-        a = "error " + e;
-    }
-    print("kwin-probe class=" + w.resourceClass + " normal=" + w.normalWindow + " noBorder=" + w.noBorder +
-          " fullScreen=" + w.fullScreen + " fullScreenable=" + w.fullScreenable + " maximizable=" + w.maximizable +
-          " output=" + (w.output ? JSON.stringify(w.output.geometry) : "none") +
-          " frame=" + JSON.stringify(w.frameGeometry) + " maximizeArea=" + a);
+    step("class", function () { return String(w.resourceClass); });
+    step("normal", function () { return w.normalWindow; });
+    step("noBorder", function () { return w.noBorder; });
+    step("fullScreen", function () { return w.fullScreen; });
+    step("fullScreenable", function () { return w.fullScreenable; });
+    step("output", function () { return w.output ? w.output.geometry : null; });
+    step("frame", function () { return w.frameGeometry; });
+    step("MaximizeArea", function () { return KWin.MaximizeArea; });
+    step("maximizeArea", function () { return workspace.clientArea(KWin.MaximizeArea, w); });
+    w.fullScreen = true;
+    step("fullScreen after setting it", function () { return w.fullScreen; });
 });
