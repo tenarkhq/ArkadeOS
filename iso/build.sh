@@ -34,7 +34,7 @@ trap 'rm -rf "${work}"' EXIT
     [[ -n "${extra}" ]] && cat "${extra}"
     sed "s/@TAG@/${tag}/" "${here}/arkadeos.ks"
 } > "${work}/arkadeos.ks"
-cp "${here}/buildstamp.sh" "${work}/"
+cp "${here}/buildstamp.sh" "${here}/install-progress.py" "${work}/"
 # The app choice (T026) lists what the image's Portal lists.
 cp -r "${here}/addon" "${work}/addon"
 mkdir -p "${work}/addon/org_arkadeos_apps/data"

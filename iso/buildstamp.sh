@@ -14,6 +14,14 @@ sed -e 's/^Product=.*/Product=ArkadeOS/' -e 's/^IsFinal=.*/IsFinal=True/' \
     -e 's|^BugURL=.*|BugURL=https://github.com/tenarkhq/ArkadeOS/issues|' \
     "${tmp}/root/.buildstamp" > "${tmp}/upd/.buildstamp"
 grep -q '^Product=ArkadeOS' "${tmp}/upd/.buildstamp"
+# The download of the system shown while it runs (T065, install-progress.py).
+deploy=$(unsquashfs -l "${tmp}/install.img" | sed -n 's|^squashfs-root/\(.*/rpm_ostree/installation\.py\)$|\1|p')
+test -n "${deploy}"
+unsquashfs -q -no-xattrs -d "${tmp}/py" "${tmp}/install.img" "${deploy}"
+python3 "$(dirname "$(readlink -f "$0")")/install-progress.py" "${tmp}/py/${deploy}"
+python3 -m py_compile "${tmp}/py/${deploy}"
+mkdir -p "${tmp}/upd/$(dirname "${deploy}")"
+cp "${tmp}/py/${deploy}" "${tmp}/upd/${deploy}"
 if [[ -n "${addon}" ]]; then
     share="${tmp}/upd/usr/share/anaconda"
     mkdir -p "${share}/addons" "${share}/dbus/services" "${share}/dbus/confs"

@@ -41,8 +41,10 @@ mdadm -E /dev/sda 2>&1 | head -30
     grep -i -E "imsm|md12[0-9]|mdraid|BIOSRAID" /tmp/storage.log | head -40
     echo "== now"; cat /proc/mdstat
 } > /tmp/arkadeos-rst.txt 2>&1
+# T065: what the installer showed of the system's download.
+{ grep -h "ArkadeOS download" /tmp/*.log; journalctl -b --no-pager | grep "ArkadeOS download"; } > /tmp/arkadeos-install-progress.txt 2>&1
 # Into /etc of the new system: its /var/log only exists from the first boot.
 for root in /mnt/sysroot /mnt/sysimage; do
-    [ -d "${root}/etc" ] && cp /tmp/arkadeos-rst.txt "${root}/etc/" || true
+    [ -d "${root}/etc" ] && cp /tmp/arkadeos-rst.txt /tmp/arkadeos-install-progress.txt "${root}/etc/" || true
 done
 %end

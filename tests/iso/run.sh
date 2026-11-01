@@ -141,6 +141,10 @@ if [[ "${RST:-}" == 1 ]]; then
         sed -n "/== installer storage/,/== now/p" /etc/arkadeos-rst.txt | grep -qi -E "Volume0|mdbiosraidarray"'
 fi
 # auto.ks asks for UTC on purpose: ArkadeOS keeps local time anyway.
+# T065: the installer showed how far the download was, then the writing.
+ssh_vm 'cat /etc/arkadeos-install-progress.txt' > "${out}/install-progress.txt" 2>&1 || true
+check "installer shows the download's progress" 'grep -qE "Downloading the system: [0-9.]+ / [0-9.]+ GB \([0-9]+%\) · (about [0-9]+ min|less than a minute) left" /etc/arkadeos-install-progress.txt &&
+    grep -q "Writing to the disk" /etc/arkadeos-install-progress.txt'
 check "hardware clock on local time" 'test "$(timedatectl show -p LocalRTC --value)" = yes'
 check "firewall on, ArkadeOS zone" 'firewall-cmd --state && test "$(firewall-cmd --get-default-zone)" = ArkadeOS'
 ssh_vm 'journalctl -b --no-pager -p warning' > "${out}/journal-warnings.txt" 2>&1 || true
