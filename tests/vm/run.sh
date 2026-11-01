@@ -483,6 +483,11 @@ step "apps"
 # Steam Game Mode (a Steam account folder stands in for a Steam login).
 check "Battle.net launcher on GE-Proton" "${session} arkadeos-battlenet --check | grep -q '^proton=.*GE-Proton'"
 check "Battle.net installer reachable" "curl -fsSL -o /dev/null -r 0-0 \"\$(grep -o 'https://downloader[^\"]*' /usr/bin/arkadeos-store)\""
+# T018: the EA app and Ubisoft Connect the same way.
+check "EA app launcher on GE-Proton" "${session} arkadeos-ea --check | grep -q '^proton=.*GE-Proton'"
+check "EA app installer reachable" "curl -fsSL -o /dev/null -r 0-0 \"\$(grep -o 'https://origin-a[^\"]*' /usr/bin/arkadeos-store)\""
+check "Ubisoft Connect launcher on GE-Proton" "${session} arkadeos-ubisoft --check | grep -q '^proton=.*GE-Proton'"
+check "Ubisoft Connect installer reachable" "curl -fsSL -o /dev/null -r 0-0 \"\$(grep -o 'https://static3.cdn.ubi.com[^\"]*' /usr/bin/arkadeos-store)\""
 ssh_vm "pkill -u arkade -x steam; sleep 5; runuser -u arkade -- mkdir -p /home/arkade/.local/share/Steam/userdata/1234/config &&
     systemctl --user -M arkade@ start arkadeos-session-setup.service" || true
 check "Battle.net in Steam Game Mode" 'grep -qa arkadeos-battlenet /home/arkade/.local/share/Steam/userdata/1234/config/shortcuts.vdf'
