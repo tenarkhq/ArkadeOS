@@ -367,11 +367,14 @@ check "per-game profile: Akku game on Akku" 'grep -q arkadeos-battery /tmp/profi
 sleep 20
 check "Balanced after the Akku game" 'tuned-adm active | grep -q arkadeos-balanced'
 # T055: World of Warcraft (Wow.exe under Wine) switches WoW on by itself,
-# then Balanced comes back. Stand-ins for its wineserver and Wow.exe.
+# then Balanced comes back. Stand-ins for its wineserver, Battle.net.exe
+# (Gaming first, as on a real machine) and Wow.exe 12 s later.
 ssh_vm "nohup sh -c 'for i in \$(seq 20); do tuned-adm active; ${session} busctl --user get-property org.freedesktop.Notifications \
     /org/freedesktop/Notifications org.freedesktop.Notifications Inhibited; sleep 3; done' > /tmp/wow.log 2>&1 &"
-ssh_vm "${session} bash -c '(exec -a wineserver sleep 30) & (exec -a Wow.exe sleep 30) & wait'" || true
+ssh_vm "${session} bash -c '(exec -a wineserver sleep 45) & (exec -a Battle.net.exe sleep 45) & sleep 12; (exec -a Wow.exe sleep 30) & wait'" || true
 check "World of Warcraft on WoW" 'grep -q arkadeos-wow /tmp/wow.log'
+# The released Gaming hold must not put Balanced back under WoW (2026-11-01).
+check "WoW stays on while the game runs" 'test "$(grep -c arkadeos-wow /tmp/wow.log)" -ge 6'
 # T062: notifications wait while a game runs, and come again after.
 check "do not disturb while a game runs" 'grep -qx "b true" /tmp/wow.log'
 sleep 20

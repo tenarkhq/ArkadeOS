@@ -130,6 +130,13 @@ def profile_in_force(bus):
     return "battery" if on_battery(bus) else "balanced"
 
 
+def tuned_active():
+    try:
+        return Path("/etc/tuned/active_profile").read_text().strip()
+    except OSError:
+        return None
+
+
 def unload_ai_models():
     """Ollama keeps a used model in video memory for a while; a game needs it."""
     try:
@@ -188,9 +195,11 @@ def main():
         if ours is None and any(os.path.exists(f) for f in FLAGS.values()):
             want = None  # Max or WoW by hand: leave it alone
         if want != current:
+            released = False
             try:
                 if cookie is not None:
                     held, cookie = cookie, None
+                    released = True
                     ppd.ReleaseProfile(held)
             except dbus.exceptions.DBusException:
                 pass
@@ -205,6 +214,8 @@ def main():
                 except dbus.exceptions.DBusException:
                     cookie = None
             elif want in DIRECT:
+                if released:
+                    time.sleep(2)  # the released hold first puts PPD's own profile back
                 power_set(want)
                 ours = want
             # Marks a game on Max or WoW for no-game-running and
@@ -218,6 +229,8 @@ def main():
                 unload_ai_models()
             quiet(want is not None, state)
             current = want
+        elif ours is not None and os.path.exists(FLAGS[ours]) and tuned_active() != f"arkadeos-{ours}":
+            power_set(ours)  # something else (PPD) switched TuneD under the game
         time.sleep(3)
 
 
