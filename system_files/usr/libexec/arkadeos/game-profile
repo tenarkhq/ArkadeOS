@@ -214,21 +214,25 @@ def main():
     current = None   # profile we applied for the running game
     lit = None       # profile whose lighting is set
     kbd = None       # keyboard brightness the lighting follows
+    level = None     # keyboard brightness now
+    seen = None      # keyboard brightness at the last look
     heals = 0        # times TuneD was put back under this game
     while True:
         try:
             now = profile_in_force(bus)
-            level = kbd_level()
+            seen, level = level, kbd_level()
             if now != lit:
                 lit = now
                 kbd = level
-                if level is not None:  # the slider's level for the new lighting
+                if level:  # the slider's level for the new lighting (not login's passing 0)
                     Path(f"/run/user/{UID}/arkadeos-rgb-level").write_text(f"{level}\n")
                 subprocess.Popen(["arkadeos-rgb", "apply", now], stdout=subprocess.DEVNULL,
                                  stderr=subprocess.DEVNULL)
-            elif level != kbd:
-                # A profile's own keyboard switch (lighting off and on again)
-                # comes back here once too; that run sets the same lighting.
+            elif level != kbd and level == seen:
+                # Only a level that stays for a look: at login the keyboard
+                # light is 0 for a moment before it is put back. A profile's
+                # own keyboard switch (lighting off and on again) comes back
+                # here once too; that run sets the same lighting.
                 kbd = level
                 if level is not None:
                     subprocess.Popen(["arkadeos-rgb", "apply", now, str(level)],

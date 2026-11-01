@@ -49,21 +49,23 @@ colour() {  # colour [slider]: the slider's own change never lights an off keybo
         fi
     fi
     command -v openrgb >/dev/null || return 0
+    # A device that does not answer must not hold the lighting up for good.
+    local rgb=(timeout 20 openrgb --noautoconnect)
     if [[ "${c}" == off ]]; then
-        openrgb --noautoconnect --mode off >/dev/null 2>&1 ||
-            openrgb --noautoconnect --mode static --color 000000 >/dev/null 2>&1 || true
+        "${rgb[@]}" --mode off >/dev/null 2>&1 ||
+            "${rgb[@]}" --mode static --color 000000 >/dev/null 2>&1 || true
     elif (( level >= 100 )); then
-        openrgb --noautoconnect --mode static --color "${c^^}" >/dev/null 2>&1 || true
+        "${rgb[@]}" --mode static --color "${c^^}" >/dev/null 2>&1 || true
     else
         # The other devices have no brightness of their own: their colour is
-        # dimmed. A laptop keyboard OpenRGB also knows is dimmed by the slider
-        # itself, so it keeps the full colour.
-        local dim i type args=()
+        # dimmed, one device at a time (several devices in one OpenRGB run
+        # never finish). A laptop keyboard OpenRGB also knows is dimmed by the
+        # slider itself, so it keeps its colour.
+        local dim i type
         dim=$(printf '%02X%02X%02X' $((16#${c:0:2} * level / 100)) $((16#${c:2:2} * level / 100)) $((16#${c:4:2} * level / 100)))
         while read -r i type; do
-            [[ "${type}" == Laptop ]] && args+=(-d "${i}" -m static -c "${c^^}") || args+=(-d "${i}" -m static -c "${dim}")
-        done < <(openrgb --noautoconnect -l 2>/dev/null | awk '/^[0-9]+: /{i=$1; sub(":", "", i)} /^ *Type:/{print i, $2}')
-        if (( ${#args[@]} )); then openrgb --noautoconnect "${args[@]}" >/dev/null 2>&1 || true; fi
+            [[ "${type}" == Laptop ]] || "${rgb[@]}" -d "${i}" -m static -c "${dim}" </dev/null >/dev/null 2>&1 || true
+        done < <("${rgb[@]}" -l 2>/dev/null | awk '/^[0-9]+: /{i=$1; sub(":", "", i)} /^ *Type:/{print i, $2}')
     fi
 }
 
