@@ -22,6 +22,21 @@ for theme in WhiteSur WhiteSur-dark WhiteSur-light; do
             fi
         done
     done
+    # The dock's trash widget asks for the one-colour name (user-trash-symbolic).
+    # From 22 pixels up it finds the metal bin in places/dock, listed before
+    # WhiteSur's places/symbolic; menus and sidebars keep the 16 pixel one.
+    mkdir -p "/usr/share/icons/${theme}/places/dock"
+    for icon in user-trash user-trash-full; do
+        install -m 644 "/usr/share/arkadeos/icons/${icon}.svg" "/usr/share/icons/${theme}/places/dock/${icon}-symbolic.svg"
+    done
+    index="/usr/share/icons/${theme}/index.theme"
+    if ! grep -q '^\[places/dock\]' "${index}"; then
+        sed -i -e '/^Directories=/s|places/symbolic,|places/dock,places/symbolic,|' \
+            -e '/^ScaledDirectories=/s|places@2x/symbolic,|places@2x/dock,places@2x/symbolic,|' "${index}"
+        printf '\n[places/dock]\nSize=48\nContext=Places\nMinSize=22\nMaxSize=512\nType=Scalable\n' >> "${index}"
+        printf '\n[places@2x/dock]\nSize=48\nScale=2\nContext=Places\nMinSize=22\nMaxSize=512\nType=Scalable\n' >> "${index}"
+    fi
+    grep -q '^Directories=.*places/dock,places/symbolic' "${index}"
     gtk-update-icon-cache -f -q "/usr/share/icons/${theme}"
 done
 

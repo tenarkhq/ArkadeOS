@@ -167,6 +167,8 @@ check "Ark wallpaper and launcher logo" "f=${home}/plasma-org.kde.plasma.desktop
 check "ArkadeOS trash in every WhiteSur variant and dock size" 'for t in WhiteSur WhiteSur-dark WhiteSur-light; do for s in scalable 22 24; do
     cmp -s /usr/share/icons/$t/places/$s/user-trash.svg /usr/share/arkadeos/icons/user-trash.svg &&
     cmp -s /usr/share/icons/$t/places/$s/user-trash-full.svg /usr/share/arkadeos/icons/user-trash-full.svg || exit 1; done; done'
+# The trash widget on the dock asks for the one-colour name.
+check "dock trash widget gets the ArkadeOS trash" "${session} kiconfinder6 user-trash-symbolic | grep -q /places/dock/"
 check "dark lock screen" "${session} kreadconfig6 --file kscreenlockerrc --group Greeter --group Wallpaper --group org.kde.image --group General --key Image | grep -q ArkadeOS-Lock"
 # No idle lock during the test (the lock screen itself is checked above).
 ssh_vm "${session} kwriteconfig6 --file kscreenlockerrc --group Daemon --key Autolock false" || true
