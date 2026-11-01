@@ -23,6 +23,14 @@ has_app() {
 # The look's own files first: a service does not see the session's config
 # path, and the image's /etc/xdg default (the light look) would win.
 cfg="${XDG_CONFIG_HOME:-${HOME}/.config}"
+# A look change writes kdeglobals several times, and its first write already
+# starts this: wait until the files have been still for two seconds (at most
+# ten), or the old look is read.
+for _ in $(seq 10); do
+    newest=$(stat -c %Y "${cfg}/kdeglobals" "${cfg}/kdedefaults/kdeglobals" 2>/dev/null | sort -n | tail -1)
+    (( $(date +%s) - ${newest:-0} >= 2 )) && break
+    sleep 1
+done
 scheme_of() { sed -n '/^\[General\]/,/^\[/s/^ColorScheme=//p' "$1" 2>/dev/null | tail -1; }
 scheme=$(scheme_of "${cfg}/kdeglobals")
 [[ -n "${scheme}" ]] || scheme=$(scheme_of "${cfg}/kdedefaults/kdeglobals")

@@ -450,7 +450,7 @@ ssh_vm "loginctl unlock-sessions; ${session} kscreen-doctor --dpms on" >/dev/nul
 # T070: a borderless window the size of the screen (a game in windowed full
 # screen) goes full screen, above the top bar and the dock.
 check "borderless full-screen script in KWin" "${session} busctl --user call org.kde.KWin /Scripting org.kde.kwin.Scripting isScriptLoaded s arkadeos-borderless-fullscreen | grep -qx 'b true'"
-ssh_vm "nohup ${session} DISPLAY=:0 GDK_BACKEND=x11 timeout 60 python3 -c '
+ssh_vm "nohup ${session} DISPLAY=:0 XAUTHORITY=\$(ls /run/user/1000/xauth_* | head -1) GDK_BACKEND=x11 timeout 60 python3 -c '
 import gi
 gi.require_version(\"Gtk\", \"3.0\")
 from gi.repository import Gtk, Gdk
@@ -463,9 +463,9 @@ w.show_all()
 Gtk.main()' > /tmp/borderless.log 2>&1 &"
 sleep 10
 shot borderless
-check "borderless screen-sized window runs full screen" "${session} DISPLAY=:0 xprop -name arkadeos-borderless _NET_WM_STATE | grep -q _NET_WM_STATE_FULLSCREEN"
-ssh_vm "cat /tmp/borderless.log; pgrep -af arkadeos-borderless; ${session} DISPLAY=:0 xwininfo -root -tree | grep -i borderless;
-    ${session} DISPLAY=:0 xprop -name arkadeos-borderless" > "${out}/borderless.txt" 2>&1 || true
+check "borderless screen-sized window runs full screen" "${session} DISPLAY=:0 XAUTHORITY=\$(ls /run/user/1000/xauth_* | head -1) xprop -name arkadeos-borderless _NET_WM_STATE | grep -q _NET_WM_STATE_FULLSCREEN"
+ssh_vm "cat /tmp/borderless.log; pgrep -af arkadeos-borderless; ${session} DISPLAY=:0 XAUTHORITY=\$(ls /run/user/1000/xauth_* | head -1) xwininfo -root -tree | grep -i borderless;
+    ${session} DISPLAY=:0 XAUTHORITY=\$(ls /run/user/1000/xauth_* | head -1) xprop -name arkadeos-borderless" > "${out}/borderless.txt" 2>&1 || true
 ssh_vm "pkill -u arkade -f arkadeos-borderless" || true
 
 step "apps"
@@ -523,7 +523,7 @@ done
 sleep 10
 # T068: all of these apps' windows can be pinned on the dock too.
 check "every app window has a dock entry" "${session} /usr/libexec/arkadeos/dock-names --check"
-ssh_vm "cat /home/arkade/.local/state/arkadeos/dock-names.json" > "${out}/dock-names-apps.txt" 2>&1 || true
+ssh_vm "cat /home/arkade/.local/state/arkadeos/dock-names.json; grep -H . /home/arkade/.local/share/applications/notepad.exe.desktop" > "${out}/dock-names-apps.txt" 2>&1 || true
 check "microphone noise filter set up" "test -f ${home}/autostart/com.github.wwmm.easyeffects.desktop &&
     grep -q 'ArkadeOS mikrofon' /home/arkade/.var/app/com.github.wwmm.easyeffects/config/easyeffects/db/easyeffectsrc"
 # It starts with the session, a little after the desktop: up to 2 minutes.

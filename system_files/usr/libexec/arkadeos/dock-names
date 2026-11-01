@@ -33,6 +33,8 @@ STORES = {"battlenet": "org.arkadeos.BattleNet.desktop", "ea": "org.arkadeos.EA.
           "ubisoft": "org.arkadeos.Ubisoft.desktop"}
 STORE_EXES = {"battle.net.exe": "battlenet", "battle.net launcher.exe": "battlenet",
               "eadesktop.exe": "ea", "upc.exe": "ubisoft", "ubisoftconnect.exe": "ubisoft"}
+# Message and progress boxes of scripts (an installer's progress), not apps.
+DIALOGS = {"zenity", "yad", "xmessage"}
 # Battle.net starts these games itself: Battle.net.exe --exec="launch <code>".
 BATTLENET_GAMES = {"wow.exe": "WoW", "wowclassic.exe": "WoW_wow_classic", "diablo iv.exe": "Fen",
                    "overwatch.exe": "Pro", "hearthstone.exe": "WTCG"}
@@ -165,7 +167,8 @@ def build(name, pid, caption):
 
     prefix = env.get("WINEPREFIX", "")
     exe = windows_exe(cmd, env)
-    store = next((s for s in STORES if prefix.rstrip("/") == str(HOME / "Games" / s)), None)
+    # /home is a link to /var/home: the same prefix may come by either path.
+    store = next((s for s in STORES if prefix and os.path.realpath(prefix) == os.path.realpath(HOME / "Games" / s)), None)
     if store:
         base = Path(exe).name.lower() if exe else name.lower()
         if STORE_EXES.get(base) == store or STORE_EXES.get(name.lower()) == store:
@@ -236,7 +239,7 @@ def remember(name, ok):
 
 def window_added(resource_class, desktop_file, pid, caption):
     name = (desktop_file or resource_class or "").removesuffix(".desktop")
-    if not name or "/" in name:
+    if not name or "/" in name or name.lower() in DIALOGS:
         return
     if not has_entry(name) and resource_class and has_entry(resource_class):
         name = resource_class
