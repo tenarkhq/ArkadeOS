@@ -29,4 +29,12 @@ if [[ ${#want[@]} -gt 0 ]]; then
     flatpak install --system --noninteractive --or-update flathub "${want[@]}"
 fi
 [[ ${#ids[@]} -gt 0 ]] && printf '%s\n' "${ids[@]}" >> "${done_list}"
+
+# Chromium-based browsers install web apps (Claude, YouTube, ...) as menu
+# entries: they need the user's applications and icons folders, which their
+# Flathub sandbox leaves out. Set every boot, also for ones installed later.
+for app in com.google.Chrome org.chromium.Chromium com.brave.Browser com.microsoft.Edge; do
+    flatpak override --system --filesystem=xdg-data/applications \
+        --filesystem=xdg-data/icons "${app}"
+done
 exit 0
