@@ -17,8 +17,16 @@ function fills(g, a) {
     return g.x <= a.x && g.y <= a.y && g.x + g.width >= a.x + a.width && g.y + g.height >= a.y + a.height;
 }
 
+// A window that asked for no frame (Wine's, an undecorated X11 window) keeps
+// noBorder false: only the user's "no border" sets it. Without a frame the
+// window's frame and its contents are the same rectangle.
+function frameless(w) {
+    var f = w.frameGeometry, c = w.clientGeometry;
+    return w.noBorder || (f.x == c.x && f.y == c.y && f.width == c.width && f.height == c.height);
+}
+
 function check(w) {
-    if (!w.output || !w.normalWindow || !w.noBorder || w.fullScreen || !w.fullScreenable) {
+    if (!w.output || !w.normalWindow || !frameless(w) || w.fullScreen || !w.fullScreenable) {
         return;
     }
     var g = w.frameGeometry;

@@ -25,6 +25,7 @@ workspace.windowList().forEach(function (w) {
     step("fullScreenable", function () { return w.fullScreenable; });
     step("output", function () { return w.output ? w.output.geometry : null; });
     step("frame", function () { return w.frameGeometry; });
+    step("client", function () { return w.clientGeometry; });
     step("MaximizeArea", function () { return KWin.MaximizeArea; });
     step("maximizeArea", function () { return workspace.clientArea(KWin.MaximizeArea, w); });
     w.fullScreen = true;
