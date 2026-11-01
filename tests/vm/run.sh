@@ -169,6 +169,7 @@ check "ArkadeOS trash in every WhiteSur variant and dock size" 'for t in WhiteSu
     cmp -s /usr/share/icons/$t/places/$s/user-trash-full.svg /usr/share/arkadeos/icons/user-trash-full.svg || exit 1; done; done'
 # The trash widget on the dock asks for the one-colour name.
 check "dock trash widget gets the ArkadeOS trash" "${session} kiconfinder6 user-trash-symbolic | grep -q /places/dock/"
+ssh_vm "${session} kiconfinder6 user-trash-symbolic; ${session} kreadconfig6 --group Icons --key Theme; grep -n places/dock /usr/share/icons/WhiteSur*/index.theme | cut -c1-120; ls -l /usr/share/icons/WhiteSur-dark/places/dock/" > "${out}/dock-trash.txt" 2>&1 || true
 check "dark lock screen" "${session} kreadconfig6 --file kscreenlockerrc --group Greeter --group Wallpaper --group org.kde.image --group General --key Image | grep -q ArkadeOS-Lock"
 # No idle lock during the test (the lock screen itself is checked above).
 ssh_vm "${session} kwriteconfig6 --file kscreenlockerrc --group Daemon --key Autolock false" || true
@@ -469,6 +470,11 @@ shot borderless
 check "borderless screen-sized window runs full screen" "${session} DISPLAY=:0 XAUTHORITY=\$(ls /run/user/1000/xauth_* | head -1) xprop -name arkadeos-borderless _NET_WM_STATE | grep -q _NET_WM_STATE_FULLSCREEN"
 ssh_vm "cat /tmp/borderless.log; pgrep -af arkadeos-borderless; ${session} DISPLAY=:0 XAUTHORITY=\$(ls /run/user/1000/xauth_* | head -1) xwininfo -root -tree | grep -i borderless;
     ${session} DISPLAY=:0 XAUTHORITY=\$(ls /run/user/1000/xauth_* | head -1) xprop -name arkadeos-borderless" > "${out}/borderless.txt" 2>&1 || true
+# What KWin sees of the window: a test-only KWin script, its lines in the log.
+ssh_vm "echo $(base64 -w0 "$(dirname "$0")/kwin-probe.js") | base64 -d > /tmp/kwin-probe.js && chmod 644 /tmp/kwin-probe.js
+    id=\$(${session} busctl --user call org.kde.KWin /Scripting org.kde.kwin.Scripting loadScript ss /tmp/kwin-probe.js kwin-probe | cut -d' ' -f2)
+    ${session} busctl --user call org.kde.KWin /Scripting/Script\${id} org.kde.kwin.Script run; sleep 2
+    journalctl -b --no-pager | grep -E 'kwin-probe|arkadeos-borderless' | tail -10" >> "${out}/borderless.txt" 2>&1 || true
 ssh_vm "pkill -u arkade -f arkadeos-borderless" || true
 
 step "apps"
