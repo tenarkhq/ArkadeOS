@@ -11,10 +11,16 @@ for size in 20 24; do
 done
 glib-compile-schemas /usr/share/glib-2.0/schemas
 
-# Dock trash (T069): our metal bin in place of WhiteSur's in every variant.
+# Dock trash (T069): our metal bin in place of WhiteSur's in every variant,
+# at every dock size: the scalable folder starts at 32 pixels, a smaller dock
+# takes the 22 and 24 pixel ones. The 16 pixel one stays the sidebar's.
 for theme in WhiteSur WhiteSur-dark WhiteSur-light; do
     for icon in user-trash user-trash-full; do
-        install -m 644 "/usr/share/arkadeos/icons/${icon}.svg" "/usr/share/icons/${theme}/places/scalable/${icon}.svg"
+        for size in scalable 22 24; do
+            if [[ -d "/usr/share/icons/${theme}/places/${size}" ]]; then
+                install -m 644 "/usr/share/arkadeos/icons/${icon}.svg" "/usr/share/icons/${theme}/places/${size}/${icon}.svg"
+            fi
+        done
     done
     gtk-update-icon-cache -f -q "/usr/share/icons/${theme}"
 done
