@@ -404,7 +404,8 @@ for app in org.mozilla.firefox com.google.Chrome com.discordapp.Discord com.gith
     check "${app} installed" "flatpak info --system ${app}"
 done
 check "Chrome may make web app shortcuts (Claude PWA)" 'flatpak override --system --show com.google.Chrome | grep -q "xdg-data/applications" &&
-    flatpak override --system --show com.google.Chrome | grep -q "xdg-data/icons"'
+    flatpak override --system --show com.google.Chrome | grep -q "xdg-data/icons" &&
+    test -d /home/arkade/.local/share/applications -a -d /home/arkade/.local/share/icons'
 # T059: GPU Screen Recorder only from the Portal, not there by default.
 check "GPU Screen Recorder not installed by default" '! flatpak info --system com.dec05eba.gpu_screen_recorder'
 # The screen locks after five idle minutes; the app shots need the desktop.

@@ -18,6 +18,10 @@ has_app() {
 # New ArkadeOS defaults for this user's existing settings (T051).
 /usr/libexec/arkadeos/migrate
 
+# The folders browsers put web apps in (T067): Flatpak only lets Chrome reach
+# them when they exist, and a new user has neither.
+mkdir -p "${HOME}/.local/share/applications" "${HOME}/.local/share/icons"
+
 # Game folders as their own btrfs subvolumes (T025): the daily home snapshots
 # then leave out games, which are large and can be downloaded again.
 if [[ "$(stat -f -c %T "${HOME}")" == btrfs ]]; then
