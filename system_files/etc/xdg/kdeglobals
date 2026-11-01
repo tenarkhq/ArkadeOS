@@ -11,3 +11,6 @@ LookAndFeelPackage=org.arkadeos.light.desktop
 DefaultLightLookAndFeel=org.arkadeos.light.desktop
 DefaultDarkLookAndFeel=org.arkadeos.dark.desktop
 AutomaticLookAndFeel=true
+# Animations one step faster than Plasma's: quicker, still pleasant to watch
+# (Roland, 2026-11-01).
+AnimationDurationFactor=0.5

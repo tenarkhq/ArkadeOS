@@ -2,6 +2,9 @@
 Description=ArkadeOS per-user setup (Steam shortcuts, microphone filter, dock stores)
 After=plasma-plasmashell.service
 PartOf=graphical-session.target
+# The path unit starts this on every look switch and app install; systemd's
+# start limit (5 in 10 s) would stop it, and the path unit with it.
+StartLimitIntervalSec=0
 
 [Service]
 Type=oneshot

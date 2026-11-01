@@ -198,6 +198,8 @@ check "Kvantum WhiteSurDark with the dark look" "cat ${home}/kdeglobals ${home}/
 check "Finder-like sidebar: Games in it, Remote and Recent hidden" "grep -q 'href=\"file:///home/arkade/Games\"' ${home%/.config}/.local/share/user-places.xbel &&
     grep -q '<GroupState-Remote-IsHidden>true' ${home%/.config}/.local/share/user-places.xbel &&
     grep -q '<GroupState-RecentlySaved-IsHidden>true' ${home%/.config}/.local/share/user-places.xbel"
+ssh_vm "${session} systemctl --user status --no-pager arkadeos-session-setup.path arkadeos-session-setup.service;
+    ${session} journalctl --user -b -u arkadeos-session-setup --no-pager | tail -30; cat ${home}/Kvantum/kvantum.kvconfig" > "${out}/session-setup.txt" 2>&1 || true
 check "blue sidebar icons, thin Dolphin status bar" 'grep -q ColorScheme-Highlight /usr/share/icons/WhiteSur/places/16/user-home.svg &&
     grep -qx ShowStatusBar=FullWidth /etc/xdg/dolphinrc'
 ssh_vm "pkill -u arkade -x dolphin; sleep 2; nohup ${session} dolphin >/dev/null 2>&1 &"
@@ -435,6 +437,7 @@ ssh_vm "cat /home/arkade/.local/state/arkadeos/dock-names.json; ${session} journ
 ssh_vm "pkill -u arkade -f notepad; ${session} WINEPREFIX=/home/arkade/Games/battlenet ${proton}/files/bin/wineserver -k" || true
 sleep 20
 
+ssh_vm "loginctl unlock-sessions; ${session} kscreen-doctor --dpms on" >/dev/null 2>&1 || true
 # T070: a borderless window the size of the screen (a game in windowed full
 # screen) goes full screen, above the top bar and the dock.
 check "borderless full-screen script in KWin" "${session} busctl --user call org.kde.KWin /Scripting org.kde.kwin.Scripting isScriptLoaded s arkadeos-borderless-fullscreen | grep -qx 'b true'"
