@@ -37,13 +37,22 @@ firefox heroic qbittorrent msi
 if grep -qw mdadm.imsm.test=1 /proc/cmdline && [ -b /dev/sda ] && [ -b /dev/sdb ]; then
     export IMSM_NO_PLATFORM=1 IMSM_TEST_OROM=1 MDADM_NO_SYSTEMCTL=1
     mdadm --create /dev/md/imsm0 --run -e imsm -n 2 /dev/sda /dev/sdb
-    mdadm --create /dev/md/Volume0 --run --assume-clean -l 1 -n 2 /dev/md/imsm0 2>&1; echo "volume rc=$?"
-    pgrep -a mdmon || echo "no mdmon"
     udevadm settle
+    # mdadm tells why a volume is refused only when asked to be verbose.
+    mdadm -vv --create /dev/md/Volume0 --run --assume-clean -l 1 -n 2 /dev/md/imsm0 2>&1
+    rc=$?; echo "volume rc=${rc}"
+    if [ "${rc}" != 0 ]; then
+        echo "-- again, naming the member disks"
+        mdadm -vv --create /dev/md/Volume0 --run --assume-clean -e imsm -l 1 -n 2 /dev/sda /dev/sdb 2>&1
+        echo "volume rc=$?"
+    fi
+    grep -l mdmon /proc/[0-9]*/comm 2>/dev/null || echo "no mdmon"
+    udevadm settle
+    mdadm -E /dev/sda 2>&1 | head -30
 fi
 cat /proc/mdstat
 mdadm --detail --scan
-mdadm --detail-platform 2>&1 | head -5
+mdadm -v --detail-platform 2>&1 | head -25
 %end
 
 %post --nochroot
