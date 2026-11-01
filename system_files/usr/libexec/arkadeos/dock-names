@@ -1,0 +1,285 @@
+#!/usr/bin/python3
+"""Anything pinned on the dock stays there with its own icon and starts again
+(T068). The dock finds a window's app by the window's name (the Wayland app
+id, or the X11 window class): a window whose app has no menu entry under that
+name cannot be pinned, or loses its icon once closed. KWin's script
+arkadeos-dock-names reports each new window here (D-Bus org.arkadeos.DockNames);
+for a name without an entry this writes a hidden one in
+~/.local/share/applications, marked X-ArkadeOS-DockName:
+  - Steam game (steam_app_<id>): starts through Steam, steam://rungameid/<id>
+  - Windows program in an ArkadeOS store prefix (~/Games/<store>): the store's
+    own window gets the store's entry; a game starts through its store
+    (World of Warcraft straight from Battle.net), its icon from its .exe
+  - Chrome web app: a copy of the entry Chrome wrote (T067)
+  - any other program: a copy of the menu entry that starts the same program,
+    else its own command line
+  arkadeos-dock-names --check   names of the reported windows without an entry"""
+import configparser
+import json
+import os
+import re
+import shlex
+import subprocess
+import sys
+import tempfile
+from pathlib import Path
+
+HOME = Path.home()
+DATA = Path(os.environ.get("XDG_DATA_HOME", HOME / ".local/share"))
+APPS = DATA / "applications"
+ICONS = DATA / "icons/hicolor/256x256/apps"
+STATE = Path(os.environ.get("XDG_STATE_HOME", HOME / ".local/state")) / "arkadeos/dock-names.json"
+STORES = {"battlenet": "org.arkadeos.BattleNet.desktop", "ea": "org.arkadeos.EA.desktop",
+          "ubisoft": "org.arkadeos.Ubisoft.desktop"}
+STORE_EXES = {"battle.net.exe": "battlenet", "battle.net launcher.exe": "battlenet",
+              "eadesktop.exe": "ea", "upc.exe": "ubisoft", "ubisoftconnect.exe": "ubisoft"}
+# Battle.net starts these games itself: Battle.net.exe --exec="launch <code>".
+BATTLENET_GAMES = {"wow.exe": "WoW", "wowclassic.exe": "WoW_wow_classic", "diablo iv.exe": "Fen",
+                   "overwatch.exe": "Pro", "hearthstone.exe": "WTCG"}
+
+
+def app_dirs():
+    dirs = [DATA] + [Path(d) for d in os.environ.get("XDG_DATA_DIRS", "/usr/local/share:/usr/share").split(":")]
+    dirs += [Path("/var/lib/flatpak/exports/share"), DATA / "flatpak/exports/share"]
+    return [d / "applications" for d in dirs]
+
+
+def entries():
+    for d in app_dirs():
+        if d.is_dir():
+            yield from d.rglob("*.desktop")
+
+
+def read_entry(path):
+    cp = configparser.ConfigParser(interpolation=None, strict=False)
+    cp.optionxform = str
+    try:
+        cp.read(path, encoding="utf-8")
+        return dict(cp["Desktop Entry"])
+    except (configparser.Error, KeyError, UnicodeDecodeError, OSError):
+        return {}
+
+
+def has_entry(name):
+    """True when the dock can find an app for this window name."""
+    low = name.lower()
+    for path in entries():
+        if path.stem.lower() == low:
+            return True
+        if read_entry(path).get("StartupWMClass", "").lower() == low:
+            return True
+    return False
+
+
+def proc(pid, what):
+    try:
+        return (Path("/proc") / str(pid) / what).read_bytes().split(b"\0")
+    except OSError:
+        return []
+
+
+def environ(pid):
+    out = {}
+    for item in proc(pid, "environ"):
+        key, _, value = item.decode(errors="replace").partition("=")
+        if key:
+            out[key] = value
+    return out
+
+
+def exe_icon(exe, name):
+    """The largest icon in a Windows program, as a PNG in the user's icons."""
+    if not exe or not Path(exe).is_file():
+        return None
+    with tempfile.TemporaryDirectory() as tmp:
+        if subprocess.run(["wrestool", "-x", "-t", "14", "-o", tmp, exe],
+                          capture_output=True).returncode != 0:
+            return None
+        icos = sorted(Path(tmp).glob("*.ico"), key=lambda p: p.stat().st_size)
+        if not icos:
+            return None
+        subprocess.run(["icotool", "-x", "-o", tmp, str(icos[-1])], capture_output=True)
+        pngs = sorted(Path(tmp).glob("*.png"), key=lambda p: p.stat().st_size)
+        if not pngs:
+            return None
+        ICONS.mkdir(parents=True, exist_ok=True)
+        target = ICONS / f"{name}.png"
+        target.write_bytes(pngs[-1].read_bytes())
+        return str(target)
+
+
+def steam_name(appid):
+    libraries = [DATA / "Steam"]
+    try:
+        vdf = (DATA / "Steam/steamapps/libraryfolders.vdf").read_text(errors="replace")
+        libraries += [Path(p) for p in re.findall(r'"path"\s+"([^"]+)"', vdf)]
+    except OSError:
+        pass
+    for lib in libraries:
+        try:
+            acf = (lib / f"steamapps/appmanifest_{appid}.acf").read_text(errors="replace")
+            m = re.search(r'"name"\s+"([^"]+)"', acf)
+            if m:
+                return m.group(1)
+        except OSError:
+            pass
+    return None
+
+
+def windows_exe(cmd, env):
+    """The Windows program a Wine process runs, as a Linux path."""
+    prefix = env.get("WINEPREFIX")
+    for c in cmd:
+        if c.lower().endswith(".exe"):
+            if c.startswith("/"):
+                return c
+            if prefix and re.match(r"^[A-Za-z]:\\", c):
+                drive = Path(prefix) / f"drive_{c[0].lower()}"
+                return str(drive / c[3:].replace("\\", "/"))
+            return c
+    return None
+
+
+def build(name, pid, caption):
+    """The fields of a menu entry for this window, or None."""
+    cmd = [c.decode(errors="replace") for c in proc(pid, "cmdline") if c] if pid else []
+    env = environ(pid) if pid else {}
+    title = caption.split(" — ")[-1].split(" - ")[-1].strip() or name
+
+    m = re.fullmatch(r"steam_app_(\d+)", name)
+    appid = (m and m.group(1)) or env.get("SteamAppId") or env.get("SteamGameId")
+    if appid and appid.isdigit() and appid != "0":
+        icon = f"steam_icon_{appid}"
+        found = any(HOME.joinpath(".local/share/icons").rglob(f"{icon}.png"))
+        return {"Name": steam_name(appid) or title, "Exec": f"steam steam://rungameid/{appid}",
+                "Icon": icon if found else "steam"}
+
+    m = re.fullmatch(r"chrome-(.+)-[^-]+", name)
+    if m:
+        flextop = APPS / f"com.google.Chrome.flextop.{name}.desktop"
+        if flextop.exists():
+            return {"copy": str(flextop)}
+
+    prefix = env.get("WINEPREFIX", "")
+    exe = windows_exe(cmd, env)
+    store = next((s for s in STORES if prefix.rstrip("/") == str(HOME / "Games" / s)), None)
+    if store:
+        base = Path(exe).name.lower() if exe else name.lower()
+        if STORE_EXES.get(base) == store or STORE_EXES.get(name.lower()) == store:
+            return {"copy": f"/usr/share/applications/{STORES[store]}"}
+        launch = ""
+        if store == "battlenet" and base in BATTLENET_GAMES:
+            launch = f" --launch {BATTLENET_GAMES[base]}"
+        return {"Name": title, "Exec": f"arkadeos-{store}{launch}",
+                "Icon": exe_icon(exe, name) or STORES[store].removesuffix(".desktop")}
+
+    binary = None
+    try:
+        binary = os.path.basename(os.readlink(f"/proc/{pid}/exe")) if pid else None
+    except OSError:
+        pass
+    candidates = {b for b in (binary, os.path.basename(cmd[0]) if cmd else None) if b}
+    if exe:
+        icon = exe_icon(exe, name)
+        if icon:
+            return {"Name": title, "Exec": shlex.join(cmd), "Icon": icon}
+    for path in entries():
+        e = read_entry(path)
+        if e.get("NoDisplay") == "true" or not e.get("Exec"):
+            continue
+        try:
+            first = os.path.basename(shlex.split(e["Exec"])[0])
+        except (ValueError, IndexError):
+            continue
+        if first in candidates:
+            return {"copy": str(path)}
+    if cmd:
+        return {"Name": title, "Exec": shlex.join(cmd), "Icon": "application-x-executable"}
+    return None
+
+
+def write(name, fields):
+    APPS.mkdir(parents=True, exist_ok=True)
+    target = APPS / f"{name}.desktop"
+    if "copy" in fields:
+        lines = [l for l in Path(fields["copy"]).read_text().splitlines()
+                 if not re.match(r"(NoDisplay|StartupWMClass|X-ArkadeOS-DockName)=", l)]
+        out, done = [], False
+        for l in lines:
+            out.append(l)
+            if l.strip() == "[Desktop Entry]" and not done:
+                out += ["NoDisplay=true", f"StartupWMClass={name}", "X-ArkadeOS-DockName=true"]
+                done = True
+        text = "\n".join(out) + "\n"
+    else:
+        text = ("[Desktop Entry]\nType=Application\n"
+                f"Name={fields['Name']}\nExec={fields['Exec']}\nIcon={fields['Icon']}\n"
+                f"StartupWMClass={name}\nNoDisplay=true\nX-ArkadeOS-DockName=true\n")
+    target.write_text(text)
+    subprocess.run(["kbuildsycoca6"], capture_output=True)
+
+
+def remember(name, ok):
+    try:
+        seen = json.loads(STATE.read_text())
+    except (OSError, ValueError):
+        seen = {}
+    seen[name] = ok
+    STATE.parent.mkdir(parents=True, exist_ok=True)
+    STATE.write_text(json.dumps(seen, indent=1, sort_keys=True))
+
+
+def window_added(resource_class, desktop_file, pid, caption):
+    name = (desktop_file or resource_class or "").removesuffix(".desktop")
+    if not name or "/" in name:
+        return
+    if not has_entry(name) and resource_class and has_entry(resource_class):
+        name = resource_class
+    if has_entry(name):
+        remember(name, True)
+        return
+    fields = build(name, int(pid), caption)
+    if fields:
+        write(name, fields)
+    remember(name, has_entry(name))
+
+
+def check():
+    try:
+        seen = json.loads(STATE.read_text())
+    except (OSError, ValueError):
+        seen = {}
+    missing = [n for n in sorted(seen) if not has_entry(n)]
+    print("\n".join(missing))
+    return 1 if missing else 0
+
+
+def serve():
+    import dbus
+    import dbus.service
+    from dbus.mainloop.glib import DBusGMainLoop
+    from gi.repository import GLib
+
+    DBusGMainLoop(set_as_default=True)
+
+    class Service(dbus.service.Object):
+        @dbus.service.method("org.arkadeos.DockNames", in_signature="ssis", out_signature="")
+        def WindowAdded(self, resource_class, desktop_file, pid, caption):
+            try:
+                window_added(str(resource_class), str(desktop_file), int(pid), str(caption))
+            except Exception as err:  # one odd window must not stop the service
+                print(f"dock-names: {resource_class}: {err}", file=sys.stderr)
+
+    bus = dbus.SessionBus()
+    name = dbus.service.BusName("org.arkadeos.DockNames", bus)
+    Service(name, "/org/arkadeos/DockNames")
+    GLib.MainLoop().run()
+
+
+if __name__ == "__main__":
+    if sys.argv[1:] == ["--check"]:
+        sys.exit(check())
+    if len(sys.argv) == 5 and sys.argv[1] == "--window":
+        window_added(sys.argv[2], sys.argv[3], int(sys.argv[4] or 0), "")
+        sys.exit(0)
+    serve()

@@ -403,6 +403,25 @@ sleep 20
 check "Balanced after World of Warcraft" 'tuned-adm active | grep -q arkadeos-balanced && test ! -e /run/arkadeos/power-wow'
 check "notifications back after the game" "${session} busctl --user get-property org.freedesktop.Notifications /org/freedesktop/Notifications org.freedesktop.Notifications Inhibited | grep -qx 'b false'"
 
+# T068: a window whose app has no menu entry under its name gets a hidden one,
+# so it can be pinned on the dock. A Windows program in the Battle.net prefix
+# stands in for a Battle.net game: it starts through Battle.net, with its own
+# icon.
+check "dock names script in KWin" "${session} busctl --user call org.kde.KWin /Scripting org.kde.kwin.Scripting isScriptLoaded s arkadeos-dock-names | grep -qx 'b true'"
+ssh_vm "cd /home/arkade && nohup ${session} DISPLAY=:0 GAMEID=umu-default PROTONPATH=${proton} WINEPREFIX=/home/arkade/Games/battlenet \
+    timeout 300 umu-run notepad > /tmp/notepad.log 2>&1 &"
+for _ in $(seq 40); do
+    sleep 5
+    ssh_vm 'test -f /home/arkade/.local/share/applications/notepad.exe.desktop' && break
+done
+check "Battle.net game window gets a dock entry" 'f=/home/arkade/.local/share/applications/notepad.exe.desktop;
+    grep -qx Exec=arkadeos-battlenet $f && grep -qx StartupWMClass=notepad.exe $f && grep -qx NoDisplay=true $f &&
+    grep -q "^Icon=/home/arkade/.local/share/icons/hicolor/256x256/apps/notepad.exe.png" $f'
+check "every window so far has a dock entry" "${session} /usr/libexec/arkadeos/dock-names --check && test -s /home/arkade/.local/state/arkadeos/dock-names.json"
+ssh_vm "cat /home/arkade/.local/state/arkadeos/dock-names.json; ${session} journalctl --user -u arkadeos-dock-names --no-pager | tail -20" > "${out}/dock-names.txt" 2>&1 || true
+ssh_vm "pkill -u arkade -f notepad; ${session} WINEPREFIX=/home/arkade/Games/battlenet ${proton}/files/bin/wineserver -k" || true
+sleep 20
+
 step "apps"
 # T014: Battle.net on the image's GE-Proton, its installer reachable, and in
 # Steam Game Mode (a Steam account folder stands in for a Steam login).
@@ -456,6 +475,9 @@ for app in org.mozilla.firefox:firefox com.google.Chrome:chrome com.discordapp.D
     ssh_vm "cat /tmp/${app%%:*}.log; ${session} flatpak ps" > "${out}/app-${app#*:}.log" 2>&1 || true
 done
 sleep 10
+# T068: all of these apps' windows can be pinned on the dock too.
+check "every app window has a dock entry" "${session} /usr/libexec/arkadeos/dock-names --check"
+ssh_vm "cat /home/arkade/.local/state/arkadeos/dock-names.json" > "${out}/dock-names-apps.txt" 2>&1 || true
 check "microphone noise filter set up" "test -f ${home}/autostart/com.github.wwmm.easyeffects.desktop &&
     grep -q 'ArkadeOS mikrofon' /home/arkade/.var/app/com.github.wwmm.easyeffects/config/easyeffects/db/easyeffectsrc"
 # It starts with the session, a little after the desktop: up to 2 minutes.

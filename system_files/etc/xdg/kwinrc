@@ -13,3 +13,7 @@ BorderActivate=5
 
 [ElectricBorders]
 BottomRight=ShowDesktop
+
+# Pinned windows keep their icon on the dock (T068).
+[Plugins]
+arkadeos-dock-namesEnabled=true

@@ -1,0 +1,15 @@
+{
+    "KPackageStructure": "KWin/Script",
+    "KPlugin": {
+        "Authors": [{ "Name": "ArkadeOS" }],
+        "Description": "Keeps anything pinned on the dock there with its own icon",
+        "Description[hu]": "Bármi, ami a dockra van rögzítve, ott marad a saját ikonjával",
+        "EnabledByDefault": true,
+        "Id": "arkadeos-dock-names",
+        "License": "Apache-2.0",
+        "Name": "ArkadeOS dock names",
+        "Name[hu]": "ArkadeOS dock-nevek"
+    },
+    "X-Plasma-API": "javascript",
+    "X-Plasma-MainScript": "code/main.js"
+}

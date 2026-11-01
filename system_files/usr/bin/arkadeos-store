@@ -8,6 +8,8 @@
 #   arkadeos-store STORE                 start the store (install on first start)
 #   arkadeos-store STORE --choose-proton pick the Proton for the store
 #   arkadeos-store STORE --check         print the Proton and prefix in use
+#   arkadeos-store STORE --launch CODE   start the store and the game in it
+#                                        (Battle.net game codes, e.g. WoW; T068)
 set -euo pipefail
 
 store=${1:?store: battlenet | ea | ubisoft}
@@ -82,5 +84,8 @@ if [[ ! -f "${launcher}" ]]; then
     curl -fL --retry 3 -o "${setup}" "${installer_url}"
     umu-run "${setup}"
     exit 0
+fi
+if [[ "${1:-}" == --launch && -n "${2:-}" && "${store}" == battlenet ]]; then
+    exec umu-run "${launcher}" --exec="launch $2"
 fi
 exec umu-run "${launcher}"

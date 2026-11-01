@@ -1,0 +1,8 @@
+[Unit]
+Description=ArkadeOS dock names: pinned windows keep their icon (T068)
+PartOf=graphical-session.target
+
+[Service]
+Type=dbus
+BusName=org.arkadeos.DockNames
+ExecStart=/usr/libexec/arkadeos/dock-names

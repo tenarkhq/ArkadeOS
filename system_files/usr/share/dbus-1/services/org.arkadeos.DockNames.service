@@ -1,0 +1,4 @@
+[D-BUS Service]
+Name=org.arkadeos.DockNames
+Exec=/usr/libexec/arkadeos/dock-names
+SystemdService=arkadeos-dock-names.service
