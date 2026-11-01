@@ -48,16 +48,16 @@ type_text() {
 }
 step() { echo "$(date -u +%T) $*"; }
 
-# T054: with RST=1 the installer also gets two blank SATA disks; the test
-# kickstart (auto.ks) makes an Intel RST (IMSM) mirror on them before the
-# installer looks at the disks, as the RST firmware would have. QEMU has no
-# RST controller, so the test ISO boots with mdadm.imsm.test=1 (iso.yml).
+# T054: with RST=1 the installer also gets two SATA disks with an Intel RST
+# (IMSM) mirror on them, made by rst-disks.sh as the RST firmware would have,
+# under the disk serials it names. QEMU has no RST controller, so the test ISO
+# boots with mdadm.imsm.test=1 (iso.yml).
 rst=()
 if [[ "${RST:-}" == 1 ]]; then
+    tests/iso/rst-disks.sh "${out}"
     for n in 0 1; do
-        qemu-img create -q -f raw "${out}/rst${n}.raw" 4G
         rst+=(-drive "if=none,id=rst${n},format=raw,file=${out}/rst${n}.raw"
-              -device "ide-hd,bus=ide.$((n + 4)),drive=rst${n},serial=ARKRST${n}")
+              -device "ide-hd,bus=ide.$((n + 4)),drive=rst${n},serial=$(sed -n "$((n + 1))p" "${out}/rst-serials")")
     done
 fi
 
@@ -135,14 +135,8 @@ check "chosen apps installed, the rest not" 'for i in $(seq 90); do
     flatpak info --system org.qbittorrent.qBittorrent && ! flatpak info --system com.google.Chrome'
 if [[ "${RST:-}" == 1 ]]; then
     ssh_vm 'cat /etc/arkadeos-rst.txt' > "${out}/rst.txt" 2>&1 || true
-    # Not counted yet (T054): in QEMU the RST mirror volume is not made yet,
-    # only its container; the log shows mdadm's answer.
-    if ssh_vm 'grep -q imsm /etc/arkadeos-rst.txt &&
-        sed -n "/== installer storage/,/== now/p" /etc/arkadeos-rst.txt | grep -qi -E "Volume0|mdbiosraidarray"' >/dev/null 2>&1; then
-        echo "ok installer sees the Intel RST array" | tee -a "${out}/result.txt"
-    else
-        echo "info installer sees the Intel RST container, the test volume is not made yet in QEMU" | tee -a "${out}/result.txt"
-    fi
+    check "installer sees the Intel RST array" 'grep -q imsm /etc/arkadeos-rst.txt &&
+        sed -n "/== installer storage/,/== now/p" /etc/arkadeos-rst.txt | grep -qi -E "Volume0|mdbiosraidarray"'
 fi
 # auto.ks asks for UTC on purpose: ArkadeOS keeps local time anyway.
 check "hardware clock on local time" 'test "$(timedatectl show -p LocalRTC --value)" = yes'

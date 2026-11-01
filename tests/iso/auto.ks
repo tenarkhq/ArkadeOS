@@ -26,34 +26,12 @@ firefox heroic qbittorrent msi
 %end
 
 # T054: what the installer found of the Intel RST array on the test disks
-# (run.sh), kept for the check on the installed system.
+# (run.sh, rst-disks.sh), kept for the check on the installed system.
 %pre --log=/tmp/arkadeos-rst-pre.log
-# The two SATA disks (sda, sdb; the install disk is virtio) become an RST
-# mirror, as made in the firmware's RST setup, before the installer scans.
-# QEMU's SATA controller has no RST option ROM: IMSM_TEST_OROM gives mdadm a
-# stand-in one with the RST capabilities a volume needs (IMSM_NO_PLATFORM
-# alone only lets the container through). mdmon is started straight, so it
-# keeps the settings too.
-if grep -qw mdadm.imsm.test=1 /proc/cmdline && [ -b /dev/sda ] && [ -b /dev/sdb ]; then
-    export IMSM_NO_PLATFORM=1 IMSM_TEST_OROM=1 MDADM_NO_SYSTEMCTL=1
-    mdadm --create /dev/md/imsm0 --run -e imsm -n 2 /dev/sda /dev/sdb
-    udevadm settle
-    # mdadm tells why a volume is refused only when asked to be verbose. Its
-    # own size guess comes out 0 in QEMU, so the size is given.
-    mdadm -vv --create /dev/md/Volume0 --run --assume-clean -l 1 -n 2 --size=2G /dev/md/imsm0 2>&1
-    rc=$?; echo "volume rc=${rc}"
-    if [ "${rc}" != 0 ]; then
-        echo "-- again, with the chunk given too"
-        mdadm -vv --create /dev/md/Volume0 --run --assume-clean -l 1 -n 2 --size=2G --chunk=64 /dev/md/imsm0 2>&1
-        echo "volume rc=$?"
-    fi
-    grep -l mdmon /proc/[0-9]*/comm 2>/dev/null || echo "no mdmon"
-    udevadm settle
-    mdadm -E /dev/sda 2>&1 | head -30
-fi
 cat /proc/mdstat
 mdadm --detail --scan
 mdadm -v --detail-platform 2>&1 | head -25
+mdadm -E /dev/sda 2>&1 | head -30
 %end
 
 %post --nochroot
