@@ -146,9 +146,12 @@ def build(name, pid, caption):
     env = environ(pid) if pid else {}
     title = caption.split(" — ")[-1].split(" - ")[-1].strip() or name
 
+    # A Steam game, or a Steam shortcut of another program (steam_app_default,
+    # SteamAppId 0, its shortcut's number in SteamGameId): Steam starts it.
     m = re.fullmatch(r"steam_app_(\d+)", name)
-    appid = (m and m.group(1)) or env.get("SteamAppId") or env.get("SteamGameId")
-    if appid and appid.isdigit() and appid != "0":
+    appid = next((a for a in (m and m.group(1), env.get("SteamAppId"), env.get("SteamGameId"))
+                  if a and a.isdigit() and a != "0"), None)
+    if appid:
         icon = f"steam_icon_{appid}"
         found = any(HOME.joinpath(".local/share/icons").rglob(f"{icon}.png"))
         return {"Name": steam_name(appid) or title, "Exec": f"steam steam://rungameid/{appid}",
@@ -212,6 +215,8 @@ def write(name, fields):
                 done = True
         text = "\n".join(out) + "\n"
     else:
+        # A Windows path's backslashes are escapes in a menu entry: doubled.
+        fields = {k: v.replace("\\", "\\\\") for k, v in fields.items()}
         text = ("[Desktop Entry]\nType=Application\n"
                 f"Name={fields['Name']}\nExec={fields['Exec']}\nIcon={fields['Icon']}\n"
                 f"StartupWMClass={name}\nNoDisplay=true\nX-ArkadeOS-DockName=true\n")
