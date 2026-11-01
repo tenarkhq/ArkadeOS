@@ -10,6 +10,8 @@ PathChanged=%h/.local/share/applications
 # Light or dark look: the Kvantum theme follows (T069).
 PathChanged=%h/.config/kdeglobals
 PathChanged=%h/.config/kdedefaults/kdeglobals
+# KDE's places file, first written when a file view opens (T069).
+PathChanged=%h/.local/share/user-places.xbel
 Unit=arkadeos-session-setup.service
 
 [Install]

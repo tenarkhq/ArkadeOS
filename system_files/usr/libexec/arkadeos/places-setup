@@ -1,0 +1,66 @@
+#!/usr/bin/python3
+"""Finder-like sidebar for Dolphin and the file dialogs (T069): a Games entry
+after Downloads, and the Remote and Recent groups hidden. Runs once per user
+from session-setup, once the places file exists (KDE writes it the first time
+a file view opens); exits 1 until then. The user can show the groups again
+from the sidebar's menu and remove the entry."""
+import os
+import re
+import subprocess
+import sys
+from pathlib import Path
+
+home = Path.home()
+places = Path(os.environ.get("XDG_DATA_HOME", home / ".local/share")) / "user-places.xbel"
+try:
+    text = places.read_text()
+except OSError:
+    sys.exit(1)
+
+# Hidden groups live in the file's own KDE metadata, before the first entry.
+head_end = text.find("<bookmark")
+head_end = len(text) if head_end < 0 else head_end
+head, rest = text[:head_end], text[head_end:]
+for group in ("Remote", "RecentlySaved"):
+    tag = f"GroupState-{group}-IsHidden"
+    if f"<{tag}>" in head:
+        head = re.sub(f"<{tag}>[^<]*</{tag}>", f"<{tag}>true</{tag}>", head)
+    elif '<metadata owner="http://www.kde.org">' in head:
+        head = head.replace('<metadata owner="http://www.kde.org">',
+                            f'<metadata owner="http://www.kde.org">\n   <{tag}>true</{tag}>', 1)
+text = head + rest
+
+games = home / "Games"
+if f'href="{games.as_uri()}"' not in text:
+    lang = os.environ.get("LC_MESSAGES") or os.environ.get("LANG", "")
+    title = "Játékok" if lang.startswith("hu") else "Games"
+    entry = f''' <bookmark href="{games.as_uri()}">
+  <title>{title}</title>
+  <info>
+   <metadata owner="http://freedesktop.org">
+    <bookmark:icon name="folder-games"/>
+   </metadata>
+   <metadata owner="http://www.kde.org">
+    <ID>arkadeos-games</ID>
+   </metadata>
+  </info>
+ </bookmark>
+'''
+    try:
+        downloads = subprocess.run(["xdg-user-dir", "DOWNLOAD"], capture_output=True,
+                                   text=True).stdout.strip()
+    except OSError:
+        downloads = ""
+    after = None
+    for href in ([Path(downloads).as_uri()] if downloads else []) + [home.as_uri()]:
+        m = re.search(f'<bookmark href="{re.escape(href)}">.*?</bookmark>\n', text, re.S)
+        if m:
+            after = m.end()
+            break
+    if after is None:
+        after = text.rfind("</xbel>")
+    text = text[:after] + entry + text[after:]
+
+tmp = places.with_suffix(".arkadeos-tmp")
+tmp.write_text(text)
+tmp.replace(places)

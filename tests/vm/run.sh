@@ -195,6 +195,9 @@ check "dark theme applied" "grep -qx ColorScheme=WhiteSurDark ${home}/kdedefault
 sleep 20
 check "Kvantum WhiteSurDark with the dark look" "cat ${home}/kdeglobals ${home}/kdedefaults/kdeglobals | grep -qx widgetStyle=kvantum &&
     grep -qx theme=WhiteSurDark ${home}/Kvantum/kvantum.kvconfig"
+check "Finder-like sidebar: Games in it, Remote and Recent hidden" "grep -q 'href=\"file:///home/arkade/Games\"' ${home%/.config}/.local/share/user-places.xbel &&
+    grep -q '<GroupState-Remote-IsHidden>true' ${home%/.config}/.local/share/user-places.xbel &&
+    grep -q '<GroupState-RecentlySaved-IsHidden>true' ${home%/.config}/.local/share/user-places.xbel"
 check "blue sidebar icons, thin Dolphin status bar" 'grep -q ColorScheme-Highlight /usr/share/icons/WhiteSur/places/16/user-home.svg &&
     grep -qx ShowStatusBar=FullWidth /etc/xdg/dolphinrc'
 ssh_vm "pkill -u arkade -x dolphin; sleep 2; nohup ${session} dolphin >/dev/null 2>&1 &"

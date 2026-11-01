@@ -29,6 +29,13 @@ if [[ "${now}" != "${kv}" && ( -z "${now}" || "${now}" == WhiteSur || "${now}" =
     kwriteconfig6 --file Kvantum/kvantum.kvconfig --group General --key theme "${kv}"
 fi
 
+# Finder-like sidebar (T069): Games in it, Remote and Recent hidden; once,
+# when KDE has written the places file.
+places_done="${XDG_STATE_HOME:-${HOME}/.local/state}/arkadeos/places-v1"
+if [[ ! -e "${places_done}" ]] && /usr/libexec/arkadeos/places-setup; then
+    mkdir -p "$(dirname "${places_done}")" && touch "${places_done}"
+fi
+
 # The folders browsers put web apps in (T067): Flatpak only lets Chrome reach
 # them when they exist, and a new user has neither.
 mkdir -p "${HOME}/.local/share/applications" "${HOME}/.local/share/icons"
