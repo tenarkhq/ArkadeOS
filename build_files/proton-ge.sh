@@ -16,4 +16,7 @@ echo "${expected}  ${file}" | sha512sum -c -
 mkdir -p "${dir}"
 tar -xzf "${file}" -C "${dir}"
 rm "${file}"
+# Wine's libraries need the label Fedora gives its own Wine; without it
+# SELinux stops 32-bit programs (the Battle.net installer) with execmod.
+semanage fcontext -a -t textrel_shlib_t "${dir}/[^/]+/files/lib(64)?/wine(/.*)?"
 ls "${dir}"

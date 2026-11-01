@@ -351,6 +351,9 @@ ssh_vm "cd /home/arkade && ${session} DISPLAY=:0 GAMEID=umu-default PROTONPATH=$
     timeout 900 umu-run /home/arkade/proton-test.bat" > "${out}/proton.log" 2>&1 || true
 shot proton
 check "Windows program ran with GE-Proton" 'grep -q ArkadeOS /home/arkade/proton-test/drive_c/proton-ok.txt'
+check "32-bit Windows program ran with GE-Proton" 'grep -q ArkadeOS /home/arkade/proton-test/drive_c/proton-32-ok.txt'
+check "GE-Proton's Wine carries Fedora's Wine label" "stat -c %C ${proton}/files/lib/wine/i386-windows/ntdll.dll | grep -q :textrel_shlib_t:"
+check "SELinux stopped no Windows program" '! journalctl -b --no-pager | grep -q "avc:.*denied.*execmod"'
 check "Gaming while a game runs" 'grep -q arkadeos-gaming /tmp/profiles.log'
 sleep 20
 check "Balanced after the game" 'tuned-adm active | grep -q arkadeos-balanced'
