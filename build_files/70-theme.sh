@@ -10,3 +10,11 @@ for size in 20 24; do
         /usr/share/fonts/rsms-inter-fonts/Inter-Regular.ttf 2>/dev/null
 done
 glib-compile-schemas /usr/share/glib-2.0/schemas
+
+# Dock trash (T069): our metal bin in place of WhiteSur's in every variant.
+for theme in WhiteSur WhiteSur-dark WhiteSur-light; do
+    for icon in user-trash user-trash-full; do
+        install -m 644 "/usr/share/arkadeos/icons/${icon}.svg" "/usr/share/icons/${theme}/places/scalable/${icon}.svg"
+    done
+    gtk-update-icon-cache -f -q "/usr/share/icons/${theme}"
+done

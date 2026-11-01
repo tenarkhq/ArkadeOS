@@ -164,6 +164,8 @@ check "boot menu entry named ArkadeOS (system-release)" 'grep -qx "ArkadeOS rele
 check "ArkadeOS boot screen" "plymouth-set-default-theme | grep -qx arkadeos && grep -qw splash /proc/cmdline"
 check "Ark wallpaper and launcher logo" "f=${home}/plasma-org.kde.plasma.desktop-appletsrc &&
     grep -qx 'Image=file:///usr/share/wallpapers/ArkadeOS/' \$f && grep -qx icon=arkadeos-launcher \$f"
+check "ArkadeOS trash in every WhiteSur variant" 'for t in WhiteSur WhiteSur-dark WhiteSur-light; do cmp -s /usr/share/icons/$t/places/scalable/user-trash.svg /usr/share/arkadeos/icons/user-trash.svg &&
+    cmp -s /usr/share/icons/$t/places/scalable/user-trash-full.svg /usr/share/arkadeos/icons/user-trash-full.svg || exit 1; done'
 check "dark lock screen" "${session} kreadconfig6 --file kscreenlockerrc --group Greeter --group Wallpaper --group org.kde.image --group General --key Image | grep -q ArkadeOS-Lock"
 # No idle lock during the test (the lock screen itself is checked above).
 ssh_vm "${session} kwriteconfig6 --file kscreenlockerrc --group Daemon --key Autolock false" || true
