@@ -49,12 +49,17 @@ def blur(img, sigma):
 
 
 def splat(canvas, xs, ys, col, weight=1.0):
-    xi = np.clip(xs.astype(np.int64), 0, W - 1)
-    yi = np.clip(ys.astype(np.int64), 0, H - 1)
-    ok = (xs >= 0) & (xs < W) & (ys >= 0) & (ys < H)
-    w = np.broadcast_to(np.asarray(weight, np.float32), xs.shape)[ok]
-    for ch in range(3):
-        np.add.at(canvas[..., ch], (yi[ok], xi[ok]), w * col[ch])
+    """Adds light along points, each shared among its four nearest pixels, so
+    the strokes stay smooth instead of stepping from pixel to pixel."""
+    w = np.broadcast_to(np.asarray(weight, np.float32), xs.shape)
+    x0, y0 = np.floor(xs - 0.5), np.floor(ys - 0.5)
+    fx, fy = xs - 0.5 - x0, ys - 0.5 - y0
+    for dx, dy, share in ((0, 0, (1 - fx) * (1 - fy)), (1, 0, fx * (1 - fy)),
+                          (0, 1, (1 - fx) * fy), (1, 1, fx * fy)):
+        xi, yi = (x0 + dx).astype(np.int64), (y0 + dy).astype(np.int64)
+        ok = (xi >= 0) & (xi < W) & (yi >= 0) & (yi < H)
+        for ch in range(3):
+            np.add.at(canvas[..., ch], (yi[ok], xi[ok]), (w * share)[ok] * col[ch])
 
 
 def glow(core):
@@ -70,16 +75,19 @@ if draft == "A":  # Ark: four light filaments sweep in from the edges to one bri
     starts = [(-0.1, -0.1), (1.1, -0.15), (-0.15, 1.1), (1.1, 1.1)]
     for (sx, sy), col in zip(starts, PAL):
         for strand in range(26):
-            t = np.linspace(0, 1, 9000, dtype=np.float32)
             off = (strand - 13) / 13
             bx, by = sx * W + off * S * 0.05, sy * H - off * S * 0.03
             # quadratic curve bending around the centre
             mx = (bx + cx) / 2 + (cy - by) * 0.35
             my = (by + cy) / 2 + (bx - cx) * 0.35
+            # four points per pixel of length at every size (a fixed count
+            # left gaps, and visible dots, on large screens)
+            n = int(4 * (np.hypot(mx - bx, my - by) + np.hypot(cx - mx, cy - my)))
+            t = np.linspace(0, 1, n, dtype=np.float32)
             x = (1 - t) ** 2 * bx + 2 * (1 - t) * t * mx + t * t * cx
             y = (1 - t) ** 2 * by + 2 * (1 - t) * t * my + t * t * cy
             fade = (t ** 1.6) * (0.25 + 0.75 * np.exp(-abs(off) * 2.5))
-            splat(canvas, x, y, col, fade * 0.010 * (W / 1600))
+            splat(canvas, x, y, col, fade * 0.010 * (W / 1600) * (9000 / n))
     core = canvas
     canvas = glow(core)
     yy, xx = np.mgrid[0:H, 0:W].astype(np.float32)
@@ -95,6 +103,9 @@ if mode == "light":
     canvas = paper * (1 - a) + col * 0.55 * a
 
 img = enc(canvas)
+# Dither: half a step of noise at 8 bits, so the dark glows do not band when
+# the desktop shows the 16-bit image on an 8-bit screen.
+img = np.clip(img + (rng.random(img.shape, np.float32) - rng.random(img.shape, np.float32)) / 255 * 0.5, 0, 1)
 arr = (img * 65535 + 0.5).astype(">u2")
 # 8-bit preview next to the 16-bit master
 Image.frombytes("RGB", (W, H), (img * 255 + 0.5).astype(np.uint8).tobytes()).save(out.replace(".png", ".8bit.png"))

@@ -14,6 +14,14 @@ BorderActivate=5
 [ElectricBorders]
 BottomRight=ShowDesktop
 
-# Pinned windows keep their icon on the dock (T068).
+# Pinned windows keep their icon on the dock (T068); a borderless game the
+# size of the screen runs full screen, above the bars (T070).
 [Plugins]
 arkadeos-dock-namesEnabled=true
+arkadeos-borderless-fullscreenEnabled=true
+
+# No on-screen keyboard: Plasma starts plasma-keyboard by default, and on a
+# laptop it pops up over games and apps (T071). A touch-screen user can pick
+# it in System Settings > Keyboard > Virtual Keyboard.
+[Wayland]
+InputMethod=

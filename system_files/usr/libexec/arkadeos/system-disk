@@ -1,0 +1,7 @@
+#!/usr/bin/bash
+# Exits 0 when partition $1 (a name like sda2) is on the disk ArkadeOS runs
+# from (T069, 90-arkadeos-drives.rules).
+src=$(findmnt -nvo SOURCE /sysroot 2>/dev/null || findmnt -nvo SOURCE /)
+[[ -b ${src} ]] || exit 1
+disk=$(lsblk -nsro NAME,TYPE "${src}" 2>/dev/null | awk '$2 == "disk" { print $1; exit }')
+[[ -n ${disk} && "$(lsblk -ndro PKNAME "/dev/$1" 2>/dev/null)" == "${disk}" ]]

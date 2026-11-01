@@ -24,6 +24,7 @@ runs, notifications wait (do not disturb, T062)."""
 import os
 import re
 import subprocess
+import sys
 import time
 from pathlib import Path
 
@@ -176,6 +177,7 @@ def main():
     ours = None      # Max or WoW we switched on for the game
     current = None   # profile we applied for the running game
     lit = None       # profile whose lighting is set
+    heals = 0        # times TuneD was put back under this game
     while True:
         try:
             now = profile_in_force(bus)
@@ -229,8 +231,16 @@ def main():
                 unload_ai_models()
             quiet(want is not None, state)
             current = want
-        elif ours is not None and os.path.exists(FLAGS[ours]) and tuned_active() != f"arkadeos-{ours}":
-            power_set(ours)  # something else (PPD) switched TuneD under the game
+            heals = 0
+        elif (ours is not None and heals < 3 and os.path.exists(FLAGS[ours])
+              and tuned_active() not in (None, f"arkadeos-{ours}")):
+            # Something else (PPD) switched TuneD under the game; put it back,
+            # but never more than three times a game, so two switchers cannot
+            # fight for as long as the game runs.
+            heals += 1
+            print(f"game-profile: TuneD on {tuned_active()} under the game, back to {ours}",
+                  file=sys.stderr, flush=True)
+            power_set(ours)
         time.sleep(3)
 
 

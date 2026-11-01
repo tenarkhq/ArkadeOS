@@ -1,0 +1,15 @@
+{
+    "KPackageStructure": "KWin/Script",
+    "KPlugin": {
+        "Authors": [{ "Name": "ArkadeOS" }],
+        "Description": "A borderless game window that fills the screen runs full screen, above the top bar and the dock",
+        "Description[hu]": "A képernyőt kitöltő, keret nélküli játékablak teljes képernyőn fut, a felső sáv és a dock fölött",
+        "EnabledByDefault": true,
+        "Id": "arkadeos-borderless-fullscreen",
+        "License": "Apache-2.0",
+        "Name": "ArkadeOS borderless full screen",
+        "Name[hu]": "ArkadeOS keret nélküli teljes képernyő"
+    },
+    "X-Plasma-API": "javascript",
+    "X-Plasma-MainScript": "code/main.js"
+}

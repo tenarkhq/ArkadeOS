@@ -28,9 +28,23 @@ test -f /usr/share/Kvantum/WhiteSur/WhiteSurDark.kvconfig
 for theme in WhiteSur WhiteSur-dark WhiteSur-light; do
     for d in places/16 devices/16; do
         [[ -d "/usr/share/icons/${theme}/${d}" ]] || continue
-        grep -lZ ColorScheme-Text "/usr/share/icons/${theme}/${d}"/*.svg 2>/dev/null |
+        { grep -lZ ColorScheme-Text "/usr/share/icons/${theme}/${d}"/*.svg 2>/dev/null || true; } |
             xargs -0 -r sed -i -e 's/ColorScheme-Text/ColorScheme-Highlight/g' \
                 -e '/ColorScheme-Highlight *{/s/color:#[0-9a-fA-F]*/color:#0860f2/'
     done
     gtk-update-icon-cache -f -q "/usr/share/icons/${theme}"
 done
+
+# Fewer wallpapers to choose from (Roland, 2026-11-01): the Fedora ones and
+# the KDE ones he picked go; the rest of KDE's, Bazzite's and ours stay.
+cd /usr/share/wallpapers
+rm -rf Default Fedora F44 \
+    Altai OneStandsOut ScarletTree giants.jxl FallenLeaf IceCold Shell Kay Kokkini \
+    Honeywave summer_1am Nuvole Orionids Kite PastelHills SafeLanding FlyingKonqui \
+    EveningGlow ColorfulCups Sub-Arctic MilkyWay Volna Next BytheWater Autumn Path
+cd /
+rm -rf /usr/share/backgrounds/f44 /usr/share/backgrounds/fedora-workstation
+# The Breeze and Fedora global themes named two of them; they get the Ark.
+sed -i 's/^Image=\(Next\|Fedora\)$/Image=ArkadeOS/' /usr/share/plasma/look-and-feel/*/contents/defaults
+sed -i 's#wallpapers/Fedora/#wallpapers/ArkadeOS-Lock/#' /usr/share/kde-settings/kde-profile/default/xdg/kscreenlockerrc
+if grep -rqE '^Image=(Next|Fedora)$' /usr/share/plasma/look-and-feel/*/contents/defaults; then exit 1; fi

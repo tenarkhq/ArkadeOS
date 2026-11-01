@@ -402,11 +402,24 @@ check "do not disturb while a game runs" 'grep -qx "b true" /tmp/wow.log'
 sleep 20
 check "Balanced after World of Warcraft" 'tuned-adm active | grep -q arkadeos-balanced && test ! -e /run/arkadeos/power-wow'
 check "notifications back after the game" "${session} busctl --user get-property org.freedesktop.Notifications /org/freedesktop/Notifications org.freedesktop.Notifications Inhibited | grep -qx 'b false'"
+ssh_vm "cat /tmp/wow.log; tuned-adm active; ls /run/arkadeos; journalctl -b -u tuned-ppd --no-pager | tail -30;
+    ${session} journalctl --user -b -u arkadeos-game-profile --no-pager | tail -40" > "${out}/wow-game.txt" 2>&1 || true
 
 # T068: a window whose app has no menu entry under its name gets a hidden one,
 # so it can be pinned on the dock. A Windows program in the Battle.net prefix
 # stands in for a Battle.net game: it starts through Battle.net, with its own
 # icon.
+# T069: the drives in the sidebar are the ones a person opens. A disk image
+# laid out as Windows lays out its disk stands in for a Windows drive.
+ssh_vm 'truncate -s 64M /tmp/win.img && printf "label: gpt\nsize=8M, type=C12A7328-F81F-11D2-BA4B-00A0C93EC93B\nsize=8M, type=E3C9E316-0B5C-4DB8-817D-F92DF00215AE\nsize=8M, type=DE94BBA4-06D1-4D40-A16A-BFD50179D6AC\ntype=EBD0A0A2-B9E5-4433-87C0-68B6B72699C7\n" | sfdisk -q /tmp/win.img &&
+    loop=$(losetup -fP --show /tmp/win.img) && mkfs.ntfs -Q -F ${loop}p4 >/dev/null && udevadm trigger --settle ${loop}p1 ${loop}p2 ${loop}p3 ${loop}p4 && echo ${loop} > /tmp/win.loop'
+check "Windows' hidden partitions stay hidden" 'l=$(cat /tmp/win.loop); for n in 1 2 3; do udevadm info -q property ${l}p${n} | grep -qx UDISKS_IGNORE=1 || exit 1; done'
+check "Windows drive named Windows" 'udevadm info -q property $(cat /tmp/win.loop)p4 | grep -qx UDISKS_NAME=Windows'
+check "ArkadeOS system partitions hidden" 'p=$(findmnt -nvo SOURCE /sysroot); udevadm info -q property ${p} | grep -qx UDISKS_IGNORE=1'
+ssh_vm 'losetup -d $(cat /tmp/win.loop); rm -f /tmp/win.img' || true
+check "only the wallpapers Roland kept" 'cd /usr/share/wallpapers && test -d ArkadeOS && test -d Air && for w in F44 Fedora Altai ColorfulCups Next Path giants.jxl; do test ! -e $w || exit 1; done'
+# T071: no on-screen keyboard on its own.
+check "no on-screen keyboard" "test -z \"\$(${session} kreadconfig6 --file kwinrc --group Wayland --key InputMethod)\" && ! pgrep -u arkade -x plasma-keyboard"
 check "dock names script in KWin" "${session} busctl --user call org.kde.KWin /Scripting org.kde.kwin.Scripting isScriptLoaded s arkadeos-dock-names | grep -qx 'b true'"
 ssh_vm "cd /home/arkade && nohup ${session} DISPLAY=:0 GAMEID=umu-default PROTONPATH=${proton} WINEPREFIX=/home/arkade/Games/battlenet \
     timeout 300 umu-run notepad > /tmp/notepad.log 2>&1 &"
@@ -421,6 +434,25 @@ check "every window so far has a dock entry" "${session} /usr/libexec/arkadeos/d
 ssh_vm "cat /home/arkade/.local/state/arkadeos/dock-names.json; ${session} journalctl --user -u arkadeos-dock-names --no-pager | tail -20" > "${out}/dock-names.txt" 2>&1 || true
 ssh_vm "pkill -u arkade -f notepad; ${session} WINEPREFIX=/home/arkade/Games/battlenet ${proton}/files/bin/wineserver -k" || true
 sleep 20
+
+# T070: a borderless window the size of the screen (a game in windowed full
+# screen) goes full screen, above the top bar and the dock.
+check "borderless full-screen script in KWin" "${session} busctl --user call org.kde.KWin /Scripting org.kde.kwin.Scripting isScriptLoaded s arkadeos-borderless-fullscreen | grep -qx 'b true'"
+ssh_vm "nohup ${session} DISPLAY=:0 GDK_BACKEND=x11 timeout 60 python3 -c '
+import gi
+gi.require_version(\"Gtk\", \"3.0\")
+from gi.repository import Gtk, Gdk
+w = Gtk.Window(title=\"arkadeos-borderless\")
+r = Gdk.Display.get_default().get_monitor(0).get_geometry()
+w.set_decorated(False)
+w.move(r.x, r.y)
+w.set_default_size(r.width, r.height)
+w.show_all()
+Gtk.main()' > /tmp/borderless.log 2>&1 &"
+sleep 10
+shot borderless
+check "borderless screen-sized window runs full screen" "${session} DISPLAY=:0 xprop -name arkadeos-borderless _NET_WM_STATE | grep -q _NET_WM_STATE_FULLSCREEN"
+ssh_vm "pkill -u arkade -f arkadeos-borderless" || true
 
 step "apps"
 # T014: Battle.net on the image's GE-Proton, its installer reachable, and in
