@@ -190,6 +190,20 @@ for variant in light dark; do
 done
 check "dark theme applied" "grep -qx ColorScheme=WhiteSurDark ${home}/kdedefaults/kdeglobals &&
     grep -A3 '^\\[Colors:Window\\]' ${home}/kdeglobals | grep -qx BackgroundNormal=54,54,54"
+# T069: apps in the Kvantum WhiteSur style, dark with the dark look; a new
+# Dolphin shows it (Kvantum does not restyle running apps).
+sleep 20
+check "Kvantum WhiteSurDark with the dark look" "cat ${home}/kdeglobals ${home}/kdedefaults/kdeglobals | grep -qx widgetStyle=kvantum &&
+    grep -qx theme=WhiteSurDark ${home}/Kvantum/kvantum.kvconfig"
+check "blue sidebar icons, thin Dolphin status bar" 'grep -q ColorScheme-Highlight /usr/share/icons/WhiteSur/places/16/user-home.svg &&
+    grep -qx ShowStatusBar=FullWidth /etc/xdg/dolphinrc'
+ssh_vm "pkill -u arkade -x dolphin; sleep 2; nohup ${session} dolphin >/dev/null 2>&1 &"
+sleep 10
+shot dolphin-dark
+ssh_vm "${session} plasma-apply-lookandfeel -a org.arkadeos.light.desktop; sleep 15; pkill -u arkade -x dolphin; sleep 2; nohup ${session} dolphin >/dev/null 2>&1 &" || true
+sleep 20
+shot dolphin-light
+check "Kvantum WhiteSur with the light look" "grep -qx theme=WhiteSur ${home}/Kvantum/kvantum.kvconfig"
 
 # T010: the same Dolphin in Hungarian.
 ssh_vm "pkill -u arkade -x dolphin" || true

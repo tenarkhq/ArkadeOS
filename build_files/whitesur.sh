@@ -43,6 +43,11 @@ for variant in WhiteSur WhiteSur-dark; do
     sed -i "s/WhiteSur/${variant}/g" "${theme}/metadata.desktop" "${theme}/metadata.json"
 done
 
+# Kvantum app style (T069): WhiteSur and WhiteSurDark, translucent with
+# KWin's blur behind the sidebars.
+install -d /usr/share/Kvantum
+cp -r "${kde}/Kvantum/WhiteSur" /usr/share/Kvantum/
+
 # GTK 2, 3 and 4 from the prebuilt release; the GNOME Shell, Cinnamon and
 # other desktop parts (with the Apple activities icon) are left out.
 for variant in Light Dark; do

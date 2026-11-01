@@ -18,6 +18,17 @@ has_app() {
 # New ArkadeOS defaults for this user's existing settings (T051).
 /usr/libexec/arkadeos/migrate
 
+# The Kvantum app style (T069) has one theme setting of its own: it follows
+# Plasma's light or dark look. A Kvantum theme the user picked stays.
+scheme=$(kreadconfig6 --file kdeglobals --group General --key ColorScheme)
+[[ -n "${scheme}" ]] || scheme=$(kreadconfig6 --file "${HOME}/.config/kdedefaults/kdeglobals" --group General --key ColorScheme)
+kv=WhiteSur
+[[ "${scheme}" == *Dark* ]] && kv=WhiteSurDark
+now=$(kreadconfig6 --file Kvantum/kvantum.kvconfig --group General --key theme)
+if [[ "${now}" != "${kv}" && ( -z "${now}" || "${now}" == WhiteSur || "${now}" == WhiteSurDark ) ]]; then
+    kwriteconfig6 --file Kvantum/kvantum.kvconfig --group General --key theme "${kv}"
+fi
+
 # The folders browsers put web apps in (T067): Flatpak only lets Chrome reach
 # them when they exist, and a new user has neither.
 mkdir -p "${HOME}/.local/share/applications" "${HOME}/.local/share/icons"

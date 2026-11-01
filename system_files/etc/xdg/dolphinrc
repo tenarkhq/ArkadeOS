@@ -1,0 +1,4 @@
+# Dolphin defaults (T069): the status bar as a thin full-width line, not a
+# floating box.
+[General]
+ShowStatusBar=FullWidth

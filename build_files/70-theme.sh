@@ -18,3 +18,19 @@ for theme in WhiteSur WhiteSur-dark WhiteSur-light; do
     done
     gtk-update-icon-cache -f -q "/usr/share/icons/${theme}"
 done
+
+# Kvantum app style (T069, Finder-like Dolphin); its WhiteSur themes come
+# from whitesur.sh.
+dnf5 -y install --setopt=install_weak_deps=False kvantum
+test -f /usr/share/Kvantum/WhiteSur/WhiteSurDark.kvconfig
+# The small one-colour place and drive icons (Dolphin's sidebar) take the
+# accent colour instead of the text colour, as in Finder.
+for theme in WhiteSur WhiteSur-dark WhiteSur-light; do
+    for d in places/16 devices/16; do
+        [[ -d "/usr/share/icons/${theme}/${d}" ]] || continue
+        grep -lZ ColorScheme-Text "/usr/share/icons/${theme}/${d}"/*.svg 2>/dev/null |
+            xargs -0 -r sed -i -e 's/ColorScheme-Text/ColorScheme-Highlight/g' \
+                -e '/ColorScheme-Highlight *{/s/color:#[0-9a-fA-F]*/color:#0860f2/'
+    done
+    gtk-update-icon-cache -f -q "/usr/share/icons/${theme}"
+done
