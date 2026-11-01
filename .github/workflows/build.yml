@@ -83,6 +83,38 @@ jobs:
             -t localhost/${{ matrix.image }}:build \
             -f Containerfile .
 
+      - name: Rechunk
+        # Many small layers, one per package group, so an update downloads only
+        # what changed (T076). The previous build's layer plan is kept, so
+        # unchanged parts stay the same layers. The image's own rpm-ostree does
+        # it, on the built tree.
+        run: |
+          out="${RUNNER_TEMP}/chunked-${{ matrix.image }}"
+          rm -rf "${out}"
+          mkdir -p "${out}/blobs/sha256"
+          echo '{"imageLayoutVersion":"1.0.0"}' > "${out}/oci-layout"
+          echo '{"schemaVersion":2,"manifests":[]}' > "${out}/index.json"
+          previous=()
+          skopeo inspect --raw "docker://${REGISTRY}/${{ matrix.image }}:testing" >/dev/null 2>&1 &&
+            previous=(--previous-build "docker://${REGISTRY}/${{ matrix.image }}:testing")
+          podman unshare bash -euo pipefail -c '
+            image=localhost/${{ matrix.image }}:build
+            root=$(podman image mount "${image}")
+            trap "podman image unmount ${image} >/dev/null" EXIT
+            podman run --rm --privileged --security-opt label=disable \
+              -v "${root}:/rootfs:ro" -v "$1:/out" "${image}" \
+              rpm-ostree compose build-chunked-oci --bootc --format-version=2 --max-layers=96 \
+                --rootfs /rootfs "${@:2}" \
+                -l org.opencontainers.image.title=ArkadeOS \
+                -l "org.opencontainers.image.description=Fast, gaming-first Linux built on Fedora Atomic" \
+                -l org.opencontainers.image.source=https://github.com/${{ github.repository }} \
+                -l org.opencontainers.image.licenses=Apache-2.0 \
+                -l org.opencontainers.image.version=${{ steps.ver.outputs.version }} \
+                -l org.opencontainers.image.revision=${{ github.sha }} \
+                --output oci:/out:${{ matrix.image }}
+          ' _ "${out}" "${previous[@]}"
+          echo "layers: $(jq '.layers | length' "${out}/blobs/sha256/$(jq -r '.manifests[0].digest' "${out}/index.json" | cut -d: -f2)")" >> "$GITHUB_STEP_SUMMARY"
+
       - name: Push
         id: push
         env:
@@ -97,7 +129,8 @@ jobs:
           else
             first=branch-${GITHUB_SHA} more=
           fi
-          podman push --digestfile digest localhost/${{ matrix.image }}:build docker://${dest}:${first}
+          skopeo copy --retry-times 3 --digestfile digest \
+            "oci:${RUNNER_TEMP}/chunked-${{ matrix.image }}:${{ matrix.image }}" docker://${dest}:${first}
           digest=$(cat digest)
           for tag in ${more}; do
             # A new GHCR package can take a few seconds to serve its first manifest.
@@ -127,6 +160,7 @@ jobs:
         run: |
           podman logout ghcr.io || true
           podman rmi -f localhost/${{ matrix.image }}:build || true
+          rm -rf "${RUNNER_TEMP}/chunked-${{ matrix.image }}"
           # Keeps recent build layers as cache for the next build.
           podman image prune -f --filter until=72h
 
