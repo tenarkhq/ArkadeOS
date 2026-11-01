@@ -20,12 +20,17 @@ has_app() {
 
 # The Kvantum app style (T069) has one theme setting of its own: it follows
 # Plasma's light or dark look. A Kvantum theme the user picked stays.
-scheme=$(kreadconfig6 --file kdeglobals --group General --key ColorScheme)
-[[ -n "${scheme}" ]] || scheme=$(kreadconfig6 --file "${HOME}/.config/kdedefaults/kdeglobals" --group General --key ColorScheme)
+# The look's own files first: a service does not see the session's config
+# path, and the image's /etc/xdg default (the light look) would win.
+cfg="${XDG_CONFIG_HOME:-${HOME}/.config}"
+scheme_of() { sed -n '/^\[General\]/,/^\[/s/^ColorScheme=//p' "$1" 2>/dev/null | tail -1; }
+scheme=$(scheme_of "${cfg}/kdeglobals")
+[[ -n "${scheme}" ]] || scheme=$(scheme_of "${cfg}/kdedefaults/kdeglobals")
+[[ -n "${scheme}" ]] || scheme=$(kreadconfig6 --file kdeglobals --group General --key ColorScheme)
 kv=WhiteSur
 [[ "${scheme}" == *Dark* ]] && kv=WhiteSurDark
 # The user's own file: the image's default (/etc/xdg) must not count as set.
-kvconf="${XDG_CONFIG_HOME:-${HOME}/.config}/Kvantum/kvantum.kvconfig"
+kvconf="${cfg}/Kvantum/kvantum.kvconfig"
 now=$(sed -n 's/^theme=//p' "${kvconf}" 2>/dev/null | tail -1)
 if [[ "${now}" != "${kv}" && ( -z "${now}" || "${now}" == WhiteSur || "${now}" == WhiteSurDark ) ]]; then
     mkdir -p "$(dirname "${kvconf}")"

@@ -241,6 +241,8 @@ def window_added(resource_class, desktop_file, pid, caption):
     fields = build(name, int(pid), caption)
     if fields:
         write(name, fields)
+    elif pid and not Path(f"/proc/{pid}").exists():
+        return  # a window that closed before it could be looked at (a short dialog)
     remember(name, has_entry(name))
 
 

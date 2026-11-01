@@ -196,7 +196,7 @@ check "dark theme applied" "grep -qx ColorScheme=WhiteSurDark ${home}/kdedefault
 sleep 20
 check "Kvantum WhiteSurDark with the dark look" "cat ${home}/kdeglobals ${home}/kdedefaults/kdeglobals | grep -qx widgetStyle=kvantum &&
     grep -qx theme=WhiteSurDark ${home}/Kvantum/kvantum.kvconfig"
-check "Finder-like sidebar: Games in it, Remote and Recent hidden" "grep -q 'href=\"file:///home/arkade/Games\"' ${home%/.config}/.local/share/user-places.xbel &&
+check "Finder-like sidebar: Games in it, Remote and Recent hidden" "grep -qE 'href=\"file:///(var/)?home/arkade/Games\"' ${home%/.config}/.local/share/user-places.xbel &&
     grep -q '<GroupState-Remote-IsHidden>true' ${home%/.config}/.local/share/user-places.xbel &&
     grep -q '<GroupState-RecentlySaved-IsHidden>true' ${home%/.config}/.local/share/user-places.xbel"
 ssh_vm "${session} systemctl --user status --no-pager arkadeos-session-setup.path arkadeos-session-setup.service;
@@ -440,7 +440,7 @@ for _ in $(seq 40); do
 done
 check "Battle.net game window gets a dock entry" 'f=/home/arkade/.local/share/applications/notepad.exe.desktop;
     grep -qx Exec=arkadeos-battlenet $f && grep -qx StartupWMClass=notepad.exe $f && grep -qx NoDisplay=true $f &&
-    grep -q "^Icon=/home/arkade/.local/share/icons/hicolor/256x256/apps/notepad.exe.png" $f'
+    grep -qE "^Icon=(/var)?/home/arkade/.local/share/icons/hicolor/256x256/apps/notepad.exe.png" $f'
 check "every window so far has a dock entry" "${session} /usr/libexec/arkadeos/dock-names --check && test -s /home/arkade/.local/state/arkadeos/dock-names.json"
 ssh_vm "cat /home/arkade/.local/state/arkadeos/dock-names.json; ${session} journalctl --user -u arkadeos-dock-names --no-pager | tail -20" > "${out}/dock-names.txt" 2>&1 || true
 ssh_vm "pkill -u arkade -f notepad; ${session} WINEPREFIX=/home/arkade/Games/battlenet ${proton}/files/bin/wineserver -k" || true
@@ -464,6 +464,8 @@ Gtk.main()' > /tmp/borderless.log 2>&1 &"
 sleep 10
 shot borderless
 check "borderless screen-sized window runs full screen" "${session} DISPLAY=:0 xprop -name arkadeos-borderless _NET_WM_STATE | grep -q _NET_WM_STATE_FULLSCREEN"
+ssh_vm "cat /tmp/borderless.log; pgrep -af arkadeos-borderless; ${session} DISPLAY=:0 xwininfo -root -tree | grep -i borderless;
+    ${session} DISPLAY=:0 xprop -name arkadeos-borderless" > "${out}/borderless.txt" 2>&1 || true
 ssh_vm "pkill -u arkade -f arkadeos-borderless" || true
 
 step "apps"
@@ -503,7 +505,7 @@ ssh_vm "runuser -u arkade -- bash -c 'printf \"[Desktop Entry]\\nType=Applicatio
 sleep 15
 check "Chrome web app keeps its dock pin (hidden entry under the window's name)" 'f=/home/arkade/.local/share/applications/chrome-arktest-Default.desktop;
     grep -qx NoDisplay=true $f && grep -qx StartupWMClass=chrome-arktest-Default $f && grep -qx Name=Test $f &&
-    grep -qx Icon=/home/arkade/.local/share/icons/hicolor/256x256/apps/chrome-arktest-Default.png $f'
+    grep -qxE "Icon=(/var)?/home/arkade/.local/share/icons/hicolor/256x256/apps/chrome-arktest-Default.png" $f'
 # T059: GPU Screen Recorder only from the Portal, not there by default.
 check "GPU Screen Recorder not installed by default" '! flatpak info --system com.dec05eba.gpu_screen_recorder'
 # The screen locks after five idle minutes; the app shots need the desktop.
