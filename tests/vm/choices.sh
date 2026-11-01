@@ -91,6 +91,10 @@ uid=$(ssh_vm 'id -u arkade')
 user="runuser -u arkade -- env -C /home/arkade HOME=/home/arkade USER=arkade XDG_RUNTIME_DIR=/run/user/${uid} DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/${uid}/bus PATH=/home/arkade/.local/bin:/home/linuxbrew/.linuxbrew/bin:/usr/local/bin:/usr/bin"
 gui="runuser -u arkade -- env -C /home/arkade HOME=/home/arkade USER=arkade XDG_RUNTIME_DIR=/run/user/${uid} WAYLAND_DISPLAY=wayland-0 QT_QPA_PLATFORM=wayland XDG_CURRENT_DESKTOP=KDE XDG_SESSION_TYPE=wayland DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/${uid}/bus"
 portal="${user} /usr/libexec/arkadeos/portal-item"
+# Long installs outlast the idle lock and the screen turning off; Sunshine
+# then gets no picture and dialogs are hidden. Wake the desktop first.
+ssh_vm "${gui} kwriteconfig6 --notify --file kscreenlockerrc --group Daemon --key Autolock false" || true
+wake() { ssh_vm "loginctl unlock-sessions; ${gui} kscreen-doctor --dpms on" >/dev/null 2>&1 || true; }
 install() {  # item, seconds; the log goes to the results
     step "installing $1"
     ssh_vm "yes | timeout $2 ${portal} $1 install" > "${out}/install-$1.log" 2>&1 || true
@@ -120,6 +124,7 @@ ssh_vm "${user} sh -c 'mkdir -p .var/app/dev.lizardbyte.app.Sunshine/config/suns
     echo min_log_level = debug > .var/app/dev.lizardbyte.app.Sunshine/config/sunshine/sunshine.conf &&
     systemctl --user set-environment QT_LOGGING_RULES=\"xdp-kde*=true\" &&
     systemctl --user restart plasma-xdg-desktop-portal-kde'" || true
+wake
 install sunshine 900
 check_wait "Sunshine running, its page answers" "systemctl --user -M arkade@ is-active app-dev.lizardbyte.app.Sunshine &&
     curl -ks -o /dev/null https://127.0.0.1:47990/" 400
@@ -158,6 +163,7 @@ ssh_vm "${user} sh -c 'mkdir -p ~/.local/share/Steam/compatibilitytools.d &&
     curl -fsSL \"${url}\" | tar -xz -C ~/.local/share/Steam/compatibilitytools.d && basename \"${url}\" .tar.gz'" > "${out}/proton-install.log" 2>&1 || true
 other=$(tail -1 "${out}/proton-install.log")
 check "another Proton installed" "test -x /home/arkade/.local/share/Steam/compatibilitytools.d/${other}/proton"
+wake
 ssh_vm "${gui} sh -c 'arkadeos-store ea --choose-proton >/tmp/choose.log 2>&1 &'" || true
 sleep 8
 shot proton-choose
