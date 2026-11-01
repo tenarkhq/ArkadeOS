@@ -34,6 +34,17 @@ import urllib.request
 import dbus
 
 FLAGS = {"max": "/run/arkadeos/power-max", "wow": "/run/arkadeos/power-wow"}
+# Windows programs that are not games: Wine's own, and the stores' launchers
+# with their helpers (Battle.net, EA app, Ubisoft Connect, Steam for Windows).
+NOT_GAMES = {
+    "services.exe", "winedevice.exe", "plugplay.exe", "svchost.exe", "rpcss.exe", "explorer.exe",
+    "conhost.exe", "tabtip.exe", "wineboot.exe", "start.exe", "rundll32.exe", "winemenubuilder.exe",
+    "mscorsvw.exe", "cmd.exe", "steam.exe", "steamwebhelper.exe", "crashpad_handler.exe",
+    "battle.net.exe", "battle.net launcher.exe", "battle.net helper.exe", "agent.exe", "blizzarderror.exe",
+    "blizzard update agent.exe", "eadesktop.exe", "eabackgroundservice.exe", "ealocalhostsvc.exe",
+    "eaconnect_microsoft.exe", "qtwebengineprocess.exe", "upc.exe", "ubisoftconnect.exe",
+    "uplaywebcore.exe", "uplayservice.exe", "ubisoftgamelauncher.exe", "ubisoftgamelauncher64.exe",
+}
 DIRECT = tuple(FLAGS)  # set straight in TuneD by power-set, not held through PPD
 UID = os.getuid()
 PROFILES = ("battery", "balanced", "gaming", "max", "wow")
@@ -74,6 +85,7 @@ def table():
 def running_game():
     """None when no game runs, else the profile the game wants."""
     names, env_profile, game = table(), None, False
+    windows = windows_game = False  # Wine or a Steam shortcut runs; a game in it
     keys = []
     for p in user_processes():
         cmd = [c.decode(errors="replace") for c in read(p, "cmdline") if c]
@@ -82,18 +94,29 @@ def running_game():
         line = " ".join(cmd)
         appid = re.search(r"SteamLaunch AppId=(\d+)", line)
         if appid:
-            game = True
+            # A Steam shortcut of another program (its number is above 2^31,
+            # e.g. Battle.net) counts only with a game in it, as Wine does.
+            if int(appid.group(1)) < 2**31:
+                game = True
+            else:
+                windows = True
             keys.append(appid.group(1))
         if os.path.basename(cmd[0]) == "wineserver":
-            game = True
+            windows = True
         for c in cmd:
             if c.lower().endswith(".exe"):
-                keys.append(re.split(r"[\\/]", c)[-1].lower())
+                exe = re.split(r"[\\/]", c)[-1].lower()
+                keys.append(exe)
+                if exe not in NOT_GAMES:
+                    windows_game = True
         for e in read(p, "environ"):
             if e.startswith(b"ARKADEOS_PROFILE="):
                 value = e.split(b"=", 1)[1].decode(errors="replace")
                 if value in PROFILES:
                     env_profile = value
+    # Wine stays up while only a store's launcher runs (Battle.net after the
+    # game closed): that is not a game.
+    game = game or (windows and windows_game)
     if not game:
         status = subprocess.run(["gamemoded", "-s"], capture_output=True, text=True)
         game = "is active" in status.stdout
