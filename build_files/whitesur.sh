@@ -47,6 +47,14 @@ done
 # KWin's blur behind the sidebars.
 install -d /usr/share/Kvantum
 cp -r "${kde}/Kvantum/WhiteSur" /usr/share/Kvantum/
+# The light theme's file and folder views, when the window is not the active
+# one, were see-through (one colour also miswritten: #fffff74): every other
+# row showed the wallpaper as grey stripes. Opaque like the dark theme's.
+sed -i -e 's/^inactive\.window\.color=.*/inactive.window.color=#f5f5f5/' \
+    -e 's/^inactive\.base\.color=.*/inactive.base.color=#ffffff/' \
+    -e 's/^inactive\.alt\.base\.color=.*/inactive.alt.base.color=#fafafa/' \
+    /usr/share/Kvantum/WhiteSur/WhiteSur.kvconfig
+grep -qx 'inactive.base.color=#ffffff' /usr/share/Kvantum/WhiteSur/WhiteSur.kvconfig
 
 # GTK 2, 3 and 4 from the prebuilt release; the GNOME Shell, Cinnamon and
 # other desktop parts (with the Apple activities icon) are left out.
