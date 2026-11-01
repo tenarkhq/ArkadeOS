@@ -213,6 +213,10 @@ shot dolphin-light
 check "Kvantum WhiteSur with the light look" "grep -qx theme=WhiteSur ${home}/Kvantum/kvantum.kvconfig"
 # A new image's icons reach the dock: KDE's icon cache goes when they change.
 check "icon cache follows the image's icons" "test -s ${home%/.config}/.cache/arkadeos/icons-key"
+# T073: the terminal welcome is ArkadeOS's and names the image actually running.
+check "terminal welcome: ArkadeOS, the running image" "${session} /usr/libexec/ublue-motd > /tmp/motd.txt 2>&1;
+    grep -q ArkadeOS /tmp/motd.txt && grep -q '10.0.2.2:5000/arkadeos:test' /tmp/motd.txt && ! grep -qi bazzite /tmp/motd.txt"
+ssh_vm "cat /tmp/motd.txt" > "${out}/motd.txt" 2>&1 || true
 
 # T010: the same Dolphin in Hungarian.
 ssh_vm "pkill -u arkade -x dolphin" || true
