@@ -15,7 +15,10 @@ desktop-file-validate /usr/share/applications/org.arkadeos.BattleNet.desktop \
 # T037: ArkadeOS Portal. Every catalog item has a known kind, and every app of
 # the first-boot list is in the Portal too, so it can be removed there.
 python3 -m py_compile /usr/bin/arkadeos-portal && rm -rf /usr/bin/__pycache__
-awk -F'\t' '!/^#/ { if (NF != 6 || $3 !~ /^(flatpak|launcher|brew|switch|ujust|quadlet|script|fixed)$/ || seen[$1]++) { print "bad Portal item: " $0; bad = 1 } }
+# T072: the desktop apps' installer and the makers' signing keys it checks with.
+python3 -c 'import ast, sys; ast.parse(open(sys.argv[1]).read())' /usr/libexec/arkadeos/ai-desktop
+for key in claude-desktop chatgpt; do gpg --show-keys "/usr/share/arkadeos/keys/${key}.gpg" >/dev/null; done
+awk -F'\t' '!/^#/ { if (NF != 6 || $3 !~ /^(flatpak|launcher|brew|switch|ujust|quadlet|script|desktop|fixed)$/ || seen[$1]++) { print "bad Portal item: " $0; bad = 1 } }
     END { exit bad }' /usr/share/arkadeos/portal/catalog.tsv
 for id in $(grep -v '^#' /usr/share/arkadeos/apps.list | cut -d'|' -f1); do
     grep -q "^${id}"$'\t' /usr/share/arkadeos/portal/catalog.tsv
