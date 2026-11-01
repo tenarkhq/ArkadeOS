@@ -30,3 +30,10 @@ for mime in $(grep -oE '^video/[^=]+' /usr/share/applications/kde-mimeapps.list)
     grep -q "^${mime}=" /etc/xdg/mimeapps.list || echo "${mime}=org.videolan.VLC.desktop" >> /etc/xdg/mimeapps.list
 done
 grep -qx 'video/mp4=org.videolan.VLC.desktop' /etc/xdg/mimeapps.list
+# Chrome opens web links, so a sign-in from an app lands in the browser the
+# user is signed in to (Roland, 2026-11-01); Firefox stays installed.
+for mime in x-scheme-handler/http x-scheme-handler/https text/html application/xhtml+xml; do
+    sed -i "/^${mime//\//\\/}=/d" /etc/xdg/mimeapps.list
+    echo "${mime}=com.google.Chrome.desktop" >> /etc/xdg/mimeapps.list
+done
+grep -qx 'x-scheme-handler/https=com.google.Chrome.desktop' /etc/xdg/mimeapps.list

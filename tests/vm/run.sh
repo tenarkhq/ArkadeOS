@@ -420,6 +420,7 @@ check "Windows drive named Windows" 'udevadm info -q property $(cat /tmp/win.loo
 check "ArkadeOS system partitions hidden" 'p=$(findmnt -nvo SOURCE /sysroot); udevadm info -q property ${p} | grep -qx UDISKS_IGNORE=1'
 ssh_vm 'losetup -d $(cat /tmp/win.loop); rm -f /tmp/win.img' || true
 check "only the wallpapers Roland kept" 'cd /usr/share/wallpapers && test -d ArkadeOS && test -d ArkadeOS-Gauge/contents/images && test -d Air && for w in F44 Fedora Altai ColorfulCups Next Path giants.jxl; do test ! -e $w || exit 1; done'
+check "Chrome opens web links" 'grep -qx x-scheme-handler/https=com.google.Chrome.desktop /etc/xdg/mimeapps.list && ! grep -q "^x-scheme-handler/https=.*firefox" /etc/xdg/mimeapps.list'
 # T071: no on-screen keyboard on its own.
 check "no on-screen keyboard" "test -z \"\$(${session} kreadconfig6 --file kwinrc --group Wayland --key InputMethod)\" && ! pgrep -u arkade -x plasma-keyboard"
 check "dock names script in KWin" "${session} busctl --user call org.kde.KWin /Scripting org.kde.kwin.Scripting isScriptLoaded s arkadeos-dock-names | grep -qx 'b true'"
