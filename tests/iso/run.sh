@@ -125,6 +125,7 @@ check "home on its own subvolume" 'btrfs subvolume show /var/home'
 [[ -n "${LUKS_PASSWORD:-}" ]] && check "disk encrypted (LUKS)" 'lsblk -nro FSTYPE | grep -qx crypto_LUKS'
 check "boot screen arguments, as in the image" 'for a in $(grep ^kargs /usr/lib/bootc/kargs.d/10-arkadeos.toml | grep -o "[a-z0-9_.=-]*" | grep -vx -e kargs -e =);
     do grep -qw -- "$a" /proc/cmdline || exit 1; done'
+check "installer's nouveau.modeset=0 left behind" '! grep -qw nouveau.modeset=0 /proc/cmdline'
 check "starts to the login screen" 'test "$(systemctl get-default)" = graphical.target && systemctl is-active display-manager'
 # T026: the installer's app choice reached the system and is what gets installed.
 check "installer's app choice saved" 'test "$(cat /etc/arkadeos/apps)" = "$(printf "firefox\nheroic\nqbittorrent")" &&

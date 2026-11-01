@@ -9,6 +9,11 @@
 set -euo pipefail
 
 out=$(readlink -f "$1") tag=${2:-stable} extra=${3:-}
+# The installer stays off nouveau: it hangs on new NVIDIA cards (RTX 5070
+# laptop, 2026-11-01), and the installer draws fine on the built-in GPU or
+# the firmware's screen. Only the installer boots with it; the installed
+# system has its own kernel arguments (run.sh checks).
+ISO_CMDLINE="nouveau.modeset=0${ISO_CMDLINE:+ ${ISO_CMDLINE}}"
 here=$(dirname "$(readlink -f "$0")")
 fedora=44
 netinst=Fedora-Everything-netinst-x86_64-44-1.7.iso
@@ -45,7 +50,7 @@ ${PODMAN:-podman} run --rm -v "${work}:/work" -v "${cache}:/cache:ro" -v "$(dirn
     bash buildstamp.sh /cache/${netinst} updates.img /work/addon
     mkdir -p /work/tmp
     mkksiso --tmp /work/tmp --skip-mkefiboot --ks arkadeos.ks --updates updates.img \
-        ${ISO_CMDLINE:+-c \"${ISO_CMDLINE}\"} -V ArkadeOS /cache/${netinst} /work/stage.iso
+        -c \"${ISO_CMDLINE}\" -V ArkadeOS /cache/${netinst} /work/stage.iso
     # Boot menus: ArkadeOS instead of Fedora (UEFI and BIOS).
     for cfg in EFI/BOOT/grub.cfg boot/grub2/grub.cfg; do
         mkdir -p \$(dirname \$cfg)
