@@ -38,12 +38,13 @@ if grep -qw mdadm.imsm.test=1 /proc/cmdline && [ -b /dev/sda ] && [ -b /dev/sdb 
     export IMSM_NO_PLATFORM=1 IMSM_TEST_OROM=1 MDADM_NO_SYSTEMCTL=1
     mdadm --create /dev/md/imsm0 --run -e imsm -n 2 /dev/sda /dev/sdb
     udevadm settle
-    # mdadm tells why a volume is refused only when asked to be verbose.
-    mdadm -vv --create /dev/md/Volume0 --run --assume-clean -l 1 -n 2 /dev/md/imsm0 2>&1
+    # mdadm tells why a volume is refused only when asked to be verbose. Its
+    # own size guess comes out 0 in QEMU, so the size is given.
+    mdadm -vv --create /dev/md/Volume0 --run --assume-clean -l 1 -n 2 --size=2G /dev/md/imsm0 2>&1
     rc=$?; echo "volume rc=${rc}"
     if [ "${rc}" != 0 ]; then
-        echo "-- again, naming the member disks"
-        mdadm -vv --create /dev/md/Volume0 --run --assume-clean -e imsm -l 1 -n 2 /dev/sda /dev/sdb 2>&1
+        echo "-- again, with the chunk given too"
+        mdadm -vv --create /dev/md/Volume0 --run --assume-clean -l 1 -n 2 --size=2G --chunk=64 /dev/md/imsm0 2>&1
         echo "volume rc=$?"
     fi
     grep -l mdmon /proc/[0-9]*/comm 2>/dev/null || echo "no mdmon"
