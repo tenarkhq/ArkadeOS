@@ -122,7 +122,7 @@ The ArkadeOS Portal does the same from a window, and also switches the channel (
 | Frame generation in WoW | works, but its added latency makes spells feel sluggish in WoW; off by default, can be turned on per game |
 | Laptop screen brightness | ❌ not adjustable yet on this laptop, being fixed |
 
-Measured the same way on both systems: the same World of Warcraft folder copied over from Windows, with the same addons and graphics settings (preset 8, 2560×1600, DX11; DXVK on ArkadeOS), standing at the same spot in Silvermoon. Windows: Armoury Crate Performance, mean of three runs. ArkadeOS: WoW power profile, MangoHud.
+Measured the same way on both systems: the same World of Warcraft folder copied over from Windows, with the same addons and graphics settings (preset 8, 2560×1600, DX11; DXVK on ArkadeOS), standing at the fountain in Silvermoon. Windows: Armoury Crate Performance, mean of three runs. ArkadeOS: WoW power profile, MangoHud.
 
 **Next:** more real-hardware checks (external monitors, peripherals, desktop PCs, an AMD Radeon machine), then the first stable build, the public beta and the ISO download.
 
