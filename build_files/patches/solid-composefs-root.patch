@@ -1,0 +1,20 @@
+The read-only root of an image-based system (composefs, an overlay mounted
+on /) holds no user files, yet Solid lists it as a storage device. Every path
+then falls under it: /home is a symlink to /var/home and Solid compares paths
+without resolving symlinks, so Dolphin's status bar asks the overlay for free
+space and shows "0 B free". Without the overlay the caller uses the path
+itself, which finds the real disk.
+
+--- a/src/solid/devices/frontend/devicemanager.cpp
++++ b/src/solid/devices/frontend/devicemanager.cpp
+@@ -163,6 +163,10 @@ Solid::Device Solid::Device::storageAccessFromPath(const QString &path)
+ 
+         QString mountPath = storageAccess->filePath();
+ 
++        if (mountPath == QLatin1String("/") && device.udi().startsWith(QLatin1String("/org/kde/fstab/overlay"))) {
++            continue;
++        }
++
+         if (mountPath.size() <= match_length || !path.startsWith(mountPath)) {
+             continue;
+         }

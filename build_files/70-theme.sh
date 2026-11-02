@@ -57,6 +57,10 @@ for theme in WhiteSur WhiteSur-dark WhiteSur-light; do
 done
 # The read-only system layer is no drive in the sidebar (arkadeos-root-hidden).
 systemctl enable arkadeos-root-hidden.service
+# Nor the free space Dolphin shows: Solid rebuilt with patches/solid-composefs-root.patch
+# (solid.sh, its own build stage).
+dnf -y -q install /solid/kf6-solid-*.rpm
+rpm -q kf6-solid | grep -q '\.arkadeos\.'
 
 # Fewer wallpapers to choose from (Roland, 2026-11-01): the Fedora ones and
 # the KDE ones he picked go; the rest of KDE's, Bazzite's and ours stay.

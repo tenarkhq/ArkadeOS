@@ -14,9 +14,12 @@ import os
 import re
 import subprocess
 import sys
+import time
 from pathlib import Path
 
-from PySide6.QtCore import QLocale, QObject, QProcess, Qt, QThread, Signal
+from PySide6.QtCore import (
+    QFileSystemWatcher, QLocale, QObject, QProcess, Qt, QThread, QTimer, Signal,
+)
 from PySide6.QtGui import QIcon
 from PySide6.QtWidgets import (
     QApplication, QCheckBox, QComboBox, QGridLayout, QGroupBox, QHBoxLayout,
@@ -557,12 +560,68 @@ class GamesTab(QWidget):
                                    f"Törölve: {key}. Újra Gaminggel fut."))
 
 
+def config(name, group, key):
+    run = subprocess.run(["kreadconfig6", "--file", name, "--group", group, "--key", key],
+                         capture_output=True, text=True)
+    return run.stdout.strip()
+
+
+def wait_for_look():
+    """On the first login the Plasma look is not final yet when the Portal
+    starts: the session opens with the image's default (light) look, Plasma's
+    automatic light/dark switch (a kded module) applies the right one a few
+    seconds later, and session-setup then sets the matching app style. The
+    choice screen waits for that (at most 30 seconds), so it opens in the
+    final look."""
+    home = Path(os.environ.get("XDG_CONFIG_HOME", Path.home() / ".config"))
+    files = [home / "kdeglobals", home / "Kvantum/kvantum.kvconfig"]
+    automatic = config("kdeglobals", "KDE", "AutomaticLookAndFeel") == "true"
+    deadline = time.monotonic() + 30
+    theme = ""
+    while time.monotonic() < deadline:
+        if automatic:
+            kded = subprocess.run(["busctl", "--user", "call", "org.kde.kded6", "/kded",
+                                   "org.kde.kded6", "loadedModules"], capture_output=True, text=True)
+            ready = "lookandfeelautoswitcher" in kded.stdout
+        else:
+            ready = True
+        scheme = config("kdeglobals", "General", "ColorScheme")
+        theme = config("Kvantum/kvantum.kvconfig", "General", "theme")
+        matches = theme == ("WhiteSurDark" if "Dark" in scheme else "WhiteSur") or \
+            theme not in ("", "WhiteSur", "WhiteSurDark")
+        still = all(not f.exists() or time.time() - f.stat().st_mtime >= 2 for f in files)
+        if ready and matches and still:
+            break
+        time.sleep(0.5)
+    print(f"arkadeos-portal: opens with the app style {theme or 'unset'}", file=sys.stderr)
+
+
+def follow_app_style(app):
+    """The Kvantum app style reads its theme once, when the app starts: a
+    light/dark switch while the Portal is open restyles it."""
+    name = app.style().name()
+    if not name.lower().startswith("kvantum"):
+        return
+    folder = Path(os.environ.get("XDG_CONFIG_HOME", Path.home() / ".config")) / "Kvantum"
+    folder.mkdir(parents=True, exist_ok=True)
+    timer = QTimer(app)
+    timer.setSingleShot(True)
+    timer.setInterval(500)
+    timer.timeout.connect(lambda: app.setStyle(name))
+    # KConfig replaces the file: the folder changes, not the watched file.
+    watcher = QFileSystemWatcher([str(folder)], app)
+    watcher.directoryChanged.connect(lambda _: timer.start())
+
+
 def main():
     first_run = "--first-run" in sys.argv
     if first_run and FIRST_RUN_DONE.exists():
         return
+    if first_run:
+        wait_for_look()
     app = QApplication(sys.argv)
     app.setDesktopFileName("org.arkadeos.Portal")
+    follow_app_style(app)
     window = QTabWidget()
     window.setWindowTitle("ArkadeOS Portal")
     window.setWindowIcon(QIcon.fromTheme("arkadeos-portal", QIcon.fromTheme("preferences-system")))

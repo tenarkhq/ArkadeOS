@@ -7,6 +7,14 @@ COPY build_files /build_files
 COPY system_files /system_files
 COPY cosign.pub /cosign.pub
 
+# Solid with ArkadeOS's patch (T069), built from the base's own source package
+# in a throwaway stage; only the packages go into the image. Rebuilt when the
+# base, the script or the patch changes (SOLID_SCRIPT is their checksum).
+FROM ${BASE_IMAGE} AS solid
+ARG SOLID_SCRIPT
+RUN --mount=type=bind,from=ctx,source=/,target=/ctx \
+    /ctx/build_files/solid.sh /solid
+
 FROM ${BASE_IMAGE}
 
 # Proton-GE gets its own layer before everything else, so the build server's
@@ -34,6 +42,7 @@ RUN --mount=type=bind,from=ctx,source=/,target=/ctx \
     --mount=type=cache,dst=/var/log \
     --mount=type=tmpfs,dst=/tmp \
     --mount=type=secret,id=mok,required=false \
+    --mount=type=bind,from=solid,source=/solid,target=/solid \
     /ctx/build_files/build.sh
 
 RUN bootc container lint
