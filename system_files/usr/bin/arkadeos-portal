@@ -818,7 +818,11 @@ def follow_app_style(app):
     timer = QTimer(app)
     timer.setSingleShot(True)
     timer.setInterval(500)
-    timer.timeout.connect(lambda: app.setStyle(name))
+    def restyle():
+        app.setStyle(name)
+        theme = config("Kvantum/kvantum.kvconfig", "General", "theme")
+        print(f"arkadeos-portal: follows the app style {theme or 'unset'}", file=sys.stderr)
+    timer.timeout.connect(restyle)
     # KConfig replaces the file: the folder changes, not the watched file.
     watcher = QFileSystemWatcher([str(folder)], app)
     watcher.directoryChanged.connect(lambda _: timer.start())

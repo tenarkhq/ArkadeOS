@@ -13,7 +13,8 @@ qmp=${out}/qmp.sock
 
 ssh_vm() {
     ssh -n -i "${key}" -p 2222 -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null \
-        -o ConnectTimeout=5 -o LogLevel=ERROR root@127.0.0.1 "$@"
+        -o ConnectTimeout=5 -o ServerAliveInterval=15 -o ServerAliveCountMax=4 \
+        -o LogLevel=ERROR root@127.0.0.1 "$@"
 }
 
 shot() {
@@ -84,6 +85,8 @@ wait_ssh
 
 step "waiting for boot to finish"
 state=$(ssh_vm "timeout 600 systemctl is-system-running --wait" || true)
+# A VM that stops answering fails here, not at the job's time limit.
+[[ -n "${state}" ]] || { shot boot-stuck; echo "the VM stopped answering while booting" >&2; exit 1; }
 step "system state: ${state}"
 ssh_vm 'systemctl --failed --no-legend --plain' | tee "${out}/failed-units.txt"
 shot login
@@ -107,6 +110,9 @@ if ssh_vm 'pgrep -u arkade -f "arkadeos-portal --first-run"' >/dev/null; then
 else
     echo "FAILED Portal choice screen on the first login" >> "${out}/apps.txt"
 fi
+# The app style when the choice screen closes: the look can still change
+# after it opens, and the open Portal follows it (checked below).
+ssh_vm "sed -n 's/^theme=//p' /home/arkade/.config/Kvantum/kvantum.kvconfig > /tmp/portal-closed-style" || true
 ssh_vm 'pkill -u arkade -f "arkadeos-portal --first-run"' || true
 sleep 3
 shot desktop
@@ -147,10 +153,13 @@ check() {
 }
 
 # The Portal choice screen opens once the automatic light/dark look is final,
-# in its app style.
-check "Portal choice screen opens in the desktop's final look" "${session} journalctl --user -b --no-pager |
-    grep -o 'arkadeos-portal: opens with the app style .*' | tail -1 |
-    grep -qx \"arkadeos-portal: opens with the app style \$(sed -n 's/^theme=//p' /home/arkade/.config/Kvantum/kvantum.kvconfig)\""
+# in its app style, and follows a later switch while it is open: its last
+# style is the desktop's when it closed.
+check "Portal choice screen shows the desktop's look" "${session} journalctl --user -b --no-pager |
+    grep -oE 'arkadeos-portal: (opens with|follows) the app style .*' | tail -1 |
+    grep -qE \"^arkadeos-portal: (opens with|follows) the app style \$(cat /tmp/portal-closed-style)\$\""
+# What switched the look at the first login, for comparing runs.
+ssh_vm "${session} journalctl --user -b --no-pager | grep -E 'arkadeos-portal:|session-setup: Kvantum|plasma-apply-lookandfeel|knighttime|lookandfeel'" > "${out}/look-journal.txt" 2>&1 || true
 
 # The parts after the desktop run on their own: TEST_GROUPS lists the ones to
 # run (look, keys, power, games, apps, gamemode, update), "all" (the default)
