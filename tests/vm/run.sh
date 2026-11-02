@@ -107,10 +107,6 @@ if ssh_vm 'pgrep -u arkade -f "arkadeos-portal --first-run"' >/dev/null; then
 else
     echo "FAILED Portal choice screen on the first login" >> "${out}/apps.txt"
 fi
-# It opens once the automatic light/dark look is final, in its app style.
-check "Portal choice screen opens in the desktop's final look" "${session} journalctl --user -b --no-pager |
-    grep -o 'arkadeos-portal: opens with the app style .*' | tail -1 |
-    grep -qx \"arkadeos-portal: opens with the app style \$(sed -n 's/^theme=//p' /home/arkade/.config/Kvantum/kvantum.kvconfig)\""
 ssh_vm 'pkill -u arkade -f "arkadeos-portal --first-run"' || true
 sleep 3
 shot desktop
@@ -124,6 +120,10 @@ ssh_vm 'echo "== memory (MiB)"; free -m; echo "== load"; cat /proc/loadavg; echo
     echo "== top memory"; ps -eo rss,comm --sort=-rss | head -15' > "${out}/idle.txt" 2>&1 || true
 uid=$(ssh_vm 'id -u arkade')
 session="runuser -u arkade -- env HOME=/home/arkade USER=arkade XDG_RUNTIME_DIR=/run/user/${uid} WAYLAND_DISPLAY=wayland-0 QT_QPA_PLATFORM=wayland XDG_CURRENT_DESKTOP=KDE KDE_FULL_SESSION=true KDE_SESSION_VERSION=6 XDG_SESSION_TYPE=wayland DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/${uid}/bus"
+# It opens once the automatic light/dark look is final, in its app style.
+check "Portal choice screen opens in the desktop's final look" "${session} journalctl --user -b --no-pager |
+    grep -o 'arkadeos-portal: opens with the app style .*' | tail -1 |
+    grep -qx \"arkadeos-portal: opens with the app style \$(sed -n 's/^theme=//p' /home/arkade/.config/Kvantum/kvantum.kvconfig)\""
 failed=0
 while read -r app; do
     [[ -z "${app}" || "${app}" == \#* ]] && continue
