@@ -112,8 +112,7 @@ The ArkadeOS Portal does the same from a window, and also switches the channel (
 
 | What | Result |
 |---|---|
-| Battle.net installs, World of Warcraft starts and runs | ✅ average 61–63 fps, 1% low 46 fps |
-| World of Warcraft compared with Windows on the same laptop | **27–31% higher average fps** (61–63 vs 48.0) and **2.3× the 1% low** (46 vs 19.7) |
+| Battle.net installs, World of Warcraft starts and runs | ✅ |
 | WowUp finds the WoW folder, installs and updates addons | ✅ |
 | Unplugging the charger switches to Battery, starting WoW switches to the WoW profile | ✅ |
 | The power profile also sets ASUS's firmware mode (Quiet, Balanced, Performance) | ✅ |
@@ -122,7 +121,15 @@ The ArkadeOS Portal does the same from a window, and also switches the channel (
 | Frame generation in WoW | works, but its added latency makes spells feel sluggish in WoW; off by default, can be turned on per game |
 | Laptop screen brightness | ❌ not adjustable yet on this laptop, being fixed |
 
-Measured the same way on both systems: the same World of Warcraft folder copied over from Windows, with the same addons and graphics settings (preset 8, 2560×1600, DX11; DXVK on ArkadeOS), standing at the fountain in Silvermoon. Windows: Armoury Crate Performance, mean of three runs. ArkadeOS: WoW power profile, MangoHud.
+**ArkadeOS compared with Windows on the same laptop** (1 November 2026, Windows measured on 30 October):
+
+| | Windows | ArkadeOS | Difference |
+|---|---|---|---|
+| World of Warcraft, average fps | 48.0 | 55.7 | **+16%** |
+| World of Warcraft, 1% low fps | 19.7 | 37.3 | **+90%** (1.9×) |
+| Memory in use when idle | 10.2 GB | 4.5 GB | **−56%** (5.7 GB less) |
+
+Measured the same way on both systems: the same World of Warcraft folder copied over from Windows, with the same addons and graphics settings (preset 8, 2560×1600, DX11; DXVK on ArkadeOS), standing at the fountain in Silvermoon, three 60-second recordings each (CapFrameX on Windows, MangoHud on ArkadeOS). Memory: five minutes after start, nothing open. Runs, average / 1% low: Windows 52/25, 48/15, 44/19; ArkadeOS 58/38, 57/40, 52/34.
 
 **Next:** more real-hardware checks (external monitors, peripherals, desktop PCs, an AMD Radeon machine), then the first stable build, the public beta and the ISO download.
 
