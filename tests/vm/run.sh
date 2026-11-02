@@ -107,6 +107,10 @@ if ssh_vm 'pgrep -u arkade -f "arkadeos-portal --first-run"' >/dev/null; then
 else
     echo "FAILED Portal choice screen on the first login" >> "${out}/apps.txt"
 fi
+# It opens once the automatic light/dark look is final, in its app style.
+check "Portal choice screen opens in the desktop's final look" "${session} journalctl --user -b --no-pager |
+    grep -o 'arkadeos-portal: opens with the app style .*' | tail -1 |
+    grep -qx \"arkadeos-portal: opens with the app style \$(sed -n 's/^theme=//p' /home/arkade/.config/Kvantum/kvantum.kvconfig)\""
 ssh_vm 'pkill -u arkade -f "arkadeos-portal --first-run"' || true
 sleep 3
 shot desktop
@@ -146,9 +150,26 @@ check() {
     fi
 }
 
+# The parts after the desktop run on their own: TEST_GROUPS lists the ones to
+# run (look, keys, power, games, apps, gamemode, update), "all" (the default)
+# runs every one. A push runs the parts its changes reach (groups.sh), the
+# nightly build all of them.
+want() {
+    [[ ",${TEST_GROUPS:-all}," == *,all,* || ",${TEST_GROUPS}," == *",$1,"* ]] && return 0
+    echo "info skipped: $1 (not reached by the changes)" >> "${out}/apps.txt"
+    return 1
+}
+home=/home/arkade/.config
+# The look's settings are in the session's own settings folder (kdedefaults),
+# which only the session's programs see: commands that need them run with
+# plasmashell's XDG_CONFIG_DIRS.
+plasma_dirs="\$(grep -z ^XDG_CONFIG_DIRS= /proc/\$(pgrep -u arkade -x plasmashell)/environ | tr -d '\\0')"
+# No idle lock during the test (the lock screen itself is checked in look).
+ssh_vm "${session} kwriteconfig6 --file kscreenlockerrc --group Daemon --key Autolock false" || true
+
+if want look; then
 step "look"
 # T006: WhiteSur global theme applied at first login, day/night switch on.
-home=/home/arkade/.config
 check "WhiteSur global theme" "grep -qE '^org\.arkadeos\.(light|dark)\.desktop' ${home}/kdedefaults/package &&
     grep -qE '^ColorScheme=WhiteSur(Dark)?$' ${home}/kdedefaults/kdeglobals"
 check "day/night switch on" "test \"\$(${session} kreadconfig6 --group KDE --key AutomaticLookAndFeel)\" = true"
@@ -167,15 +188,11 @@ check "Ark wallpaper and launcher logo" "f=${home}/plasma-org.kde.plasma.desktop
 check "ArkadeOS trash in every WhiteSur variant and dock size" 'for t in WhiteSur WhiteSur-dark WhiteSur-light; do for s in scalable 22 24; do
     cmp -s /usr/share/icons/$t/places/$s/user-trash.svg /usr/share/arkadeos/icons/user-trash.svg &&
     cmp -s /usr/share/icons/$t/places/$s/user-trash-full.svg /usr/share/arkadeos/icons/user-trash-full.svg || exit 1; done; done'
-# The trash widget on the dock asks for the one-colour name. The look's icon
-# theme is in the session's own settings folder (kdedefaults), which only the
-# session's programs see: kiconfinder6 runs with plasmashell's XDG_CONFIG_DIRS.
-plasma_dirs="\$(grep -z ^XDG_CONFIG_DIRS= /proc/\$(pgrep -u arkade -x plasmashell)/environ | tr -d '\\0')"
+# The trash widget on the dock asks for the one-colour name, from the look's
+# icon theme.
 check "dock trash widget gets the ArkadeOS trash" "${session} ${plasma_dirs} kiconfinder6 user-trash-symbolic | grep -q /places/dock/"
 ssh_vm "${session} ${plasma_dirs} kiconfinder6 user-trash-symbolic; ${session} ${plasma_dirs} kreadconfig6 --group Icons --key Theme; grep -n places/dock /usr/share/icons/WhiteSur*/index.theme | cut -c1-120; ls -l /usr/share/icons/WhiteSur-dark/places/dock/" > "${out}/dock-trash.txt" 2>&1 || true
 check "dark lock screen" "${session} kreadconfig6 --file kscreenlockerrc --group Greeter --group Wallpaper --group org.kde.image --group General --key Image | grep -q ArkadeOS-Lock"
-# No idle lock during the test (the lock screen itself is checked above).
-ssh_vm "${session} kwriteconfig6 --file kscreenlockerrc --group Daemon --key Autolock false" || true
 # T010: Hungarian is complete, our own texts included.
 check "Hungarian language" "rpm -q hunspell-hu && test -f /usr/share/locale/hu/LC_MESSAGES/dolphin.mo &&
     grep -q '^Name\\[hu\\]=' /usr/share/applications/org.arkadeos.GameMode.desktop &&
@@ -229,7 +246,9 @@ ssh_vm "pkill -u arkade -x dolphin" || true
 ssh_vm "nohup ${session} LANG=hu_HU.UTF-8 LANGUAGE=hu dolphin >/dev/null 2>&1 &"
 sleep 10
 shot hungarian
+fi # look
 
+if want keys; then
 step "windows keys"
 # T008: the Windows shortcuts, pressed on the VM keyboard with Dolphin in front.
 key meta_l up
@@ -261,7 +280,9 @@ shot win-shift-s
 check "Meta+Shift+S screenshot" 'pgrep -u arkade -x spectacle'
 key esc
 ssh_vm "pkill -u arkade -x spectacle" || true
+fi # keys
 
+if want power; then
 step "gaming features"
 check "scx_lavd scheduler running" 'grep -qx lavd /sys/kernel/sched_ext/root/ops || grep -q lavd /sys/kernel/sched_ext/root/ops'
 check "NTSYNC device" 'test -c /dev/ntsync'
@@ -374,10 +395,12 @@ check "back to Balanced after WoW" 'tuned-adm active | grep -q arkadeos-balanced
 check "power switch in the top bar" "grep -qx plugin=org.arkadeos.power ${home}/plasma-org.kde.plasma.desktop-appletsrc &&
     ${session} arkadeos-power status | grep -qx profile=balanced"
 check "game watcher running" 'systemctl --user -M arkade@ is-active arkadeos-game-profile.service'
-# Profile log while the Windows program below runs: Gaming must be held.
-ssh_vm "nohup sh -c 'for i in \$(seq 400); do tuned-adm active; sleep 3; done' > /tmp/profiles.log 2>&1 &"
+fi # power
 
+if want games; then
 step "running a Windows program with GE-Proton"
+# Profile log while the Windows program runs: Gaming must be held.
+ssh_vm "nohup sh -c 'for i in \$(seq 400); do tuned-adm active; sleep 3; done' > /tmp/profiles.log 2>&1 &"
 # umu-launcher is how ArkadeOS starts non-Steam games (Battle.net). The first
 # run downloads the Steam Linux Runtime.
 proton=$(ssh_vm 'ls -d /usr/share/steam/compatibilitytools.d/GE-Proton* | sort -V | tail -1')
@@ -433,6 +456,7 @@ check "Windows' hidden partitions stay hidden" 'l=$(cat /tmp/win.loop); for n in
 check "Windows drive named Windows" 'udevadm info -q property $(cat /tmp/win.loop)p4 | grep -qx UDISKS_NAME=Windows'
 check "ArkadeOS system partitions hidden" 'p=$(findmnt -nvo SOURCE /sysroot); udevadm info -q property ${p} | grep -qx UDISKS_IGNORE=1'
 check "the read-only system layer is no drive in the sidebar" "${session} solid-hardware6 details /org/kde/fstab/overlay/ | grep -q 'StorageAccess.ignored = true'"
+check "Dolphin's free space is the disk's, not the system layer's" "rpm -q kf6-solid | grep -q '\\.arkadeos\\.' && grep -q /org/kde/fstab/overlay /usr/lib64/libKF6Solid.so.6"
 ssh_vm 'losetup -d $(cat /tmp/win.loop); rm -f /tmp/win.img' || true
 check "only the wallpapers Roland kept" 'cd /usr/share/wallpapers && test -d ArkadeOS && test -d ArkadeOS-Gauge/contents/images && test -d Air && for w in F44 Fedora Altai ColorfulCups Next Path giants.jxl; do test ! -e $w || exit 1; done'
 check "Chrome opens web links" 'grep -qx x-scheme-handler/https=com.google.Chrome.desktop /etc/xdg/mimeapps.list && ! grep -q "^x-scheme-handler/https=.*firefox" /etc/xdg/mimeapps.list'
@@ -483,7 +507,9 @@ ssh_vm "echo $(base64 -w0 "$(dirname "$0")/kwin-probe.js") | base64 -d > /tmp/kw
     ${session} busctl --user call org.kde.KWin /Scripting/Script\${id} org.kde.kwin.Script run; sleep 3
     echo \"script \${id}\"; cat /tmp/kwin-probe.log /tmp/kwin-probe-log.out; pkill -u arkade -f kwin-probe-log.py" >> "${out}/borderless.txt" 2>&1 || true
 ssh_vm "pkill -u arkade -f arkadeos-borderless" || true
+fi # games
 
+if want apps; then
 step "apps"
 # T014: Battle.net on the image's GE-Proton, its installer reachable, and in
 # Steam Game Mode (a Steam account folder stands in for a Steam login).
@@ -527,6 +553,8 @@ sleep 15
 check "Chrome web app keeps its dock pin (hidden entry under the window's name)" 'f=/home/arkade/.local/share/applications/chrome-arktest-Default.desktop;
     grep -qx NoDisplay=true $f && grep -qx StartupWMClass=chrome-arktest-Default $f && grep -qx Name=Test $f &&
     grep -qxE "Icon=(/var)?/home/arkade/.local/share/icons/hicolor/256x256/apps/chrome-arktest-Default.png" $f'
+# T024: Firefox, installed at first boot, sends no telemetry.
+check "no Firefox telemetry" 'grep -q "toolkit.telemetry.enabled\", false" /var/lib/flatpak/extension/org.mozilla.firefox.systemconfig/x86_64/stable/defaults/pref/02-arkadeos-privacy.js'
 # T059: GPU Screen Recorder only from the Portal, not there by default.
 check "GPU Screen Recorder not installed by default" '! flatpak info --system com.dec05eba.gpu_screen_recorder'
 # The screen locks after five idle minutes; the app shots need the desktop.
@@ -634,7 +662,7 @@ check "Portal: desktop defaults restored" "runuser -u arkade -- sh -c 'rm -rf /t
     cp -r /home/arkade/.config /tmp/rt/config &&
     XDG_CONFIG_HOME=/tmp/rt/config XDG_DATA_HOME=/tmp/rt/data /usr/libexec/arkadeos/reset-desktop' &&
     ls /tmp/rt/data/arkadeos/reset-*/kdeglobals && ! test -e /tmp/rt/config/kdeglobals"
-ssh_vm "nohup ${session} arkadeos-portal >/tmp/portal.log 2>&1 & echo \$! > /tmp/portal.pid"
+ssh_vm "nohup ${session} ${plasma_dirs} arkadeos-portal >/tmp/portal.log 2>&1 & echo \$! > /tmp/portal.pid"
 sleep 15
 shot portal
 check "Portal window" "kill -0 \$(cat /tmp/portal.pid)"
@@ -669,14 +697,15 @@ check "factory reset: settings back, files and users stay" "echo '# changed' >> 
 check "maker parts: none detected, none running" "test \$(arkadeos-vendor detect) = other && test -z \"\$(arkadeos-vendor)\" &&
     ! systemctl is-active -q asusd.service && ${session} arkadeos-power status | grep -qx charge=none"
 ssh_vm 'kill $(cat /tmp/portal.pid)' || true
+fi # apps
 
 step "security"
 # T024: firewall on with the ArkadeOS zone (no open port range), no telemetry.
 check "firewall on, ArkadeOS zone" 'firewall-cmd --state | grep -qx running && test "$(firewall-cmd --get-default-zone)" = ArkadeOS &&
     test -z "$(firewall-cmd --zone=ArkadeOS --list-ports)"'
-check "no telemetry" '! grep -l "^countme=1" /etc/yum.repos.d/*.repo && ! systemctl is-enabled -q rpm-ostree-countme.timer &&
-    grep -q "toolkit.telemetry.enabled\", false" /var/lib/flatpak/extension/org.mozilla.firefox.systemconfig/x86_64/stable/defaults/pref/02-arkadeos-privacy.js'
+check "no telemetry" '! grep -l "^countme=1" /etc/yum.repos.d/*.repo && ! systemctl is-enabled -q rpm-ostree-countme.timer'
 
+if want gamemode; then
 step "switching to Game Mode"
 ssh_vm "PKEXEC_UID=${uid} /usr/libexec/arkadeos/session-select game"
 sleep 45
@@ -705,11 +734,13 @@ else
 fi
 ssh_vm 'test ! -e /etc/plasmalogin.conf.d/zz-arkadeos-session.conf' ||
     { echo "FAILED one-time login left behind" >> "${out}/apps.txt"; failed=1; }
+fi # gamemode
 
 ssh_vm 'journalctl -b --no-pager -p warning' > "${out}/journal-warnings.txt" || true
 ssh_vm 'findmnt -R /; btrfs subvolume list /; btrfs subvolume show /var/home' > "${out}/disk-layout.txt" 2>&1 || true
 ssh_vm 'systemd-analyze; systemd-analyze blame | head -30; free -m' > "${out}/boot.txt" || true
 
+if want update; then
 step "update and rollback"
 # T025: the VM pulls an update (the same image plus a marker file) from the
 # runner's registry, starts it at the reboot, then goes back to the previous
@@ -770,6 +801,7 @@ done
 shot windows-started
 if (( started )); then echo "ok Windows starts from the boot menu" >> "${out}/apps.txt"
 else echo "FAILED Windows starts from the boot menu" >> "${out}/apps.txt"; failed=1; fi
+fi # update
 kill "$(cat "${out}/qemu.pid")" || true
 
 cat "${out}/apps.txt"

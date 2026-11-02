@@ -1,7 +1,7 @@
 name: Promote to stable
 # A testing build becomes stable (T048): by hand with a tag, or every day by
-# itself for the newest testing build that passed its VM test and has been on
-# testing for three days.
+# itself for the newest testing build that passed every part of its VM test
+# and has been on testing for three days.
 on:
   workflow_dispatch:
     inputs:
@@ -39,7 +39,12 @@ jobs:
             [ "${created}" -le "${limit}" ] || continue
             [ "$(jq -r .Digest <<< "${info}")" != "${stable}" ] || break
             rev=$(jq -r '.Labels["org.opencontainers.image.revision"]' <<< "${info}")
-            passed=$(gh api "repos/${GITHUB_REPOSITORY}/actions/workflows/vm-test.yml/runs?head_sha=${rev}&status=success" --jq .total_count)
+            # A run of every VM test part (" · all" in its job names; a push
+            # runs only the parts its changes reach).
+            passed=0
+            for id in $(gh api "repos/${GITHUB_REPOSITORY}/actions/workflows/vm-test.yml/runs?head_sha=${rev}&status=success" --jq '.workflow_runs[].id'); do
+              gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${id}/jobs" --jq '.jobs[].name' | grep -q ' · all$' && { passed=1; break; }
+            done
             if [ "${passed}" -gt 0 ]; then
               echo "tag=${tag}" >> "$GITHUB_OUTPUT"
               echo "${tag} (${rev::7}): VM test passed, 3+ days on testing → stable" >> "$GITHUB_STEP_SUMMARY"

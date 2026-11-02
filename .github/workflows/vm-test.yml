@@ -1,4 +1,6 @@
 name: VM test
+# After a push only the test parts the changes reach run (tests/vm/groups.sh);
+# the nightly build, a base update and a run by hand run all of them.
 on:
   workflow_run:
     workflows: [Build images]
@@ -16,9 +18,49 @@ permissions:
   packages: read
 
 jobs:
-  vm-test:
-    name: ${{ matrix.image }}${{ matrix.suite == 'choices' && ' choices' || '' }}
+  scope:
+    name: parts to test
     if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      actions: read
+    outputs:
+      groups: ${{ steps.parts.outputs.groups }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+      - name: Parts
+        id: parts
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EVENT: ${{ github.event.workflow_run.event || github.event_name }}
+        run: |
+          groups=all
+          if [ "${EVENT}" = push ]; then
+            # The changes since the newest commit that passed every part.
+            from=
+            for id in $(gh api "repos/${GITHUB_REPOSITORY}/actions/workflows/vm-test.yml/runs?status=success&per_page=30" --jq '.workflow_runs[].id'); do
+              if gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${id}/jobs" --jq '.jobs[].name' | grep -q ' · all$'; then
+                from=$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${id}" --jq .head_sha)
+                break
+              fi
+            done
+            if [ -n "${from}" ] && git merge-base --is-ancestor "${from}" HEAD; then
+              groups=$(tests/vm/groups.sh "${from}" HEAD)
+              echo "changes since ${from::7}: ${groups}" >> "$GITHUB_STEP_SUMMARY"
+            fi
+          fi
+          echo "parts: ${groups}" >> "$GITHUB_STEP_SUMMARY"
+          echo "groups=${groups}" >> "$GITHUB_OUTPUT"
+
+  vm-test:
+    # The parts in the name: promote.yml takes a build to stable only after a
+    # run of every part (" · all").
+    name: ${{ matrix.image }}${{ matrix.suite == 'choices' && ' choices' || '' }} · ${{ needs.scope.outputs.groups }}
+    needs: scope
     # GitHub-hosted: these machines have KVM, the build server does not.
     runs-on: ubuntu-24.04
     timeout-minutes: ${{ matrix.suite == 'choices' && 90 || 60 }}
@@ -34,10 +76,15 @@ jobs:
           - { image: arkadeos, suite: choices }
     env:
       IMAGE: ghcr.io/tenarkhq/${{ matrix.image }}:${{ inputs.tag || 'testing' }}
+      TEST_GROUPS: ${{ needs.scope.outputs.groups }}
+      # The Portal-picked parts only when the changes reach them.
+      NEEDED: ${{ matrix.suite == 'run' || contains(format(',{0},', needs.scope.outputs.groups), ',all,') || contains(format(',{0},', needs.scope.outputs.groups), ',choices,') }}
     steps:
       - uses: actions/checkout@v4
+        if: env.NEEDED == 'true'
 
       - name: KVM
+        if: env.NEEDED == 'true'
         run: |
           echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm.rules
           sudo udevadm control --reload-rules
@@ -48,6 +95,7 @@ jobs:
           test -w /dev/kvm || { echo "no KVM on this runner" >&2; exit 1; }
 
       - name: Room on the disk
+        if: env.NEEDED == 'true'
         # The image unpacks to well over 10 GB; some runners have less free
         # space than that until their unused SDKs are gone.
         run: |
@@ -55,11 +103,13 @@ jobs:
           df -h / /mnt
 
       - name: Tools
+        if: env.NEEDED == 'true'
         run: |
           sudo apt-get update -q
           sudo apt-get install -y -q qemu-system-x86 ovmf socat imagemagick dosfstools mtools btrfs-progs grub-efi-amd64-bin
 
       - name: Pull image
+        if: env.NEEDED == 'true'
         env:
           GITHUB_TOKEN: ${{ github.token }}
         run: |
@@ -77,6 +127,7 @@ jobs:
             sudo podman build -q -t localhost/vm-test-update -f - .
 
       - name: Local registry
+        if: env.NEEDED == 'true'
         run: |
           start=$(date +%s)
           sudo podman run -d --name registry -p 127.0.0.1:5000:5000 docker.io/library/registry:2
@@ -84,6 +135,7 @@ jobs:
           echo "registry push: $(( $(date +%s) - start )) s" >> "$GITHUB_STEP_SUMMARY"
 
       - name: Disk image
+        if: env.NEEDED == 'true'
         run: |
           ssh-keygen -q -t ed25519 -N '' -f vm-key
           start=$(date +%s)
@@ -102,7 +154,7 @@ jobs:
           echo "VM test: $(( $(date +%s) - start )) s" >> "$GITHUB_STEP_SUMMARY"
 
       - name: Chosen parts
-        if: matrix.suite == 'choices'
+        if: matrix.suite == 'choices' && env.NEEDED == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -122,7 +174,8 @@ jobs:
   # reinstalling. One image is enough: both share everything but the driver.
   update-path:
     name: update path
-    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
+    needs: scope
+    if: contains(format(',{0},', needs.scope.outputs.groups), ',all,') || contains(format(',{0},', needs.scope.outputs.groups), ',update-path,')
     runs-on: ubuntu-24.04
     timeout-minutes: 60
     env:
