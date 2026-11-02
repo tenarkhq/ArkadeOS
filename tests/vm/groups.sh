@@ -37,12 +37,13 @@ while read -r f; do
         .github/workflows/build.yml) add update update-path ;;
         # Not in the image.
         *.md | docs/* | art/* | iso/* | tests/iso/* | .github/workflows/iso.yml | \
-        .github/workflows/promote.yml | .github/workflows/prefetch.yml | tools/prefetch.py) ;;
+        .github/workflows/promote.yml | .github/workflows/prefetch.yml | tools/prefetch.py | \
+        tests/vm/groups.sh) ;;
         # Portal-picked parts have their own test (choices.sh), the update
         # from the previous build its own (update-path.sh).
         tests/vm/choices.sh) add choices ;;
         tests/vm/update-path.sh) add update-path ;;
-        tests/vm/portal-games.py | tests/vm/apps.txt) add apps ;;
+        tests/vm/portal-games.py | tests/vm/portal-update.py | tests/vm/apps.txt) add apps ;;
         tests/vm/proton-test.bat | tests/vm/kwin-probe*) add games ;;
         # The look: theme, icons, wallpapers, bar and dock, app style.
         build_files/70-theme.sh | build_files/75-layout.sh | build_files/whitesur.sh | \

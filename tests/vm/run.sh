@@ -643,6 +643,13 @@ check "Portal catalog" "test \$(${portal} --list | wc -l) -ge 20"
 # choice (its own home, so the real Steam folder stays untouched).
 ssh_vm "echo $(base64 -w0 "${here}/portal-games.py") | base64 -d > /tmp/portal-games.py && install -d -o arkade /tmp/pg-home"
 check "Portal Games tab" "${session} env HOME=/tmp/pg-home python3 /tmp/portal-games.py | grep -qx 'portal games ok'"
+# The update's step, percentage and outcome on the System tab, from uupd's
+# journal lines; the pictures show each state.
+ssh_vm "echo $(base64 -w0 "${here}/portal-update.py") | base64 -d > /tmp/portal-update.py && install -d -o arkade /tmp/pu"
+check "Portal update progress" "${session} LANG=hu_HU.UTF-8 python3 /tmp/portal-update.py /tmp/pu | grep -qx 'portal update ok'"
+for state in running apps done-restart failed; do
+    ssh_vm "cat /tmp/pu/portal-update-${state}.png" > "${out}/portal-update-${state}.png" 2>/dev/null || true
+done
 # Flatpak lets the desktop session's admin users install without a password;
 # this shell is not that session, so root installs here.
 check "Portal: Flatpak app in and out" "/usr/libexec/arkadeos/portal-item vesktop install &&
@@ -764,6 +771,9 @@ if [[ -n "${UPDATE_PUSH:-}" ]]; then
     ssh_vm 'bootc upgrade' > "${out}/update.txt" 2>&1 || true
     ssh_vm 'rpm-ostree status' >> "${out}/update.txt" 2>&1 || true
     check "update waits for the reboot" 'test "$(bootc status --json | jq -r .status.staged.image.imageDigest)" != null'
+    # The Portal asks as the user, without root: running and waiting versions.
+    check "update status answers the user (Portal)" "${session} LANG=C arkadeos-update status 2>&1 |
+        grep -qx 'Running:  [0-9.]*' && ${session} LANG=C arkadeos-update status 2>&1 | grep -q '^At reboot: [0-9]'"
     # T048: the top bar says so, once.
     ssh_vm "timeout 15 ${session} arkadeos-update notify" || true
     shot update-ready

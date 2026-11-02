@@ -10,6 +10,7 @@ Games: the power profile each game runs with (T055); arkadeos-power game
 keeps the list, a game not on it runs on Gaming.
 """
 import html
+import json
 import os
 import re
 import subprocess
@@ -20,10 +21,10 @@ from pathlib import Path
 from PySide6.QtCore import (
     QFileSystemWatcher, QLocale, QObject, QProcess, Qt, QThread, QTimer, Signal,
 )
-from PySide6.QtGui import QIcon
+from PySide6.QtGui import QIcon, QPalette
 from PySide6.QtWidgets import (
-    QApplication, QCheckBox, QComboBox, QGridLayout, QGroupBox, QHBoxLayout,
-    QHeaderView, QLabel, QLineEdit, QMessageBox, QPlainTextEdit, QPushButton,
+    QApplication, QCheckBox, QComboBox, QFrame, QGridLayout, QGroupBox, QHBoxLayout,
+    QHeaderView, QLabel, QLineEdit, QMessageBox, QPlainTextEdit, QProgressBar, QPushButton,
     QScrollArea, QTableWidget, QTabWidget, QToolButton, QVBoxLayout, QWidget,
 )
 
@@ -252,6 +253,183 @@ class AppsTab(QWidget):
             check.setEnabled(item_id not in self.locked)
 
 
+# The update (uupd.service, "Update now" or the daily 04:00 run) and how far it
+# is: uupd writes each step to the journal as JSON (--json), the system step
+# with its own percentage. Members of wheel read the system journal; without
+# it the bar only shows that the update runs.
+UPDATE_STEPS = [
+    ("System", "", tr("System", "Rendszer")),
+    ("Brew", "", "Homebrew"),
+    ("Flatpak", "System Apps", tr("Machine's apps", "Gép appjai")),
+    ("Flatpak", "Apps for User", tr("Own apps", "Saját appok")),
+    ("Distrobox", "", tr("Containers", "Konténerek")),
+]
+SYSTEM_STAGES = {
+    "Downloading": tr("download", "letöltés"),
+    "Importing": tr("unpack", "beépítés"),
+    "Deploying": tr("install", "telepítés"),
+}
+STEP_DOING = [
+    tr("Updating Homebrew", "Homebrew frissítése"),
+    tr("Updating the machine's apps", "A gép appjainak frissítése"),
+    tr("Updating own apps", "Saját appok frissítése"),
+    tr("Updating containers", "Konténerek frissítése"),
+]
+# A finished update stays on show this long, or until the reboot it waits for.
+SHOW_DONE = 6 * 3600
+
+
+def update_step(title, description):
+    for i, (t, d, _) in enumerate(UPDATE_STEPS):
+        if t == title and description.startswith(d):
+            return i
+    return None
+
+
+def parse_update_log(lines):
+    """The last step uupd reported, its text, the whole percentage and the
+    steps that failed, from its journal lines."""
+    step, text, overall, failed = None, "", None, []
+    for line in lines:
+        if not line.startswith("{"):
+            continue
+        try:
+            e = json.loads(line)
+        except ValueError:
+            continue
+        if e.get("msg") == "Updating":
+            i = update_step(e.get("title", ""), e.get("description", ""))
+            if i is None:
+                continue
+            step, overall = i, e.get("overall")
+            if i == 0:
+                stage = SYSTEM_STAGES.get(e.get("description", ""), e.get("description", ""))
+                text = f"{UPDATE_STEPS[0][2]}: {stage} ({round(e.get('step_progress') or 0)}%)"
+            else:
+                text = STEP_DOING[i - 1]
+        elif e.get("msg") == "module_fail":
+            name = (e.get("module") or "").split(" ")[0]
+            failed.append({"System": UPDATE_STEPS[0][2], "Brew": "Homebrew", "Flatpak": tr("Apps", "Appok"),
+                           "Distrobox": UPDATE_STEPS[4][2]}.get(name, name))
+    return step, text, overall, failed
+
+
+def update_state():
+    """running / done / failed / skipped / idle, with what the screen shows."""
+    props = dict(line.split("=", 1) for line in run(
+        "systemctl", "show", "uupd.service", "--timestamp=unix", "-p", "ActiveState", "-p", "Result",
+        "-p", "ExecMainStartTimestamp", "-p", "InactiveEnterTimestamp").splitlines() if "=" in line)
+    stamp = lambda key: int(props.get(key, "").lstrip("@") or 0)  # noqa: E731
+    started, ended = stamp("ExecMainStartTimestamp"), stamp("InactiveEnterTimestamp")
+    running = props.get("ActiveState") in ("activating", "active", "reloading")
+    # What waits for the reboot matters only once the update is over.
+    state = {"started": started, "ended": ended, "staged": "" if running else run("arkadeos-update", "staged")}
+    log = []
+    if started:
+        log = run("journalctl", "-u", "uupd.service", "-o", "cat", "--no-pager", "--since", f"@{started}").splitlines()
+    state["step"], state["text"], state["overall"], state["failed"] = parse_update_log(log)
+    if running:
+        state["kind"] = "running"
+    elif props.get("Result") == "exec-condition":
+        state["kind"] = "skipped"
+    elif not ended or (time.time() - ended > SHOW_DONE and not state["staged"]):
+        state["kind"] = "idle"
+    elif props.get("Result") not in ("success", None) or state["failed"]:
+        state["kind"] = "failed"
+    else:
+        state["kind"] = "done"
+    return state
+
+
+def clock(stamp):
+    return time.strftime("%H:%M", time.localtime(stamp))
+
+
+class UpdateProgress(QFrame):
+    """The update's step, percentage and outcome under the version lines."""
+
+    def __init__(self):
+        super().__init__()
+        self.setFrameShape(QFrame.StyledPanel)
+        box = QVBoxLayout(self)
+        top = QHBoxLayout()
+        self.title = QLabel()
+        self.title.setWordWrap(True)
+        font = self.title.font()
+        font.setBold(True)
+        self.title.setFont(font)
+        self.percent = QLabel()
+        self.percent.setForegroundRole(QPalette.PlaceholderText)
+        top.addWidget(self.title, 1)
+        top.addWidget(self.percent)
+        box.addLayout(top)
+        self.bar = QProgressBar()
+        self.bar.setTextVisible(False)
+        self.bar.setMaximumHeight(8)
+        box.addWidget(self.bar)
+        steps = QHBoxLayout()
+        self.steps = [QLabel() for _ in UPDATE_STEPS[:4]]
+        for label in self.steps:
+            steps.addWidget(label, 1)
+        box.addLayout(steps)
+        self.note = QLabel()
+        self.note.setWordWrap(True)
+        self.note.setForegroundRole(QPalette.PlaceholderText)
+        box.addWidget(self.note)
+
+    def show_state(self, s):
+        self.setVisible(s["kind"] != "idle")
+        running = s["kind"] == "running"
+        for label in self.steps:
+            label.setVisible(running)
+        self.bar.setVisible(running or s["kind"] == "done")
+        self.percent.setVisible(running and s["overall"] is not None)
+        if running:
+            self.title.setText(s["text"] or tr("Updating…", "Frissítés fut…"))
+            if s["overall"] is None:
+                self.bar.setRange(0, 0)
+            else:
+                self.bar.setRange(0, 100)
+                self.bar.setValue(int(s["overall"]))
+                self.percent.setText(f"{int(s['overall'])}%")
+            for i, label in enumerate(self.steps):
+                name = UPDATE_STEPS[i][2]
+                if s["step"] is not None and i < s["step"]:
+                    label.setText(f"✓ {name}")
+                elif i == s["step"]:
+                    label.setText(f"<b>● {html.escape(name)}</b>")
+                else:
+                    label.setText(f"○ {name}")
+            self.note.setText(tr(f"Started at {clock(s['started'])}. You can close the Portal; the update goes on.",
+                                 f"Elindítva {clock(s['started'])}-kor. Bezárhatod a Portalt, a frissítés fut tovább."))
+        elif s["kind"] == "done":
+            self.bar.setRange(0, 100)
+            self.bar.setValue(100)
+            if s["staged"]:
+                self.title.setText(tr(f"✓ Done at {clock(s['ended'])}. The new system starts after a restart.",
+                                      f"✓ Kész {clock(s['ended'])}-kor. Az új rendszer újraindítás után indul."))
+                self.note.setText(tr("The apps and Homebrew are up to date already; they need no restart.",
+                                     "Az appok és a Homebrew már frissek, nekik nem kell újraindítás."))
+            else:
+                self.title.setText(tr(f"✓ Done at {clock(s['ended'])}. Everything is up to date, no restart needed.",
+                                      f"✓ Kész {clock(s['ended'])}-kor. Minden friss, nem kell újraindítani."))
+                self.note.setText(tr("The apps and Homebrew are up to date.", "Az appok és a Homebrew frissek."))
+        elif s["kind"] == "failed":
+            parts = ", ".join(dict.fromkeys(s["failed"])) or tr("the update", "a frissítés")
+            self.title.setText(tr(f"Not everything updated at {clock(s['ended'])}: {parts} failed.",
+                                  f"{clock(s['ended'])}-kor nem minden frissült: {parts} nem sikerült."))
+            self.title.setStyleSheet("color: #d6284a")
+            self.note.setText(tr("Try again with Update now; the details are in: journalctl -u uupd",
+                                 "Próbáld újra a Frissítés most gombbal; a részletek itt: journalctl -u uupd"))
+        elif s["kind"] == "skipped":
+            self.title.setText(tr("The update did not start: a game is running.",
+                                  "A frissítés nem indult el, mert játék fut."))
+            self.note.setText(tr("Start it again after the game, or it runs by itself tomorrow at 04:00.",
+                                 "Indítsd újra a játék után, vagy holnap 04:00-kor magától lefut."))
+        if s["kind"] != "failed":
+            self.title.setStyleSheet("")
+
+
 class SystemTab(QWidget):
     def __init__(self):
         super().__init__()
@@ -261,16 +439,25 @@ class SystemTab(QWidget):
         u = QVBoxLayout(updates)
         self.version = QLabel()
         u.addWidget(self.version)
+        self.progress = UpdateProgress()
+        u.addWidget(self.progress)
         u.addWidget(QLabel(tr(
             "The system, apps and Homebrew update every day by themselves; a new system "
             "version starts at the next reboot.",
             "A rendszer, az appok és a Homebrew naponta maguktól frissülnek; az új "
             "rendszerverzió a következő újraindításkor indul.")))
         row = QHBoxLayout()
-        row.addWidget(self.button("system-software-update", tr("Update now", "Frissítés most"),
-                                  ["arkadeos-update", "now"]))
-        row.addWidget(self.button("edit-undo", tr("Back to the previous version", "Vissza az előző verzióra"),
-                                  ["arkadeos-update", "rollback"]))
+        self.restart = QPushButton(QIcon.fromTheme("system-reboot"), tr("Restart now", "Újraindítás most"))
+        self.restart.clicked.connect(lambda: subprocess.Popen(
+            ["qdbus", "org.kde.LogoutPrompt", "/LogoutPrompt", "promptReboot"]))
+        self.restart.setDefault(True)
+        row.addWidget(self.restart)
+        self.update_now = self.button("system-software-update", tr("Update now", "Frissítés most"),
+                                      ["arkadeos-update", "now"])
+        row.addWidget(self.update_now)
+        self.rollback = self.button("edit-undo", tr("Back to the previous version", "Vissza az előző verzióra"),
+                                    ["arkadeos-update", "rollback"])
+        row.addWidget(self.rollback)
         u.addLayout(row)
         row = QHBoxLayout()
         row.addWidget(QLabel(tr("Channel:", "Csatorna:")))
@@ -324,7 +511,30 @@ class SystemTab(QWidget):
         v.addWidget(start)
         layout.addWidget(versions)
         layout.addStretch()
+        self.running = False
         self.refresh()
+        self.timer = QTimer(self)
+        self.timer.timeout.connect(self.poll)
+        self.timer.start(2000)
+
+    def poll(self):
+        if not self.isVisible() and not self.running:
+            return
+        s = update_state()
+        self.progress.show_state(s)
+        running = s["kind"] == "running"
+        self.update_now.setEnabled(not running)
+        self.rollback.setEnabled(not running)
+        self.update_now.setText(tr("Updating…", "Frissítés folyamatban…") if running
+                                else tr("Update now", "Frissítés most"))
+        self.restart.setVisible(bool(s["staged"]) and not running)
+        if self.running and not running:
+            self.refresh()
+        self.running = running
+
+    def showEvent(self, event):
+        super().showEvent(event)
+        self.poll()
 
     def button(self, icon, text, command):
         b = QPushButton(QIcon.fromTheme(icon), text)
@@ -337,6 +547,7 @@ class SystemTab(QWidget):
         if text:
             QMessageBox.information(self, "ArkadeOS", text)
         self.refresh()
+        self.poll()
 
     def refresh(self):
         self.version.setText(run("arkadeos-update", "status"))
