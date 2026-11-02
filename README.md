@@ -113,6 +113,7 @@ The ArkadeOS Portal does the same from a window, and also switches the channel (
 | What | Result |
 |---|---|
 | Battle.net installs, World of Warcraft starts and runs | ✅ average 61–63 fps, 1% low 46 fps |
+| World of Warcraft compared with Windows on the same laptop | **27–31% higher average fps** (61–63 vs 48.0) and **2.3× the 1% low** (46 vs 19.7) |
 | WowUp finds the WoW folder, installs and updates addons | ✅ |
 | Unplugging the charger switches to Battery, starting WoW switches to the WoW profile | ✅ |
 | The power profile also sets ASUS's firmware mode (Quiet, Balanced, Performance) | ✅ |
@@ -120,6 +121,8 @@ The ArkadeOS Portal does the same from a window, and also switches the channel (
 | Terminal welcome | ✅ |
 | Frame generation in WoW | works, but its added latency makes spells feel sluggish in WoW; off by default, can be turned on per game |
 | Laptop screen brightness | ❌ not adjustable yet on this laptop, being fixed |
+
+The Windows figures are the mean of three runs in Silvermoon (WoW graphics preset 8, 2560×1600, DX11, Armoury Crate Performance). The ArkadeOS figures come from one play session with MangoHud and the WoW power profile, so this is a first estimate. The like-for-like measurement, three runs in Silvermoon with the same settings, is still to come.
 
 **Next:** more real-hardware checks (external monitors, peripherals, desktop PCs, an AMD Radeon machine), then the first stable build, the public beta and the ISO download.
 
