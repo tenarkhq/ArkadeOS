@@ -49,6 +49,15 @@ jobs:
           sudo udevadm settle
           test -w /dev/kvm
 
+      - name: Room on the disk
+        # The installer test pulls the image (well over 10 GB unpacked) and its
+        # VM disk takes as much: the unused SDKs go (on 11-03 the run ran out of
+        # room without it).
+        run: |
+          df -h / /mnt
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache /usr/local/share/boost
+          df -h / /mnt
+
       - name: Tools
         run: |
           sudo apt-get update -q
