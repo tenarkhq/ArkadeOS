@@ -141,6 +141,7 @@ Measured the same way on both systems: the same World of Warcraft folder copied 
 - **Games with kernel-level anti-cheat do not run on Linux**: Valorant, League of Legends, Fortnite, most recent Call of Duty titles. No Linux distribution can fix this.
 - **Secure Boot with NVIDIA:** you confirm the ArkadeOS signing key once during install. The installer walks you through it.
 - **DX12 on NVIDIA** is still slower under Proton than on Windows. Where a game offers DX11, ArkadeOS uses whichever mode is faster.
+- **No PC sound on HomePod or Apple TV over AirPlay.** Since Apple's 27 releases these devices refuse AirPlay 1 senders, and Linux (PipeWire) has no AirPlay 2 audio sender yet; speakers that accept only AirPlay 2 do not show up at all. Mirroring an iPhone or Mac screen to ArkadeOS works.
 - **x86-64 PCs only.** Steam, Proton and the games are x86 software, so ArkadeOS does not run on Apple Silicon Macs or other ARM machines. x86 emulation in a virtual machine there is far too slow for games.
 
 ## Build it yourself
