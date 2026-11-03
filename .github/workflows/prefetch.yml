@@ -22,11 +22,11 @@ jobs:
     runs-on: [self-hosted, arkadeos-build]
     timeout-minutes: 240
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Base images
         run: |
-          for i in bazzite bazzite-nvidia bazzite-nvidia-open; do
+          for i in bazzite-nvidia-open; do
             podman pull -q ghcr.io/ublue-os/$i:stable
           done
           podman image prune -f
@@ -39,7 +39,7 @@ jobs:
           # and for spotting what a Bazzite update changed (T048).
           out=~/arkadeos-cache/bases
           mkdir -p "$out"
-          for i in bazzite bazzite-nvidia bazzite-nvidia-open; do
+          for i in bazzite-nvidia-open; do
             podman run --rm ghcr.io/ublue-os/$i:stable bash -c '
               rpm -qa --qf "%{NAME}\t%{VERSION}-%{RELEASE}\t%{SIZE}\t%{SUMMARY}\n" | sort
             ' > "$out/$i.packages.tsv"
@@ -63,7 +63,7 @@ jobs:
           # Packages the Bazzite base lacks, resolved against the base's own Fedora
           out=~/arkadeos-cache/rpms/asus
           rm -rf "$out.new" && mkdir -p "$out.new"
-          podman run --rm -v "$out.new":/out ghcr.io/ublue-os/bazzite:stable bash -c '
+          podman run --rm -v "$out.new":/out ghcr.io/ublue-os/bazzite-nvidia-open:stable bash -c '
             dnf5 -y -q copr enable lukenukem/asus-linux &&
             dnf5 -q download --arch x86_64 --arch noarch --destdir /out asusctl supergfxctl &&
             { dnf5 -q download --arch x86_64 --arch noarch --destdir /out asusctl-rog-gui || echo "asusctl-rog-gui: not in the repo"; }'

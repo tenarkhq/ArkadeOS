@@ -128,6 +128,9 @@ wake
 install sunshine 900
 check_wait "Sunshine running, its page answers" "systemctl --user -M arkade@ is-active app-dev.lizardbyte.app.Sunshine &&
     curl -ks -o /dev/null https://127.0.0.1:47990/" 400
+# T078: the encoder is set for the card (the VM has none: the processor), so
+# Sunshine asks for the screen once per start instead of once per encoder.
+check "Sunshine's encoder set for the card" "grep -qx 'encoder = software' /home/arkade/.var/app/dev.lizardbyte.app.Sunshine/config/sunshine/sunshine.conf"
 shot sunshine
 ssh_vm "${user} systemctl --user status --no-pager app-dev.lizardbyte.app.Sunshine; journalctl _UID=${uid} --no-pager | grep -i sunshine | tail -80; tail -80 /home/arkade/.var/app/dev.lizardbyte.app.Sunshine/config/sunshine/sunshine.log; ss -ltnp;
     journalctl _UID=${uid} --no-pager | grep -i -E 'portal|screencast|remote.?desktop|kwin_wayland' | tail -80;

@@ -3,7 +3,8 @@
 # this adds the Inter font and the GTK defaults.
 set -euo pipefail
 
-dnf5 -y install --setopt=install_weak_deps=False rsms-inter-fonts
+# Inter and Kvantum come from packages/install.sh.
+rpm -q rsms-inter-fonts kvantum >/dev/null
 # Inter for the boot menu (T009), Latin letters incl. Hungarian.
 for size in 20 24; do
     grub2-mkfont -r 0x20-0x17F -s "${size}" -o "/usr/share/arkadeos/grub-theme/inter-${size}.pf2" \
@@ -42,7 +43,6 @@ done
 
 # Kvantum app style (T069, Finder-like Dolphin); its WhiteSur themes come
 # from whitesur.sh.
-dnf5 -y install --setopt=install_weak_deps=False kvantum
 test -f /usr/share/Kvantum/WhiteSur/WhiteSurDark.kvconfig
 # The small one-colour place and drive icons (Dolphin's sidebar) take the
 # accent colour instead of the text colour, as in Finder.
@@ -59,7 +59,6 @@ done
 systemctl enable arkadeos-root-hidden.service
 # Nor the free space Dolphin shows: Solid rebuilt with patches/solid-composefs-root.patch
 # (solid.sh, its own build stage).
-dnf -y -q install /solid/kf6-solid-*.rpm
 rpm -q kf6-solid | grep -q '\.arkadeos\.'
 
 # Fewer wallpapers to choose from (Roland, 2026-11-01): the Fedora ones and

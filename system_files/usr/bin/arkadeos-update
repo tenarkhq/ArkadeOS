@@ -12,8 +12,6 @@
 #                              until "channel" brings the newest again
 #   arkadeos-update notify     tells the user once when a new version waits
 #                              for the reboot (arkadeos-update-notify.timer)
-#   arkadeos-update gpu [nvidia|other]         after a graphics card change: the
-#                              NVIDIA image or the plain one (T051)
 set -euo pipefail
 
 hu() { [[ "${LANG:-}" == hu* || "${LANGUAGE:-}" == hu* ]]; }
@@ -38,7 +36,7 @@ if d:
 }
 
 # The image this machine follows (the staged one after a switch), e.g.
-# ghcr.io/tenarkhq/arkadeos-nvidia:stable.
+# ghcr.io/tenarkhq/arkadeos:stable.
 image_ref() {
     deployments | python3 -c '
 import json, sys
@@ -131,22 +129,8 @@ for tag in sorted(json.load(sys.stdin)["Tags"], reverse=True):
         [[ "${tag}" =~ ^(stable|testing)-[0-9]+\.[0-9]{8}$ ]] || { echo "version: a tag from 'arkadeos-update versions'" >&2; exit 2; }
         switch_to "${ref%:*}:${tag}" "${3:-}"
         ;;
-    gpu)
-        ref=$(image_ref)
-        [[ -n "${ref}" ]] || { say "No ArkadeOS image found." "Nem található ArkadeOS image."; exit 1; }
-        repo=${ref%:*} tag=${ref##*:}
-        tag=${tag%%-*}
-        if [[ -z "${2:-}" ]]; then [[ "${repo}" == *-nvidia ]] && echo nvidia || echo other; exit 0; fi
-        case "${2}" in
-            nvidia) new=${repo%-nvidia}-nvidia ;;
-            other) new=${repo%-nvidia} ;;
-            *) echo "gpu: nvidia | other" >&2; exit 2 ;;
-        esac
-        [[ "${new}" == "${repo}" ]] && exit 0
-        switch_to "${new}:${tag}" "${3:-}"
-        ;;
     *)
-        sed -n '2,16p' "$0" | sed 's/^# \{0,1\}//'
+        sed -n '2,14p' "$0" | sed 's/^# \{0,1\}//'
         exit 2
         ;;
 esac

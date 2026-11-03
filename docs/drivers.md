@@ -19,7 +19,7 @@ update ever drops one, the build fails and the update never ships.
 | Wi-Fi | Intel AX200/AX210/AX211/BE200; Realtek RTL8852BE/CE, RTL8922AE, RTL8822CE, RTL8821CE; MediaTek MT7921/MT7925 (AMD RZ608/RZ616/RZ717); Qualcomm WCN6855/WCN7850; Broadcom (newer, plus the older `wl` driver) |
 | USB Wi-Fi | Realtek RTL8812AU, RTL8811AU/8821AU, RTL8822BU, RTL8814AU, RTL8852AU/BU; MediaTek MT7921AU, MT7925 |
 | Bluetooth | Intel, Realtek, MediaTek, Qualcomm |
-| Graphics | AMD Radeon (Mesa), Intel (i915, Xe / Arc), NVIDIA GTX 16 / RTX 20 and newer (NVIDIA image) |
+| Graphics | AMD Radeon RX 400 and newer (Mesa), Intel Arc and Iris Xe and newer (i915, Xe), NVIDIA GTX 16 / RTX 20 and newer; one image for all |
 | Sensors and fans | AMD and Intel processor temperature; ITE (it87), Nuvoton (nct6775, nct6687), ASUS ROG/TUF, Gigabyte mainboard sensors; fan curves in CoolerControl on desktops |
 | Controllers | Xbox (USB and Wireless Adapter), DualShock 4, DualSense, Switch Pro, Joy-Con, Steam Controller |
 | Laptop makers | ASUS (asusctl), MSI (msi-ec, MControlCenter), Lenovo Legion (LenovoLegionLinux: legion-laptop driver, built with every kernel) and IdeaPad (the kernel's Lenovo drivers) |
@@ -30,6 +30,6 @@ update ever drops one, the build fails and the update never ships.
 | What | Why | What to do |
 |---|---|---|
 | AMD RAID mode in the BIOS | Linux does not support AMD's RAID driver | Back up, then switch the disk mode to AHCI in the BIOS. With Windows on the disk, switch Windows to AHCI first (T053). |
-| NVIDIA older than GTX 16 / RTX 20 | The current NVIDIA driver no longer supports them | The installer puts the plain image on them (nouveau). |
+| NVIDIA older than GTX 16 / RTX 20, AMD Radeon before the RX 400 | Too old for today's games; the current NVIDIA driver no longer supports them | Not supported: the installer stops when such a card is the only one. |
 | Brand-new Wi-Fi chips | Support arrives with newer kernels | Use Ethernet or a USB adapter from the list until an update brings it. |
 | MSI and Lenovo firmware quirks | `msi-ec` and Lenovo's drivers support models by firmware version | Most models work. Others keep the firmware's own modes. |

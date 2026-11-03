@@ -1,6 +1,6 @@
 #!/usr/bin/bash
 # The installer's hardware check (T053) against made-up machines: AMD RAID
-# mode, an old NVIDIA card, a network chip without driver, Secure Boot,
+# mode, an unsupported graphics card, a network chip without driver, Secure Boot,
 # BitLocker. A VM shows none of these, so they are tested here.
 set -euo pipefail
 
@@ -11,7 +11,7 @@ sed -n '/^%pre.*arkadeos-hwcheck.log/,/^%end/p' "${ks}" | sed '1d;$d' > "${pre}/
 failed=0
 
 # name, expected exit code, text the output must have ("" = no findings),
-# cmdline, extra (secureboot, notpm, bitlocker, faststartup), then class:vendor:device[:nodriver]
+# cmdline, extra (secureboot, notpm, bitlocker, faststartup), then class:vendor:device[:nodriver|driver]
 case_() {
     local name=$1 want_rc=$2 want=$3 cmdline=$4 extra=$5 root="${pre}/$1" n=0 rc=0
     shift 5
@@ -21,7 +21,9 @@ case_() {
         mkdir -p "${d}"
         IFS=: read -r class vendor device nodriver <<< "${dev}"
         echo "${class}" > "${d}/class"; echo "${vendor}" > "${d}/vendor"; echo "${device:-0x0001}" > "${d}/device"
-        [[ -n "${nodriver}" ]] || ln -s "${root}" "${d}/driver"
+        # the fourth field: nodriver, or the bound driver's name
+        if [[ -z "${nodriver}" ]]; then ln -s "${root}" "${d}/driver"
+        elif [[ "${nodriver}" != nodriver ]]; then mkdir -p "${root}/drivers/${nodriver}" && ln -s "${root}/drivers/${nodriver}" "${d}/driver"; fi
         n=$((n + 1))
     done
     [[ "${extra}" == *secureboot* ]] && printf '\x07\x00\x00\x00\x01' > "${root}/sys/firmware/efi/efivars/SecureBoot-8be4df61-93ca-11d2-aa0d-00e098032b8c"
@@ -48,7 +50,13 @@ case_ clean 0 "" "" "" 0x010601:0x1022 0x030000:0x1002:0x744c 0x028000:0x8086:0x
 case_ amd-raid-stops 1 "bcdedit /set {current} safeboot minimal" "" "" 0x010400:0x1022:0x7916 0x030000:0x1002:0x744c
 case_ amd-raid-skip 0 "" "quiet arkadeos.hwcheck=off" "" 0x010400:0x1022:0x7916
 case_ intel-rst-goes 0 "" "" "" 0x010400:0x8086:0xa77f 0x030000:0x8086:0xa7a0
-case_ old-nvidia 0 "nouveau" "" "" 0x030000:0x10de:0x1b80
+case_ old-nvidia-stops 1 "Ez a videokártya nem támogatott: NVIDIA 1b80" "" "" 0x030000:0x10de:0x1b80
+case_ old-amd-stops 1 "Radeon RX 400 vagy újabb" "" "" 0x030000:0x1002:0x67df:radeon
+case_ old-gpu-skip 0 "" "quiet arkadeos.hwcheck=off" "" 0x030000:0x10de:0x1b80
+case_ old-nvidia-next-to-igpu 0 "használaton kívül marad" "" "" 0x030000:0x8086:0x7d55 0x030200:0x10de:0x1c8d
+case_ polaris-goes 0 "" "" "" 0x030000:0x1002:0x67df:amdgpu
+case_ turing-goes 0 "" "" "" 0x030000:0x10de:0x1f08
+case_ vm-goes 0 "" "" "" 0x030000:0x1af4:0x1050
 case_ unknown-wifi 0 "14c3:7927 hálózati chiphez még nincs driver" "" "" 0x028000:0x14c3:0x7927:nodriver
 case_ secure-boot 0 "universalblue" "" secureboot 0x010601:0x8086
 case_ no-tpm 0 "Nincs TPM" "" notpm 0x010601:0x8086

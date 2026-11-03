@@ -469,16 +469,6 @@ class SystemTab(QWidget):
         switch.clicked.connect(lambda: self.call(["arkadeos-update", "channel", self.channel.currentData()]))
         row.addWidget(switch)
         u.addLayout(row)
-        row = QHBoxLayout()
-        row.addWidget(QLabel(tr("Graphics card:", "Videokártya:")))
-        self.gpu = QComboBox()
-        self.gpu.addItem("NVIDIA", "nvidia")
-        self.gpu.addItem(tr("AMD or Intel", "AMD vagy Intel"), "other")
-        row.addWidget(self.gpu, 1)
-        switch = QPushButton(tr("Switch", "Váltás"))
-        switch.clicked.connect(lambda: self.call(["arkadeos-update", "gpu", self.gpu.currentData()]))
-        row.addWidget(switch)
-        u.addLayout(row)
         layout.addWidget(updates)
 
         firmware = QGroupBox(tr("Firmware", "Firmware"))
@@ -551,11 +541,9 @@ class SystemTab(QWidget):
 
     def refresh(self):
         self.version.setText(run("arkadeos-update", "status"))
-        for combo, value in ((self.channel, run("arkadeos-update", "channel")),
-                             (self.gpu, run("arkadeos-update", "gpu"))):
-            index = combo.findData(value)
-            if index >= 0:
-                combo.setCurrentIndex(index)
+        index = self.channel.findData(run("arkadeos-update", "channel"))
+        if index >= 0:
+            self.channel.setCurrentIndex(index)
 
     def reset_system(self):
         if QMessageBox.question(self, "ArkadeOS", tr(

@@ -1,0 +1,10 @@
+#!/usr/bin/bash
+# One image for every graphics card (T080): it carries the NVIDIA driver and
+# its services. Without an NVIDIA card they have nothing to do and would only
+# fail, so for this boot they are masked.
+/usr/libexec/arkadeos/has-nvidia && exit 0
+for unit in nvidia-cdi-refresh.path nvidia-cdi-refresh.service nvidia-powerd.service \
+    nvidia-persistenced.service ublue-nvidia-flatpak-runtime-sync.service \
+    ublue-nvidia-flatpak-runtime-verify.service; do
+    ln -sf /dev/null "$1/${unit}"
+done

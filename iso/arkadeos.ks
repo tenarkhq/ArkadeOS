@@ -1,12 +1,8 @@
 # ArkadeOS installer (T022): Fedora's network installer with this kickstart.
 # The user picks language, disk (also "next to Windows", T023) and account as
-# usual; the system itself is the ArkadeOS image that fits the graphics card,
-# pulled from the registry:
-#   NVIDIA GTX 16xx / RTX 20xx or newer (also next to an Intel/AMD iGPU)
-#                                                  ->  arkadeos-nvidia
-#   AMD or Intel only, or an older NVIDIA card     ->  arkadeos
-#   (NVIDIA's driver needs Turing, device id 0x1e00 and up; older cards run
-#   on the open nouveau driver of the plain image)
+# usual; the system itself is the ArkadeOS image, pulled from the registry. One
+# image fits every supported graphics card (T080): it carries the NVIDIA
+# driver, which runs only where an NVIDIA card is.
 # Boot options override it: arkadeos.image=<name>, arkadeos.tag=<tag>.
 
 # Hardware check before anything is written (T053). A disk mode Linux cannot
@@ -18,7 +14,7 @@ sys=${ARKADEOS_SYSFS:-/sys}
 out=${ARKADEOS_TMP:-/tmp}/arkadeos-hwcheck.txt
 : > "${out}"
 note() { printf '%s\n%s\n\n' "$1" "$2" >> "${out}"; }
-stop=0
+stop=0 old_gpu= good_gpu=0
 grep -qw arkadeos.hwcheck=off "${ARKADEOS_CMDLINE:-/proc/cmdline}" && stop=off
 for dev in "${sys}"/bus/pci/devices/*; do
     [ -f "${dev}/class" ] || continue
@@ -26,9 +22,16 @@ for dev in "${sys}"/bus/pci/devices/*; do
     case "${class}" in
         0x0104*) [ "${vendor}" = 0x1022 ] && [ "${stop}" = 0 ] && stop=1 ;;
         0x03*)
+            # Graphics cards (T080): NVIDIA from Turing (device id 0x1e00),
+            # AMD from Polaris (amdgpu; the installer's kernel gives older
+            # Radeons the radeon driver), Intel and others as they are.
+            drv=$(basename "$(readlink "${dev}/driver" 2>/dev/null)" 2>/dev/null)
             if [ "${vendor}" = 0x10de ] && [ $(( device )) -lt $(( 0x1e00 )) ]; then
-                note "Older NVIDIA card (before GTX 16 / RTX 20): it runs on the open nouveau driver, games are slower than on Windows." \
-                    "Régebbi NVIDIA kártya (GTX 16 / RTX 20 előtti): a nyílt nouveau driverrel megy, a játékok lassabbak, mint Windowson."
+                old_gpu="${old_gpu} NVIDIA ${device#0x}"
+            elif [ "${vendor}" = 0x1002 ] && [ "${drv}" = radeon ]; then
+                old_gpu="${old_gpu} AMD ${device#0x}"
+            else
+                good_gpu=1
             fi
             ;;
         0x0280*|0x0200*)
@@ -39,6 +42,30 @@ for dev in "${sys}"/bus/pci/devices/*; do
             ;;
     esac
 done
+supported="NVIDIA GTX 16 / RTX 20 or newer; AMD Radeon RX 400 or newer, or a Ryzen with Radeon graphics; Intel Arc, or Iris Xe (11th gen Core) or newer."
+supported_hu="NVIDIA GTX 16 / RTX 20 vagy újabb; AMD Radeon RX 400 vagy újabb, vagy Radeon-grafikás Ryzen; Intel Arc, vagy Iris Xe (11. generációs Core) vagy újabb."
+if [ -n "${old_gpu}" ] && [ "${good_gpu}" = 1 ]; then
+    note "Graphics card${old_gpu} is not supported and stays unused; games run on the other graphics. Supported: ${supported}" \
+        "A(z)${old_gpu} videokártya nem támogatott, használaton kívül marad; a játékok a másik grafikán futnak. Támogatott: ${supported_hu}"
+elif [ -n "${old_gpu}" ] && [ "${stop}" = 0 ]; then
+    cat <<MSG
+=====================================================================
+This graphics card is not supported:${old_gpu}
+Ez a videokártya nem támogatott:${old_gpu}
+
+ArkadeOS needs one of these:
+Az ArkadeOS ezek egyikét igényli:
+  ${supported}
+  ${supported_hu}
+
+To install anyway (no graphics acceleration), start the installer with
+the boot option arkadeos.hwcheck=off.
+Ha mégis telepítenéd (grafikus gyorsítás nélkül), indítsd a telepítőt az
+arkadeos.hwcheck=off indítási opcióval.
+=====================================================================
+MSG
+    exit 1
+fi
 if [ "${stop}" = 1 ]; then
     cat <<'MSG'
 =====================================================================
@@ -118,18 +145,7 @@ for arg in $(cat "${ARKADEOS_CMDLINE:-/proc/cmdline}"); do
         arkadeos.image=*) image=${arg#*=} ;;
     esac
 done
-if [ -z "${image}" ]; then
-    image=arkadeos
-    for dev in "${ARKADEOS_SYSFS:-/sys}"/bus/pci/devices/*; do
-        case "$(cat "${dev}/class")" in
-            0x03*)
-                if [ "$(cat "${dev}/vendor")" = 0x10de ] && [ $(( $(cat "${dev}/device") )) -ge $(( 0x1e00 )) ]; then
-                    image=arkadeos-nvidia
-                fi
-                ;;
-        esac
-    done
-fi
+[ -n "${image}" ] || image=arkadeos
 ref="ghcr.io/tenarkhq/${image}:${tag}"
 echo "ArkadeOS image: ${ref}"
 echo "${ref}" > "${ARKADEOS_TMP:-/tmp}/arkadeos-image"

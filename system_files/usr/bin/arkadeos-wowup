@@ -1,6 +1,6 @@
 #!/usr/bin/bash
-# WowUp addon manager (T015). The first start downloads the latest WowUp
-# AppImage from its GitHub releases; WowUp then updates itself. WowUp finds WoW
+# WowUp addon manager (T015). The first start downloads the WowUp AppImage
+# from its GitHub releases; WowUp then updates itself. WowUp finds WoW
 # through Lutris's game folder, so ~/Games (where Battle.net installs, T014)
 # is set as that folder when Lutris has none yet.
 set -euo pipefail
@@ -18,11 +18,19 @@ if ! grep -qs '^ *game_path:' "${lutris}"; then
     fi
 fi
 
+# The first download is a known release, checked against its checksum (T081);
+# from then on WowUp updates itself.
+version=2.24.1
+sha256=664de03af1cf4255586a4b5420c805923c81d5d51ff956d886ea824297cd525f
 if [[ ! -x "${app}" ]]; then
     mkdir -p "${dir}"
-    url=$(curl -fsSL https://api.github.com/repos/WowUp/WowUp/releases/latest |
-        grep -o '"browser_download_url": *"[^"]*\.AppImage"' | grep -o 'https://[^"]*')
-    curl -fL --retry 3 -o "${app}.part" "${url}"
+    curl -fL --retry 3 -o "${app}.part" \
+        "https://github.com/WowUp/WowUp/releases/download/v${version}/WowUp-${version}.AppImage"
+    if ! echo "${sha256}  ${app}.part" | sha256sum -c --quiet -; then
+        rm -f "${app}.part"
+        echo "WowUp download damaged or changed: not started" >&2
+        exit 1
+    fi
     chmod +x "${app}.part"
     mv "${app}.part" "${app}"
 fi

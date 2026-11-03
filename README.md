@@ -1,7 +1,7 @@
 # ArkadeOS
 
 **Fast, gaming-first Linux built on Fedora Atomic.**
-A macOS-style KDE desktop, NVIDIA and AMD images, Steam and Proton, Battle.net, smart power profiles, and atomic updates you can roll back.
+A macOS-style KDE desktop, one image for NVIDIA, AMD and Intel graphics, Steam and Proton, Battle.net, smart power profiles, and atomic updates you can roll back.
 
 > **Status: early development, testing builds only (November 2026).** Not ready for daily use yet. "In testing" means the feature is in the image and checked automatically in a virtual machine on every build; "tested on hardware" means it was also tried on a real gaming laptop. See [Project status](#project-status).
 
@@ -14,7 +14,7 @@ A macOS-style KDE desktop, NVIDIA and AMD images, Steam and Proton, Battle.net, 
 - **Built for games only.** No background indexing, no services you don't need. The kernel, scheduler and power settings are tuned for low latency and high frame rates.
 - **Looks and feels like macOS.** Top bar with a global menu, a centered dock, Spotlight-style search, gestures. From Windows it keeps only what helps: window snapping, Alt+Tab previews, clipboard history.
 - **Can't be broken by an update.** The whole system is one image. A bad update? Reboot and pick the previous one.
-- **Works for everyone.** Separate images for NVIDIA and AMD/Intel graphics. The installer picks the right one for your machine.
+- **One image for every gaming graphics card.** NVIDIA, AMD and Intel: the NVIDIA driver is built in and only runs where an NVIDIA card is. See [Supported graphics cards](#supported-graphics-cards).
 
 ## Features
 
@@ -55,14 +55,17 @@ A macOS-style KDE desktop, NVIDIA and AMD images, Steam and Proton, Battle.net, 
 
 Taken by the automatic VM test of the 2 November 2026 testing build (1280×800 virtual screen).
 
-## Images
+## Supported graphics cards
 
-| Image | For |
+| Maker | Supported |
 |---|---|
-| `arkadeos` | AMD and Intel graphics |
-| `arkadeos-nvidia` | NVIDIA GTX 16xx / RTX 20xx and newer, including hybrid laptops |
+| NVIDIA | GeForce GTX 16 series, RTX 20 series and newer, also in laptops next to the processor's graphics |
+| AMD | Radeon RX 400 / 500 (Polaris) and newer; Ryzen processors with Radeon graphics |
+| Intel | Arc graphics cards; Iris Xe (11th gen Core) and newer built-in graphics |
 
-Older NVIDIA cards (GTX 10xx and earlier) get the `arkadeos` image with the open nouveau driver: they work, but games run slower than on Windows. [Driver coverage](docs/drivers.md) lists which chips work out of the box.
+Older cards (NVIDIA GTX 10 series and earlier, AMD Radeon before the RX 400) are not supported: ArkadeOS is made for gaming, and these cards cannot run today's games. The installer checks the card: it stops when an unsupported card is the only one, and notes it when the machine also has supported graphics.
+
+One image, `arkadeos`, serves every supported card. Machines installed from the former `arkadeos-nvidia` image keep following that name, which gets the same builds. [Driver coverage](docs/drivers.md) lists which other chips work out of the box.
 
 ## Install
 
@@ -71,10 +74,10 @@ Older NVIDIA cards (GTX 10xx and earlier) get the `arkadeos` image with the open
 **Already on Fedora Atomic, Bazzite or another bootc system?** Switch to ArkadeOS. Until the first stable release only the testing channel exists:
 
 ```bash
-sudo bootc switch ghcr.io/tenarkhq/arkadeos-nvidia:testing
+sudo bootc switch ghcr.io/tenarkhq/arkadeos:testing
 ```
 
-Use `arkadeos` instead of `arkadeos-nvidia` for AMD or Intel graphics. Reboot to finish.
+Reboot to finish. The same image works with NVIDIA, AMD and Intel graphics.
 
 **Roll back to the previous version:**
 
@@ -98,12 +101,11 @@ The ArkadeOS Portal does the same from a window, and also switches the channel (
 
 *Updated 2 November 2026.*
 
-**Every build is tested automatically.** Each change to `main` builds both images and boots them in a virtual machine that logs in, opens the apps, switches the looks and profiles, starts a Windows program under Proton, updates and rolls back. A separate test installs ArkadeOS from the ISO onto an encrypted disk and boots the installed system. Latest results:
+**Every build is tested automatically.** Each change to `main` builds the image and boots it in a virtual machine that logs in, opens the apps, switches the looks and profiles, starts a Windows program under Proton, updates and rolls back. A separate test installs ArkadeOS from the ISO onto an encrypted disk and boots the installed system. Latest results:
 
 | Test | Checks | Result |
 |---|---|---|
 | `arkadeos` image in a VM | 159 | ✅ all pass |
-| `arkadeos-nvidia` image in a VM | 159 | ✅ all pass |
 | Optional apps from the Portal | 40 | ✅ all pass |
 | Update from the previous build | 9 | ✅ all pass |
 | Install from the ISO (encryption, TPM unlock, Intel RST, download progress) | 60 | ✅ all pass |

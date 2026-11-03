@@ -61,7 +61,7 @@ jobs:
       matrix:
         image: [arkadeos, arkadeos-nvidia]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6 # v4.1.2
         with:
           cosign-release: v3.1.4
@@ -70,13 +70,15 @@ jobs:
           GITHUB_TOKEN: ${{ github.token }}
           TAG: ${{ needs.pick.outputs.tag }}
         run: |
-          src=ghcr.io/tenarkhq/${{ matrix.image }}
+          # One image (T080): the arkadeos build, also under the former NVIDIA
+          # image's name.
+          from=ghcr.io/tenarkhq/arkadeos src=ghcr.io/tenarkhq/${{ matrix.image }}
           echo "$GITHUB_TOKEN" | skopeo login ghcr.io -u "${{ github.actor }}" --password-stdin
-          digest=$(skopeo inspect --format '{{ .Digest }}' "docker://${src}:${TAG}")
+          digest=$(skopeo inspect --format '{{ .Digest }}' "docker://${from}:${TAG}")
           # Only a signed image becomes stable.
           cosign verify --key cosign.pub "${src}@${digest}" >/dev/null
-          version=$(skopeo inspect --format '{{ index .Labels "org.opencontainers.image.version" }}' "docker://${src}@${digest}")
+          version=$(skopeo inspect --format '{{ index .Labels "org.opencontainers.image.version" }}' "docker://${from}@${digest}")
           for tag in stable stable-${version}; do
-            skopeo copy --preserve-digests "docker://${src}@${digest}" "docker://${src}:${tag}"
+            skopeo copy --preserve-digests "docker://${from}@${digest}" "docker://${src}:${tag}"
           done
           echo "${src}@${digest} → stable, stable-${version}" >> "$GITHUB_STEP_SUMMARY"

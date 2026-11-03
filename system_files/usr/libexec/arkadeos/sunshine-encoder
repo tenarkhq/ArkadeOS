@@ -1,0 +1,16 @@
+#!/usr/bin/bash
+# Sets Sunshine's encoder for the card before it starts (T078), unless the
+# user chose one. Unset, Sunshine tries every encoder at each start, each try a
+# new screen share request (12 in a VM), and now and then the desktop leaves
+# one unanswered: then it waits for good. NVIDIA: NVENC; AMD and Intel:
+# VA-API; else (a VM) the processor.
+conf="${HOME}/.var/app/dev.lizardbyte.app.Sunshine/config/sunshine/sunshine.conf"
+grep -qs '^encoder *=' "${conf}" && exit 0
+encoder=software
+if /usr/libexec/arkadeos/has-nvidia; then
+    encoder=nvenc
+elif grep -qsxE '0x(1002|8086)' /sys/class/drm/renderD*/device/vendor; then
+    encoder=vaapi
+fi
+mkdir -p "$(dirname "${conf}")"
+echo "encoder = ${encoder}" >> "${conf}"

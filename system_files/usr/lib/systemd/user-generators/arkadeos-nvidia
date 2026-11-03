@@ -1,0 +1,5 @@
+#!/usr/bin/bash
+# Without an NVIDIA card the NVIDIA settings loader at login has nothing to
+# load (T080): masked for this session.
+/usr/libexec/arkadeos/has-nvidia && exit 0
+ln -sf /dev/null "$1/app-nvidia\\x2dsettings\\x2dload@autostart.service"

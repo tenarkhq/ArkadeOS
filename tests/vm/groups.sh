@@ -69,7 +69,7 @@ while read -r f; do
         build_files/66-apps.sh | build_files/69-desktop-extras.sh | \
         system_files/usr/bin/arkadeos-portal | system_files/usr/libexec/arkadeos/portal-item | \
         system_files/usr/libexec/arkadeos/apps-* | system_files/usr/libexec/arkadeos/steam-shortcut | \
-        system_files/usr/libexec/arkadeos/ai-desktop | system_files/usr/libexec/arkadeos/sunshine-up | \
+        system_files/usr/libexec/arkadeos/ai-desktop | system_files/usr/libexec/arkadeos/sunshine-up | system_files/usr/libexec/arkadeos/sunshine-encoder | \
         system_files/usr/share/arkadeos/portal/* | system_files/etc/xdg/autostart/* | \
         system_files/usr/bin/arkadeos-airplay | system_files/usr/bin/arkadeos-anticheat | \
         system_files/usr/bin/arkadeos-battlenet | system_files/usr/bin/arkadeos-ea | system_files/usr/bin/arkadeos-ubisoft | \

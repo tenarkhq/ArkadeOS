@@ -30,23 +30,24 @@ env:
 
 jobs:
   build:
-    name: ${{ matrix.image }}
+    name: arkadeos
     # Self-hosted build server. Only main, schedule and manual runs reach it
     # (the base-update branch is started by the prefetch), never pull
     # requests from forks.
     runs-on: [self-hosted, arkadeos-build]
     timeout-minutes: 180
-    strategy:
-      fail-fast: false
-      matrix:
-        image: [arkadeos, arkadeos-nvidia]
+    env:
+      # One image for every graphics card (T080). It also goes out under the
+      # former NVIDIA image's name, which machines installed before follow.
+      IMAGE: arkadeos
+      ALSO: arkadeos-nvidia
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Version
         id: ver
         run: |
-          base=$(awk -v i=${{ matrix.image }} '$1 == i { print $2 }' bases.txt)
+          base=$(awk -v i="${IMAGE}" '$1 == i { print $2 }' bases.txt)
           test -n "$base"
           podman pull -q "$base" >/dev/null
           base_version=$(podman image inspect --format '{{ index .Config.Labels "org.opencontainers.image.version" }}' "$base")
@@ -57,9 +58,22 @@ jobs:
             https://api.github.com/repos/GloriousEggroll/proton-ge-custom/releases/latest | jq -r .tag_name)
           echo "proton_ge=${proton_ge}" >> "$GITHUB_OUTPUT"
           echo "version=${version}" >> "$GITHUB_OUTPUT"
-          echo "${{ matrix.image }} ${version} on ${base} (${base_version}), ${proton_ge}" >> "$GITHUB_STEP_SUMMARY"
+          echo "${IMAGE} ${version} on ${base} (${base_version}), ${proton_ge}" >> "$GITHUB_STEP_SUMMARY"
+          # The nightly build adds nothing when this commit is already built on
+          # the same base and Proton-GE: no new version for the machines to
+          # download (its VM test still runs every part, vm-test.yml).
+          if [ "${GITHUB_EVENT_NAME}" = schedule ]; then
+            labels=$(skopeo inspect --no-tags "docker://${REGISTRY}/${IMAGE}:build-${GITHUB_SHA}" 2>/dev/null | jq -c '.Labels // {}' || true)
+            [ -n "${labels}" ] || labels='{}'
+            if [ "$(jq -r '.["org.arkadeos.base"] // ""' <<< "${labels}")" = "${base}" ] &&
+              [ "$(jq -r '.["org.arkadeos.proton-ge"] // ""' <<< "${labels}")" = "${proton_ge}" ]; then
+              echo "skip=true" >> "$GITHUB_OUTPUT"
+              echo "Nothing changed since build-${GITHUB_SHA}: no new build." >> "$GITHUB_STEP_SUMMARY"
+            fi
+          fi
 
       - name: Build
+        if: steps.ver.outputs.skip != 'true'
         env:
           # Signs the drivers built in the image (Secure Boot); without it they
           # are built unsigned.
@@ -69,11 +83,8 @@ jobs:
           [ -n "${MOK_KEY}" ] && secret=(--secret id=mok,env=MOK_KEY)
           podman build "${secret[@]}" \
             --build-arg BASE_IMAGE=${{ steps.ver.outputs.base }} \
-            --build-arg IMAGE_NAME=${{ matrix.image }} \
+            --build-arg IMAGE_NAME=${IMAGE} \
             --build-arg PROTON_GE_VERSION=${{ steps.ver.outputs.proton_ge }} \
-            --build-arg PROTON_GE_SCRIPT=${{ hashFiles('build_files/proton-ge.sh') }} \
-            --build-arg WHITESUR_SCRIPT=${{ hashFiles('build_files/whitesur.sh') }} \
-            --build-arg SOLID_SCRIPT=${{ hashFiles('build_files/solid.sh', 'build_files/patches/**') }} \
             --build-arg IMAGE_VERSION=${{ steps.ver.outputs.version }} \
             --label org.opencontainers.image.title=ArkadeOS \
             --label org.opencontainers.image.description="Fast, gaming-first Linux built on Fedora Atomic" \
@@ -81,10 +92,11 @@ jobs:
             --label org.opencontainers.image.licenses=Apache-2.0 \
             --label org.opencontainers.image.version=${{ steps.ver.outputs.version }} \
             --label org.opencontainers.image.revision=${{ github.sha }} \
-            -t localhost/${{ matrix.image }}:build \
+            -t localhost/${IMAGE}:build \
             -f Containerfile .
 
       - name: Rechunk
+        if: steps.ver.outputs.skip != 'true'
         # Many small layers, one per package group, so an update downloads only
         # what changed (T076). The image's own rpm-ostree does it, on the built
         # tree. Keeping the previous build's layer plan (--previous-build) would
@@ -93,14 +105,14 @@ jobs:
         # lost per image: it is used again with a fixed rpm-ostree
         # (REUSE_PLAN=1).
         run: |
-          out="${RUNNER_TEMP}/chunked-${{ matrix.image }}"
+          out="${RUNNER_TEMP}/chunked-${IMAGE}"
           rechunk() {
             rm -rf "${out}"
             mkdir -p "${out}/blobs/sha256"
             echo '{"imageLayoutVersion":"1.0.0"}' > "${out}/oci-layout"
             echo '{"schemaVersion":2,"manifests":[]}' > "${out}/index.json"
             podman unshare bash -euo pipefail -c '
-              image=localhost/${{ matrix.image }}:build
+              image=localhost/${IMAGE}:build
               root=$(podman image mount "${image}")
               trap "podman image unmount ${image} >/dev/null" EXIT
               podman run --rm --privileged --security-opt label=disable \
@@ -113,11 +125,13 @@ jobs:
                   -l org.opencontainers.image.licenses=Apache-2.0 \
                   -l org.opencontainers.image.version=${{ steps.ver.outputs.version }} \
                   -l org.opencontainers.image.revision=${{ github.sha }} \
-                  --output oci:/out:${{ matrix.image }}
+                  -l org.arkadeos.base=${{ steps.ver.outputs.base }} \
+                  -l org.arkadeos.proton-ge=${{ steps.ver.outputs.proton_ge }} \
+                  --output oci:/out:${IMAGE}
             ' _ "${out}" "$@"
           }
-          if [ "${REUSE_PLAN:-0}" = 1 ] && skopeo inspect --raw "docker://${REGISTRY}/${{ matrix.image }}:testing" >/dev/null 2>&1 &&
-            rechunk --previous-build "docker://${REGISTRY}/${{ matrix.image }}:testing"; then
+          if [ "${REUSE_PLAN:-0}" = 1 ] && skopeo inspect --raw "docker://${REGISTRY}/${IMAGE}:testing" >/dev/null 2>&1 &&
+            rechunk --previous-build "docker://${REGISTRY}/${IMAGE}:testing"; then
             echo "layer plan: the previous build's" >> "$GITHUB_STEP_SUMMARY"
           else
             rechunk
@@ -127,50 +141,59 @@ jobs:
 
       - name: Push
         id: push
+        if: steps.ver.outputs.skip != 'true'
         env:
           GITHUB_TOKEN: ${{ github.token }}
         run: |
           echo "$GITHUB_TOKEN" | podman login ghcr.io -u "${{ github.actor }}" --password-stdin
-          dest=${REGISTRY}/${{ matrix.image }}
-          # main is the testing channel; another branch (base-update) only gets
-          # its own tag for its VM test.
+          dest=${REGISTRY}/${IMAGE}
+          # main: the build's own tags; the testing channel moves to it only
+          # after its VM test passed (vm-test.yml). Another branch
+          # (base-update) only gets its own tag for its VM test.
           if [ "${GITHUB_REF_NAME}" = main ]; then
-            first=testing-${{ steps.ver.outputs.version }} more="testing sha-${GITHUB_SHA::7}"
+            first=build-${GITHUB_SHA} more="testing-${{ steps.ver.outputs.version }} sha-${GITHUB_SHA::7}"
           else
             first=branch-${GITHUB_SHA} more=
           fi
           skopeo copy --retry-times 3 --digestfile digest \
-            "oci:${RUNNER_TEMP}/chunked-${{ matrix.image }}:${{ matrix.image }}" docker://${dest}:${first}
+            "oci:${RUNNER_TEMP}/chunked-${IMAGE}:${IMAGE}" docker://${dest}:${first}
           digest=$(cat digest)
           for tag in ${more}; do
             # A new GHCR package can take a few seconds to serve its first manifest.
             skopeo copy --retry-times 5 --retry-delay 10s --preserve-digests docker://${dest}@${digest} docker://${dest}:${tag}
           done
+          for tag in ${first} ${more}; do
+            skopeo copy --retry-times 5 --retry-delay 10s --preserve-digests docker://${dest}@${digest} docker://${REGISTRY}/${ALSO}:${tag}
+          done
           echo "digest=${digest}" >> "$GITHUB_OUTPUT"
-          echo "pushed ${dest}@${digest}: ${first} ${more}" >> "$GITHUB_STEP_SUMMARY"
+          echo "pushed ${dest}@${digest} (also ${ALSO}): ${first} ${more}" >> "$GITHUB_STEP_SUMMARY"
 
       - uses: sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6 # v4.1.2
+        if: steps.ver.outputs.skip != 'true'
         with:
           cosign-release: v3.1.4
 
       - name: Sign
+        if: steps.ver.outputs.skip != 'true'
         env:
           COSIGN_PRIVATE_KEY: ${{ secrets.SIGNING_SECRET }}
           COSIGN_PASSWORD: ""
           GITHUB_TOKEN: ${{ github.token }}
         run: |
-          cosign sign -y --key env://COSIGN_PRIVATE_KEY \
-            --new-bundle-format=false --use-signing-config=false \
-            --registry-username "${{ github.actor }}" --registry-password "$GITHUB_TOKEN" \
-            ${REGISTRY}/${{ matrix.image }}@${{ steps.push.outputs.digest }}
-          cosign verify --key cosign.pub ${REGISTRY}/${{ matrix.image }}@${{ steps.push.outputs.digest }} >/dev/null
+          for name in "${IMAGE}" "${ALSO}"; do
+            cosign sign -y --key env://COSIGN_PRIVATE_KEY \
+              --new-bundle-format=false --use-signing-config=false \
+              --registry-username "${{ github.actor }}" --registry-password "$GITHUB_TOKEN" \
+              ${REGISTRY}/${name}@${{ steps.push.outputs.digest }}
+            cosign verify --key cosign.pub ${REGISTRY}/${name}@${{ steps.push.outputs.digest }} >/dev/null
+          done
 
       - name: Clean up
         if: always()
         run: |
           podman logout ghcr.io || true
-          podman rmi -f localhost/${{ matrix.image }}:build || true
-          rm -rf "${RUNNER_TEMP}/chunked-${{ matrix.image }}"
+          podman rmi -f localhost/${IMAGE}:build || true
+          rm -rf "${RUNNER_TEMP}/chunked-${IMAGE}"
           # Keeps recent build layers as cache for the next build.
           podman image prune -f --filter until=72h
 

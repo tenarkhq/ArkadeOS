@@ -1,0 +1,10 @@
+#!/usr/bin/bash
+# Succeeds when the machine has an NVIDIA graphics card the driver supports
+# (T080): GTX 16 / RTX 20 and newer, device id 0x1e00 and up, also a laptop's
+# second GPU. One image carries the NVIDIA driver for every machine; without
+# such a card its services and apps' NVIDIA paths stay off.
+for dev in "${ARKADEOS_SYSFS:-/sys}"/bus/pci/devices/*; do
+    [[ "$(cat "${dev}/class" 2>/dev/null)" == 0x03* && "$(cat "${dev}/vendor" 2>/dev/null)" == 0x10de ]] || continue
+    (( $(cat "${dev}/device") >= 0x1e00 )) && exit 0
+done
+exit 1

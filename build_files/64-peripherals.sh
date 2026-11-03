@@ -6,8 +6,8 @@
 # (macros) comes with the base image.
 set -euo pipefail
 
-dnf5 -y install --setopt=install_weak_deps=False \
-    openrgb piper libratbag-ratbagd solaar solaar-udev liquidctl
+# The packages come from packages/install.sh.
+rpm -q openrgb piper libratbag-ratbagd solaar solaar-udev liquidctl coolercontrol coolercontrold >/dev/null
 # ddcutil comes from the base image (Terra's build).
 command -v ddcutil
 rpm -q input-remapper
@@ -20,10 +20,6 @@ rm -f /etc/xdg/autostart/solaar.desktop
 # T052: CoolerControl for fan curves and AIO coolers on desktops. Its daemon
 # runs only on machines without a battery (arkadeos-desktop-setup), laptops
 # keep their firmware's (or asusctl's) fan control.
-dnf5 -y copr enable codifryed/CoolerControl
-dnf5 -y install --setopt=install_weak_deps=False coolercontrol coolercontrold
-dnf5 -y copr disable codifryed/CoolerControl
-rm -f /etc/yum.repos.d/_copr:copr.fedorainfracloud.org:codifryed:CoolerControl.repo
 systemctl disable coolercontrold.service
 test -f /usr/lib/systemd/system/coolercontrold.service
 systemctl enable arkadeos-desktop-setup.service

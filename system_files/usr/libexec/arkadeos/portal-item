@@ -33,7 +33,7 @@ in_terminal() {  # installers that ask questions run where the user sees them
 # The model that fits the graphics card's memory (T019).
 ollama_model() {
     local mib=0 v
-    if command -v nvidia-smi &>/dev/null; then
+    if /usr/libexec/arkadeos/has-nvidia; then
         mib=$(nvidia-smi --query-gpu=memory.total --format=csv,noheader,nounits 2>/dev/null | sort -n | tail -1)
     fi
     for v in /sys/class/drm/card*/device/mem_info_vram_total; do
@@ -111,7 +111,7 @@ case "${kind}:${action}" in
         mkdir -p "${quadlets}"
         # The card decides the build: NVIDIA through CDI, AMD on ROCm, else CPU.
         image=docker.io/ollama/ollama:latest devices=
-        if command -v nvidia-smi &>/dev/null; then
+        if /usr/libexec/arkadeos/has-nvidia; then
             devices="AddDevice=nvidia.com/gpu=all"
         elif [[ -e /dev/kfd ]] && grep -qsx 0x1002 /sys/class/drm/card*/device/vendor; then
             image=docker.io/ollama/ollama:rocm devices='AddDevice=/dev/kfd\nAddDevice=/dev/dri'

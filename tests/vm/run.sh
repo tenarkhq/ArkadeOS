@@ -158,6 +158,12 @@ check() {
 check "Portal choice screen shows the desktop's look" "${session} journalctl --user -b --no-pager |
     grep -oE 'arkadeos-portal: (opens with|follows) the app style .*' | tail -1 |
     grep -qE \"^arkadeos-portal: (opens with|follows) the app style \$(cat /tmp/portal-closed-style)\$\""
+# One image for every graphics card (T080): without an NVIDIA card (the VM)
+# the NVIDIA services and the settings loader at login are masked, none failed.
+check "no NVIDIA service without an NVIDIA card" "! systemctl --failed --no-legend --plain | grep -qi nvidia &&
+    for u in nvidia-cdi-refresh.path nvidia-cdi-refresh.service nvidia-powerd.service ublue-nvidia-flatpak-runtime-sync.service; do
+        test \"\$(systemctl show -p LoadState --value \$u)\" = masked || exit 1; done &&
+    test \"\$(${session} systemctl --user show -p LoadState --value 'app-nvidia\\x2dsettings\\x2dload@autostart.service')\" = masked"
 # What switched the look at the first login, for comparing runs.
 ssh_vm "${session} journalctl --user -b --no-pager | grep -E 'arkadeos-portal:|session-setup: Kvantum|plasma-apply-lookandfeel|knighttime|lookandfeel'" > "${out}/look-journal.txt" 2>&1 || true
 
@@ -675,7 +681,7 @@ check "Portal: AI pack not installed by default" "test \$(${portal} ollama statu
 check "Portal: first-start choice saved" "/usr/libexec/arkadeos/apps-choose discord nonsense vlc &&
     test \"\$(cat /etc/arkadeos/apps)\" = \"\$(printf 'discord\\nvlc')\""
 check "Portal: first-boot apps installed once, never again" "grep -qx vlc /var/lib/arkadeos/apps-done"
-check "Portal: channel and graphics image" "test \$(arkadeos-update channel) = test && test \$(arkadeos-update gpu) = other"
+check "Portal: channel" "test \$(arkadeos-update channel) = test"
 check "Portal: desktop defaults restored" "runuser -u arkade -- sh -c 'rm -rf /tmp/rt && mkdir -p /tmp/rt/data &&
     cp -r /home/arkade/.config /tmp/rt/config &&
     XDG_CONFIG_HOME=/tmp/rt/config XDG_DATA_HOME=/tmp/rt/data /usr/libexec/arkadeos/reset-desktop' &&

@@ -27,8 +27,12 @@ jobs:
       actions: read
     outputs:
       groups: ${{ steps.parts.outputs.groups }}
+      half1: ${{ steps.parts.outputs.half1 }}
+      half2: ${{ steps.parts.outputs.half2 }}
+      skip: ${{ steps.parts.outputs.skip }}
+      tag: ${{ steps.parts.outputs.tag }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
           ref: ${{ github.event.workflow_run.head_sha || github.sha }}
@@ -37,8 +41,24 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           EVENT: ${{ github.event.workflow_run.event || github.event_name }}
+          # The tested build: a main build's own tag (build.yml), or the one
+          # given by hand.
+          TAG: ${{ inputs.tag || format('build-{0}', github.event.workflow_run.head_sha) }}
         run: |
+          echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
           groups=all
+          if [ "${EVENT}" = schedule ]; then
+            # A nightly run without a new build (build.yml): nothing to test
+            # again when this commit already passed every part.
+            for id in $(gh api "repos/${GITHUB_REPOSITORY}/actions/workflows/vm-test.yml/runs?status=success&head_sha=$(git rev-parse HEAD)" --jq '.workflow_runs[].id'); do
+              if gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${id}/jobs" --jq '.jobs[].name' | grep -q ' · all$' &&
+                [ "$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${id}" --jq .created_at)" \> "$(skopeo inspect --no-tags "docker://ghcr.io/tenarkhq/arkadeos:${TAG}" | jq -r .Created)" ]; then
+                echo "skip=true" >> "$GITHUB_OUTPUT"
+                echo "This build already passed every part." >> "$GITHUB_STEP_SUMMARY"
+                exit 0
+              fi
+            done
+          fi
           if [ "${EVENT}" = push ]; then
             # The changes since the newest commit that passed every part.
             from=
@@ -55,32 +75,45 @@ jobs:
           fi
           echo "parts: ${groups}" >> "$GITHUB_STEP_SUMMARY"
           echo "groups=${groups}" >> "$GITHUB_OUTPUT"
+          # The main run is split over two VMs that run side by side; the base
+          # (boot, login, desktop, security) runs on both.
+          half() {
+            local out= g
+            for g in $1; do
+              [[ ",${groups}," == *,all,* || ",${groups}," == *",${g},"* ]] && out=${out:+${out},}${g}
+            done
+            echo "${out:-none}"
+          }
+          echo "half1=$(half 'look keys power games')" >> "$GITHUB_OUTPUT"
+          echo "half2=$(half 'apps gamemode update')" >> "$GITHUB_OUTPUT"
 
   vm-test:
     # The parts in the name: promote.yml takes a build to stable only after a
     # run of every part (" · all").
-    name: ${{ matrix.image }}${{ matrix.suite == 'choices' && ' choices' || '' }} · ${{ needs.scope.outputs.groups }}
+    name: arkadeos${{ matrix.suite == 'choices' && ' choices' || format(' {0}/2', matrix.half) }} · ${{ needs.scope.outputs.groups }}
     needs: scope
+    if: needs.scope.outputs.skip != 'true'
     # GitHub-hosted: these machines have KVM, the build server does not.
     runs-on: ubuntu-24.04
     timeout-minutes: ${{ matrix.suite == 'choices' && 90 || 60 }}
     strategy:
       fail-fast: false
       matrix:
-        # run: the desktop and everything in the image, on both images.
-        # choices: the parts picked in the Portal (T019, T020, T035), installed
-        # and tried; one image is enough, the downloads are the same.
+        # run: the desktop and everything in the image, its parts in two
+        # halves on two VMs. choices: the parts picked in the Portal (T019,
+        # T020, T035), installed and tried.
         include:
-          - { image: arkadeos, suite: run }
-          - { image: arkadeos-nvidia, suite: run }
-          - { image: arkadeos, suite: choices }
+          - { suite: run, half: 1 }
+          - { suite: run, half: 2 }
+          - { suite: choices }
     env:
-      IMAGE: ghcr.io/tenarkhq/${{ matrix.image }}:${{ inputs.tag || 'testing' }}
-      TEST_GROUPS: ${{ needs.scope.outputs.groups }}
-      # The Portal-picked parts only when the changes reach them.
-      NEEDED: ${{ matrix.suite == 'run' || contains(format(',{0},', needs.scope.outputs.groups), ',all,') || contains(format(',{0},', needs.scope.outputs.groups), ',choices,') }}
+      IMAGE: ghcr.io/tenarkhq/arkadeos:${{ needs.scope.outputs.tag }}
+      TEST_GROUPS: ${{ matrix.half == 2 && needs.scope.outputs.half2 || matrix.half == 1 && needs.scope.outputs.half1 || needs.scope.outputs.groups }}
+      # The second half and the Portal-picked parts only when the changes
+      # reach them; the first half always (the base).
+      NEEDED: ${{ matrix.half == 1 || (matrix.half == 2 && needs.scope.outputs.half2 != 'none') || (matrix.suite == 'choices' && (contains(format(',{0},', needs.scope.outputs.groups), ',all,') || contains(format(',{0},', needs.scope.outputs.groups), ',choices,'))) }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         if: env.NEEDED == 'true'
 
       - name: KVM
@@ -96,10 +129,13 @@ jobs:
 
       - name: Room on the disk
         if: env.NEEDED == 'true'
-        # The image unpacks to well over 10 GB; some runners have less free
-        # space than that until their unused SDKs are gone.
+        # The image unpacks to well over 10 GB and the VM disk takes about as
+        # much: the unused SDKs go only when the runner has less than 80 GB
+        # free (it took two minutes; runners now have over 100 GB).
         run: |
-          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache /usr/local/share/boost
+          if [ "$(df --output=avail -BG / | tail -1 | tr -dc 0-9)" -lt 80 ]; then
+            sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache /usr/local/share/boost
+          fi
           df -h / /mnt
 
       - name: Tools
@@ -130,7 +166,7 @@ jobs:
         if: env.NEEDED == 'true'
         run: |
           start=$(date +%s)
-          sudo podman run -d --name registry -p 127.0.0.1:5000:5000 docker.io/library/registry:2
+          sudo podman run -d --name registry -p 127.0.0.1:5000:5000 docker.io/library/registry:2@sha256:a3d8aaa63ed8681a604f1dea0aa03f100d5895b6a58ace528858a7b332415373
           sudo podman push -q --tls-verify=false localhost/vm-test 127.0.0.1:5000/arkadeos:test
           echo "registry push: $(( $(date +%s) - start )) s" >> "$GITHUB_STEP_SUMMARY"
 
@@ -164,9 +200,9 @@ jobs:
 
       - name: Results
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: vm-test-${{ matrix.image }}${{ matrix.suite == 'choices' && '-choices' || '' }}
+          name: vm-test-arkadeos${{ matrix.suite == 'choices' && '-choices' || format('-{0}', matrix.half) }}
           path: vm-out/
           if-no-files-found: ignore
 
@@ -175,14 +211,14 @@ jobs:
   update-path:
     name: update path
     needs: scope
-    if: contains(format(',{0},', needs.scope.outputs.groups), ',all,') || contains(format(',{0},', needs.scope.outputs.groups), ',update-path,')
+    if: needs.scope.outputs.skip != 'true' && (contains(format(',{0},', needs.scope.outputs.groups), ',all,') || contains(format(',{0},', needs.scope.outputs.groups), ',update-path,'))
     runs-on: ubuntu-24.04
     timeout-minutes: 60
     env:
       REPO: ghcr.io/tenarkhq/arkadeos
-      TAG: ${{ inputs.tag || 'testing' }}
+      TAG: ${{ needs.scope.outputs.tag }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: KVM
         run: |
@@ -193,10 +229,13 @@ jobs:
           test -w /dev/kvm || { echo "no KVM on this runner" >&2; exit 1; }
 
       - name: Room on the disk
-        # The image unpacks to well over 10 GB; some runners have less free
-        # space than that until their unused SDKs are gone.
+        # The image unpacks to well over 10 GB and the VM disk takes about as
+        # much: the unused SDKs go only when the runner has less than 80 GB
+        # free (it took two minutes; runners now have over 100 GB).
         run: |
-          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache /usr/local/share/boost
+          if [ "$(df --output=avail -BG / | tail -1 | tr -dc 0-9)" -lt 80 ]; then
+            sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache /usr/local/share/boost
+          fi
           df -h / /mnt
 
       - name: Tools
@@ -229,7 +268,7 @@ jobs:
             printf '%s\n' "FROM $2" 'RUN systemctl enable sshd.service && mkdir -p /etc/containers/registries.conf.d && printf "[[registry]]\nlocation = \"%s\"\ninsecure = true\n" 127.0.0.1:5000 10.0.2.2:5000 > /etc/containers/registries.conf.d/50-vm-test.conf' |
               sudo podman build -q -t "localhost/vm-$1" -f - .
           done
-          sudo podman run -d --name registry -p 127.0.0.1:5000:5000 docker.io/library/registry:2
+          sudo podman run -d --name registry -p 127.0.0.1:5000:5000 docker.io/library/registry:2@sha256:a3d8aaa63ed8681a604f1dea0aa03f100d5895b6a58ace528858a7b332415373
           sudo podman push -q --tls-verify=false localhost/vm-old 127.0.0.1:5000/arkadeos:test
           sudo podman push -q --tls-verify=false localhost/vm-old "127.0.0.1:5000/arkadeos:${previous}"
 
@@ -250,11 +289,37 @@ jobs:
 
       - name: Results
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: vm-test-update-path
           path: vm-out/
           if-no-files-found: ignore
+
+  # The testing channel moves to a main build only once its VM test passed
+  # (T081): machines on testing never get a build that failed it.
+  testing:
+    name: testing channel
+    needs: [scope, vm-test, update-path]
+    if: >-
+      always() && needs.scope.outputs.skip != 'true' && startsWith(needs.scope.outputs.tag, 'build-') &&
+      needs.vm-test.result == 'success' && (needs.update-path.result == 'success' || needs.update-path.result == 'skipped')
+    runs-on: ubuntu-latest
+    permissions:
+      packages: write
+    steps:
+      - name: Move the testing tag
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          TAG: ${{ needs.scope.outputs.tag }}
+        run: |
+          echo "$GITHUB_TOKEN" | skopeo login ghcr.io -u "${{ github.actor }}" --password-stdin
+          digest=$(skopeo inspect --no-tags --format '{{ .Digest }}' "docker://ghcr.io/tenarkhq/arkadeos:${TAG}")
+          # The former NVIDIA image's name gets the same build (T080).
+          for name in arkadeos arkadeos-nvidia; do
+            skopeo copy --retry-times 5 --retry-delay 10s --preserve-digests \
+              "docker://ghcr.io/tenarkhq/arkadeos@${digest}" "docker://ghcr.io/tenarkhq/${name}:testing"
+          done
+          echo "testing → ${TAG} (${digest})" >> "$GITHUB_STEP_SUMMARY"
 
   # T048: a base update that passed every test goes to main, and main is built
   # at once as the next testing image.
@@ -268,7 +333,7 @@ jobs:
       pull-requests: write
       actions: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
       - name: Merge and build

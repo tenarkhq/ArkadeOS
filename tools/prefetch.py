@@ -12,7 +12,7 @@ from pathlib import Path
 
 CACHE = Path(os.environ.get("ARKADEOS_CACHE", Path.home() / "arkadeos-cache"))
 TOKEN = os.environ.get("GITHUB_TOKEN", "")
-BASE = "ghcr.io/ublue-os/bazzite:stable"
+BASE = "ghcr.io/ublue-os/bazzite-nvidia-open:stable"
 
 # name: (repo, [asset regexes]); {fc} = Fedora major of the base image
 RELEASES = {
