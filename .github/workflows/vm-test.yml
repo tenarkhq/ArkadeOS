@@ -96,6 +96,10 @@ jobs:
     # GitHub-hosted: these machines have KVM, the build server does not.
     runs-on: ubuntu-24.04
     timeout-minutes: ${{ matrix.suite == 'choices' && 90 || 60 }}
+    permissions:
+      contents: read
+      packages: read
+      actions: write  # stops the whole run at a failure
     strategy:
       fail-fast: false
       matrix:
@@ -135,6 +139,14 @@ jobs:
         run: |
           df -h / /mnt
           sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache /usr/local/share/boost
+          # Some runners have no separate /mnt disk: there the image, the
+          # local registry and the VM disk share / (11-03 evening: 35 GB was
+          # not enough). Everything else unused goes too.
+          sudo swapoff -a && sudo rm -f /mnt/swapfile /swapfile
+          sudo docker system prune -af -q >/dev/null || true
+          sudo rm -rf /usr/local/.ghcup /usr/share/swift /usr/lib/jvm /usr/local/share/powershell \
+            /usr/local/share/chromium /usr/local/lib/node_modules /opt/az /opt/microsoft /opt/google \
+            /usr/share/miniconda /usr/local/julia* /opt/pipx
           df -h / /mnt
 
       - name: Tools
@@ -203,6 +215,14 @@ jobs:
           tests/vm/choices.sh /mnt/disk.raw vm-key vm-out
           echo "choices: $(( $(date +%s) - start )) s" >> "$GITHUB_STEP_SUMMARY"
 
+      - name: Stop the whole run
+        # Roland, 2026-11-03: a failed part fails the run; the other parts
+        # need not run to the end.
+        if: failure()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh run cancel ${{ github.run_id }} --repo ${{ github.repository }}
+
       - name: Results
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
@@ -219,6 +239,10 @@ jobs:
     if: needs.scope.outputs.skip != 'true' && (contains(format(',{0},', needs.scope.outputs.groups), ',all,') || contains(format(',{0},', needs.scope.outputs.groups), ',update-path,'))
     runs-on: ubuntu-24.04
     timeout-minutes: 60
+    permissions:
+      contents: read
+      packages: read
+      actions: write  # stops the whole run at a failure
     env:
       REPO: ghcr.io/tenarkhq/arkadeos
       TAG: ${{ needs.scope.outputs.tag }}
@@ -240,6 +264,14 @@ jobs:
         run: |
           df -h / /mnt
           sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache /usr/local/share/boost
+          # Some runners have no separate /mnt disk: there the image, the
+          # local registry and the VM disk share / (11-03 evening: 35 GB was
+          # not enough). Everything else unused goes too.
+          sudo swapoff -a && sudo rm -f /mnt/swapfile /swapfile
+          sudo docker system prune -af -q >/dev/null || true
+          sudo rm -rf /usr/local/.ghcup /usr/share/swift /usr/lib/jvm /usr/local/share/powershell \
+            /usr/local/share/chromium /usr/local/lib/node_modules /opt/az /opt/microsoft /opt/google \
+            /usr/share/miniconda /usr/local/julia* /opt/pipx
           df -h / /mnt
 
       - name: Tools
@@ -290,6 +322,14 @@ jobs:
           tests/vm/update-path.sh /mnt/disk.raw vm-key vm-out \
             "sudo podman push -q --tls-verify=false localhost/vm-new 127.0.0.1:5000/arkadeos:test" \
             "${{ steps.builds.outputs.previous }}"
+
+      - name: Stop the whole run
+        # Roland, 2026-11-03: a failed part fails the run; the other parts
+        # need not run to the end.
+        if: failure()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh run cancel ${{ github.run_id }} --repo ${{ github.repository }}
 
       - name: Results
         if: always()
