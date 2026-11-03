@@ -8,9 +8,11 @@ remove=(
     # Steam Deck parts of the desktop image
     jupiter-sd-mounting-btrfs
     steamdeck-kde-presets-desktop
-    # Android container
+    # Android container (the NVIDIA base names it waydroid-nvidia)
     waydroid
     waydroid-selinux
+    waydroid-nvidia
+    waydroid-nvidia-selinux
     # ROM file previews
     rom-properties
     rom-properties-common
@@ -37,6 +39,9 @@ remove=(
 )
 # Its start at the first login comes with every new user's files.
 rm -f /etc/skel/.config/autostart/bazzite-portal.desktop
+# Bazzite's news as notifications at every login (Steam Deck images, Bazzite
+# releases): they are not about ArkadeOS.
+rm -f /etc/xdg/autostart/bazzite-announcement.desktop
 
 installed=()
 for pkg in "${remove[@]}"; do

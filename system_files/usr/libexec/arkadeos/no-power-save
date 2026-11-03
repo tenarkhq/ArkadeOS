@@ -6,7 +6,8 @@
 #   no-power-save start|stop
 #   Wi-Fi power save off (no ping spikes), Ethernet EEE off, PCIe link power
 #   management (ASPM) off, every PCI and USB device kept awake (runtime power
-#   management off), SATA links at full power, the sound chip never sleeps.
+#   management off), SATA links at full power, the sound chip never sleeps,
+#   Intel's low-power daemon (intel_lpmd, moves work to the E-cores) stopped.
 saved=/run/arkadeos/no-power-save.saved
 sys=${ARKADEOS_SYS:-/sys}  # a stand-in tree in the VM test
 
@@ -29,6 +30,10 @@ start() {
     done
     put "${sys}/module/snd_hda_intel/parameters/power_save" 0
     [[ -n "${ARKADEOS_SYS:-}" ]] && return
+    if systemctl is-active --quiet intel_lpmd.service; then
+        grep -qs "^unit:intel_lpmd.service " "${saved}" || echo "unit:intel_lpmd.service on" >> "${saved}"
+        systemctl stop intel_lpmd.service
+    fi
     for dev in $(iw dev 2>/dev/null | awk '$1 == "Interface" {print $2}'); do
         grep -qs "^wifi:${dev} " "${saved}" ||
             echo "wifi:${dev} $(iw dev "${dev}" get power_save | awk '{print $NF}')" >> "${saved}"
@@ -47,6 +52,8 @@ stop() {
     while read -r f v; do
         if [[ "${f}" == wifi:* ]]; then
             iw dev "${f#wifi:}" set power_save "${v}" </dev/null 2>/dev/null || true
+        elif [[ "${f}" == unit:* ]]; then
+            systemctl start --no-block "${f#unit:}" 2>/dev/null || true
         elif [[ "${f}" == eee:* ]]; then
             ethtool --set-eee "${f#eee:}" eee "${v}" 2>/dev/null || true
         else

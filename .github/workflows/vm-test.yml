@@ -130,12 +130,11 @@ jobs:
       - name: Room on the disk
         if: env.NEEDED == 'true'
         # The image unpacks to well over 10 GB and the VM disk takes about as
-        # much: the unused SDKs go only when the runner has less than 80 GB
-        # free (it took two minutes; runners now have over 100 GB).
+        # much: the unused SDKs always go (a runner with 108 GB free still ran
+        # out of room on 11-03 without it).
         run: |
-          if [ "$(df --output=avail -BG / | tail -1 | tr -dc 0-9)" -lt 80 ]; then
-            sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache /usr/local/share/boost
-          fi
+          df -h / /mnt
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache /usr/local/share/boost
           df -h / /mnt
 
       - name: Tools
@@ -230,12 +229,11 @@ jobs:
 
       - name: Room on the disk
         # The image unpacks to well over 10 GB and the VM disk takes about as
-        # much: the unused SDKs go only when the runner has less than 80 GB
-        # free (it took two minutes; runners now have over 100 GB).
+        # much: the unused SDKs always go (a runner with 108 GB free still ran
+        # out of room on 11-03 without it).
         run: |
-          if [ "$(df --output=avail -BG / | tail -1 | tr -dc 0-9)" -lt 80 ]; then
-            sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache /usr/local/share/boost
-          fi
+          df -h / /mnt
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache /usr/local/share/boost
           df -h / /mnt
 
       - name: Tools

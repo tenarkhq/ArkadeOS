@@ -703,6 +703,11 @@ ssh_vm 'journalctl -b -u arkadeos-windows-entry --no-pager; lsblk -fp; cat /boot
 # Bazzite's own welcome window does not open: the ArkadeOS Portal does its job.
 check "no Bazzite Portal" '! rpm -q bazzite-portal && ! test -e /home/arkade/.config/autostart/bazzite-portal.desktop &&
     ! pgrep -f "yafti_gt[k]"'
+# Bazzite parts ArkadeOS does not carry: Waydroid, Bazzite's news, and the
+# ujust commands that would undo the one image or the theme.
+check "no Waydroid, Bazzite news or undoing commands" '! rpm -qa | grep -qi waydroid &&
+    ! test -e /etc/xdg/autostart/bazzite-announcement.desktop &&
+    ! ujust --summary | tr " " "\\n" | grep -qx -e toggle-nvk -e restore-bazzite-breeze-gtk-theme'
 check "Windows in the boot menu" "grep -q 'chainloader /EFI/Microsoft/Boot/bootmgfw.efi' /boot/grub2/custom.cfg &&
     grep -q 'set timeout=5' /boot/grub2/grub.cfg"
 # T009: the boot menu's look is on /boot where GRUB reads it (its picture:

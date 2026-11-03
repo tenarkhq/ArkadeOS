@@ -18,3 +18,11 @@ test -f /usr/share/kwin/scripts/polonium/metadata.json
 rpm -q uxplay shairport-sync >/dev/null
 test -f /usr/share/pipewire/pipewire.conf.avail/50-raop.conf
 
+# Two Bazzite commands that undo ArkadeOS stay out of the ujust lists: NVK
+# switches to another image for the nouveau driver (one image, nouveau off,
+# T080), and the Breeze GTK theme replaces WhiteSur (T006).
+for recipe in 40-nvidia.just:toggle-nvk 90-bazzite-de.just:restore-bazzite-breeze-gtk-theme; do
+    file=/usr/share/ublue-os/just/${recipe%%:*}
+    grep -q "^${recipe#*:}:" "${file}"
+    sed -i "/^${recipe#*:}:/i [private]" "${file}"
+done
