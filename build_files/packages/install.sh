@@ -71,3 +71,6 @@ rpm -q "${toshy_pkgs[@]}" >/dev/null
 # rebuilt with ArkadeOS's patch (solid.sh, its own build stage).
 dnf5 -y install "${nodeps[@]}" rsms-inter-fonts kvantum
 dnf -y -q install /solid/kf6-solid-*.rpm
+
+# T082: the boot screen's animation runs in Plymouth's script module.
+dnf5 -y install "${nodeps[@]}" plymouth-plugin-script

@@ -1,48 +1,8 @@
 [Plymouth Theme]
 Name=ArkadeOS
-Description=ArkadeOS boot screen (T009): the ArkadeOS mark on black, a spinner below. No text titles, so it reads the same in every language (T010).
-ModuleName=two-step
+Description=ArkadeOS boot screen (T082): four streaks in the Ark colours race through the ArkadeOS wordmark and light it; then a white streak runs through it until the desktop comes. No words of its own, so it reads the same in every language (T010).
+ModuleName=script
 
-[two-step]
-Font=Inter 12
-TitleFont=Inter Light 30
+[script]
 ImageDir=/usr/share/plymouth/themes/arkadeos
-DialogHorizontalAlignment=.5
-DialogVerticalAlignment=.64
-TitleHorizontalAlignment=.5
-TitleVerticalAlignment=.382
-HorizontalAlignment=.5
-VerticalAlignment=.72
-WatermarkHorizontalAlignment=.5
-WatermarkVerticalAlignment=.42
-Transition=none
-TransitionDuration=0.0
-BackgroundStartColor=0x000000
-BackgroundEndColor=0x000000
-ProgressBarBackgroundColor=0x2a2a30
-ProgressBarForegroundColor=0xf4f4f6
-MessageBelowAnimation=true
-
-[boot-up]
-UseEndAnimation=false
-
-[shutdown]
-UseEndAnimation=false
-
-[reboot]
-UseEndAnimation=false
-
-[updates]
-SuppressMessages=true
-ProgressBarShowPercentComplete=true
-UseProgressBar=true
-
-[system-upgrade]
-SuppressMessages=true
-ProgressBarShowPercentComplete=true
-UseProgressBar=true
-
-[firmware-upgrade]
-SuppressMessages=true
-ProgressBarShowPercentComplete=true
-UseProgressBar=true
+ScriptFile=/usr/share/plymouth/themes/arkadeos/arkadeos.script

@@ -200,6 +200,12 @@ check "ArkadeOS name" "grep -qx 'PRETTY_NAME=\"ArkadeOS\"' /usr/lib/os-release"
 check "ArkadeOS version: the Fedora it is built on, then the build" '. /usr/lib/os-release; [[ "${VERSION}" =~ ^${VERSION_ID}\.[0-9]{8}$ ]]'
 check "boot menu entry named ArkadeOS (system-release)" 'grep -qx "ArkadeOS release [0-9]*" /etc/system-release'
 check "ArkadeOS boot screen" "plymouth-set-default-theme | grep -qx arkadeos && grep -qw splash /proc/cmdline"
+# T082: the animated boot screen, not a fallback: one of the frames caught while
+# starting shows colour (the streaks, the glow); a grey spinner or text has none.
+if for n in 1 2 3 4; do
+       convert "${out}/boot-${n}.png" -colorspace HSL -fx '(u.g>0.5)*(u.b>0.2)' -format '%[fx:mean>0]\n' info: 2>/dev/null
+   done | grep -qx 1; then echo "ok boot screen animated in colour" >> "${out}/apps.txt"
+else echo "FAILED boot screen animated in colour" >> "${out}/apps.txt"; failed=1; fi
 check "Ark wallpaper and launcher logo" "f=${home}/plasma-org.kde.plasma.desktop-appletsrc &&
     grep -qx 'Image=file:///usr/share/wallpapers/ArkadeOS/' \$f && grep -qx icon=arkadeos-launcher \$f"
 check "ArkadeOS trash in every WhiteSur variant and dock size" 'for t in WhiteSur WhiteSur-dark WhiteSur-light; do for s in scalable 22 24; do
@@ -705,9 +711,18 @@ check "no Bazzite Portal" '! rpm -q bazzite-portal && ! test -e /home/arkade/.co
     ! pgrep -f "yafti_gt[k]"'
 # Bazzite parts ArkadeOS does not carry: Waydroid, Bazzite's news, and the
 # ujust commands that would undo the one image or the theme.
-check "no Waydroid, Bazzite news or undoing commands" '! rpm -qa | grep -qi waydroid &&
+check "no Waydroid, Cockpit, Bazzite news or undoing commands" '! rpm -qa | grep -qiE "waydroid|cockpit|qemu-user-static" &&
     ! test -e /etc/xdg/autostart/bazzite-announcement.desktop &&
-    ! ujust --summary | tr " " "\\n" | grep -qx -e toggle-nvk -e restore-bazzite-breeze-gtk-theme'
+    ! ujust --summary | tr " " "\\n" | grep -qx -e toggle-nvk -e restore-bazzite-breeze-gtk-theme -e cockpit'
+# T080: a machine on the old arkadeos-nvidia name follows arkadeos, same tag;
+# one on arkadeos is left alone (bootc stands in as echo).
+check "old image name switched to the one image" 'test "$(ARKADEOS_BOOTC=echo ARKADEOS_IMAGE_REF=ghcr.io/tenarkhq/arkadeos-nvidia:testing /usr/libexec/arkadeos/image-name)" = \
+    "switch --mutate-in-place --enforce-container-sigpolicy ghcr.io/tenarkhq/arkadeos:testing" &&
+    test -z "$(ARKADEOS_BOOTC=echo ARKADEOS_IMAGE_REF=ghcr.io/tenarkhq/arkadeos:stable /usr/libexec/arkadeos/image-name)" &&
+    systemctl is-enabled arkadeos-image-name.service'
+# The terminal's machine details show the ArkadeOS mark, not Bazzite's.
+check "fastfetch shows the ArkadeOS mark" "runuser -u arkade -- bash -ic 'alias fastfetch' 2>/dev/null | grep -q \"='/usr/bin/fastfetch'\" &&
+    runuser -u arkade -- env HOME=/home/arkade fastfetch --pipe 2>/dev/null | grep -q '▄██▀▀▀'"
 check "Windows in the boot menu" "grep -q 'chainloader /EFI/Microsoft/Boot/bootmgfw.efi' /boot/grub2/custom.cfg &&
     grep -q 'set timeout=5' /boot/grub2/grub.cfg"
 # T009: the boot menu's look is on /boot where GRUB reads it (its picture:

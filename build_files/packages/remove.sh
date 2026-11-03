@@ -36,6 +36,16 @@ remove=(
     open-vm-tools-desktop
     # Bazzite's welcome window; the ArkadeOS Portal does its job (T037)
     bazzite-portal
+    # Cockpit's server-admin pages (no web server on a gaming machine)
+    cockpit-bridge
+    cockpit-files
+    cockpit-networkmanager
+    cockpit-podman
+    cockpit-selinux
+    cockpit-storaged
+    cockpit-system
+    # Running ARM programs
+    qemu-user-static-aarch64
 )
 # Its start at the first login comes with every new user's files.
 rm -f /etc/skel/.config/autostart/bazzite-portal.desktop

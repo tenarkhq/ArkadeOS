@@ -1,0 +1,10 @@
+[Unit]
+Description=ArkadeOS: updates come from the one image's name (T080)
+ConditionPathExists=/run/ostree-booted
+
+[Service]
+Type=oneshot
+ExecStart=/usr/libexec/arkadeos/image-name
+
+[Install]
+WantedBy=multi-user.target

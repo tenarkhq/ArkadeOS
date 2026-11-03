@@ -1,0 +1,221 @@
+# ArkadeOS boot screen (T082, Fénycsíkok). Written by art/boot-sprites.js from
+# art/boot.script.in; change those, not this file.
+#
+# Four streaks in the Ark colours race through the ArkadeOS wordmark, each
+# lighting the letters in its colour, the last in white; then a white streak
+# runs through it until the desktop comes. The wordmark is 18.75% of the
+# screen's width (480 px of 2560), on true black. No words of our own, so it
+# reads the same in every language (T010); the system's own prompts (disk
+# password, update progress) show below the wordmark.
+
+Window.SetBackgroundTopColor(0, 0, 0);
+Window.SetBackgroundBottomColor(0, 0, 0);
+
+#@SPRITES@
+
+W = Window.GetWidth();
+H = Window.GetHeight();
+k = W / 3840;          # the sprites are drawn for a 3840 px wide screen
+U = S4K * k;           # px per wordmark unit on this screen
+ox = Window.GetX() + W / 2 - 305 * U / 2;
+oy = Window.GetY() + H * 0.45 - 52 * U / 2 - 16 * U;
+
+colors[0] = "rose"; colors[1] = "amber"; colors[2] = "green"; colors[3] = "lavender"; colors[4] = "white";
+start[0] = 0; start[1] = 0.22; start[2] = 0.44; start[3] = 0.66; start[4] = 0.88;
+center[0] = 20; center[1] = 55; center[2] = 85; center[3] = 120;
+center[4] = 158; center[5] = 195; center[6] = 245; center[7] = 290;
+RUN = 0.55;            # one streak's run through the wordmark, seconds
+CHASE = 1.9;           # the white streak's laps start here
+LAP = 2;
+
+fun load(name) {
+    img = Image(name + ".png");
+    return img.Scale(Math.Int(img.GetWidth() * k + 0.5), Math.Int(img.GetHeight() * k + 0.5));
+}
+
+fun place(sprite, x, y, m, z) {
+    sprite.SetPosition(ox + (x - m) * U, oy + (y - m) * U, z);
+}
+
+for (i = 0; i < 8; i++) {
+    letter[i].dim = Sprite(load("dim-" + i));
+    place(letter[i].dim, box[i].x, box[i].y, margin.dim, 10);
+    letter[i].dim.SetOpacity(0.045);
+    for (c = 0; c < 5; c++) {
+        letter[i].base[c] = Sprite(load("base-" + i + "-" + colors[c]));
+        place(letter[i].base[c], box[i].x, box[i].y, margin.base, 11);
+        letter[i].base[c].SetOpacity(0);
+        letter[i].hot[c] = Sprite(load("hot-" + i + "-" + colors[c]));
+        place(letter[i].hot[c], box[i].x, box[i].y, margin.hot, 12);
+        letter[i].hot[c].SetOpacity(0);
+    }
+}
+for (c = 0; c < 5; c++) {
+    streak[c] = Sprite(load("streak-" + colors[c]));
+    streak[c].SetOpacity(0);
+}
+chase = Sprite(load("chase"));
+chase.SetOpacity(0);
+
+fun inout(q) {
+    if (q < 0) return 0;
+    if (q > 1) return 1;
+    if (q < 0.5) return 4 * q * q * q;
+    p = -2 * q + 2;
+    return 1 - p * p * p / 2;
+}
+
+# A streak's head, in wordmark units, at time t.
+fun head(c, t) { return -80 + inout((t - start[c]) / RUN) * 470; }
+fun lap_head(t) {
+    l = (t - CHASE) / LAP;
+    return -60 + (l - Math.Int(l)) * 430;
+}
+
+# Shutdown and restart skip the opening: the white streak only.
+t = 0;
+if (Plymouth.GetMode() == "shutdown" || Plymouth.GetMode() == "reboot") t = CHASE;
+
+fun refresh() {
+    global.t += 1 / 50;
+    for (i = 0; i < 8; i++) {
+        lit = -1;
+        glow = 0;
+        if (t < CHASE) {
+            for (c = 0; c < 5; c++) {
+                x = head(c, t);
+                if (x > center[i]) { lit = c; glow = Math.Max(0, 1 - (x - center[i]) / 120); }
+            }
+        } else {
+            lit = 4;
+            glow = Math.Max(0, 1 - Math.Abs(lap_head(t) - center[i]) / 45);
+        }
+        for (c = 0; c < 5; c++) {
+            if (c == lit) {
+                letter[i].base[c].SetOpacity(0.82 + 0.18 * glow);
+                letter[i].hot[c].SetOpacity(glow * 0.75);
+            } else {
+                letter[i].base[c].SetOpacity(0);
+                letter[i].hot[c].SetOpacity(0);
+            }
+        }
+        if (lit < 0) letter[i].dim.SetOpacity(0.045); else letter[i].dim.SetOpacity(0);
+    }
+    for (c = 0; c < 5; c++) {
+        q = (t - start[c]) / RUN;
+        if (q < 0 || q > 1.05) streak[c].SetOpacity(0);
+        else {
+            place(streak[c], head(c, t) - 146, 20 + c * 9, margin.streak, 20);
+            streak[c].SetOpacity(1);
+        }
+    }
+    if (t > CHASE) {
+        place(chase, lap_head(t) - 116, 70, margin.streak, 20);
+        chase.SetOpacity(1);
+    }
+}
+Plymouth.SetRefreshFunction(refresh);
+
+#----------------------------------------- Below the wordmark: prompts and progress
+
+below = oy + 16 * U + 52 * U + H * 0.08;   # under the wordmark, centred
+font = "Inter " + Math.Int(Math.Max(11, H / 90));
+
+fun centred(sprite, image, y, z) {
+    sprite.SetImage(image);
+    sprite.SetPosition(Window.GetX() + W / 2 - image.GetWidth() / 2, y, z);
+}
+
+prompt = Sprite();
+answer = Sprite();
+lock = Sprite();
+entry = Sprite();
+entry_image = Image("entry.png");
+lock_image = Image("lock.png");
+bullet_image = Image("bullet.png");
+bullet_count = 0;
+
+fun dialog(text, opacity) {
+    centred(prompt, Image.Text(text, 0.96, 0.96, 0.97, 1, font), below, 100);
+    entry.SetImage(entry_image);
+    lock.SetImage(lock_image);
+    ex = Window.GetX() + W / 2 - (entry_image.GetWidth() + lock_image.GetWidth()) / 2 + lock_image.GetWidth();
+    ey = below + prompt.GetImage().GetHeight() + H * 0.015;
+    entry.SetPosition(ex, ey, 100);
+    lock.SetPosition(ex - lock_image.GetWidth(), ey + entry_image.GetHeight() / 2 - lock_image.GetHeight() / 2, 100);
+    global.ex = ex;
+    global.ey = ey;
+    prompt.SetOpacity(opacity);
+    entry.SetOpacity(opacity);
+    lock.SetOpacity(opacity);
+}
+
+fun bullets(count) {
+    for (b = 0; b < bullet_count || b < count; b++) {
+        if (!bullet[b]) {
+            bullet[b] = Sprite(bullet_image);
+            bullet[b].SetPosition(ex + 8 + b * bullet_image.GetWidth(), ey + entry_image.GetHeight() / 2 - bullet_image.GetHeight() / 2, 101);
+        }
+        if (b < count) bullet[b].SetOpacity(1); else bullet[b].SetOpacity(0);
+    }
+    global.bullet_count = Math.Max(bullet_count, count);
+}
+
+fun on_password(text, count) {
+    if (text == "") text = " ";
+    dialog(text, 1);
+    answer.SetOpacity(0);
+    bullets(count);
+}
+
+fun on_question(text, typed) {
+    dialog(text, 1);
+    bullets(0);
+    answer.SetImage(Image.Text(typed + " ", 0.96, 0.96, 0.97, 1, font));
+    answer.SetPosition(ex + 8, ey + entry_image.GetHeight() / 2 - answer.GetImage().GetHeight() / 2, 101);
+    answer.SetOpacity(1);
+}
+
+fun on_normal() {
+    prompt.SetOpacity(0);
+    entry.SetOpacity(0);
+    lock.SetOpacity(0);
+    answer.SetOpacity(0);
+    bullets(0);
+}
+
+Plymouth.SetDisplayPasswordFunction(on_password);
+Plymouth.SetDisplayQuestionFunction(on_question);
+Plymouth.SetDisplayNormalFunction(on_normal);
+
+# Updates applied while starting (firmware, offline upgrades): a thin bar and
+# the percentage under the wordmark.
+bar_back = Sprite();
+bar = Sprite();
+percent = Sprite();
+bar_w = 305 * U;
+bar_back.SetImage(Image("bar-back.png").Scale(bar_w, Math.Max(2, Math.Int(3 * k * 2))));
+bar_back.SetPosition(ox, below, 90);
+bar_back.SetOpacity(0);
+bar_front = Image("bar.png");
+
+fun on_update(progress) {
+    p = Math.Clamp(progress / 100, 0, 1);
+    bar_back.SetOpacity(1);
+    if (p > 0) {
+        bar.SetImage(bar_front.Scale(Math.Max(1, Math.Int(bar_w * p)), Math.Max(2, Math.Int(3 * k * 2))));
+        bar.SetPosition(ox, below, 91);
+        bar.SetOpacity(1);
+    }
+    centred(percent, Image.Text(Math.Int(progress) + " %", 0.96, 0.96, 0.97, 1, font), below + H * 0.02, 90);
+}
+Plymouth.SetSystemUpdateFunction(on_update);
+
+message = Sprite();
+fun on_message(text) {
+    centred(message, Image.Text(text, 0.75, 0.75, 0.78, 1, font), H * 0.88, 100);
+    message.SetOpacity(1);
+}
+fun on_hide_message(text) { message.SetOpacity(0); }
+Plymouth.SetDisplayMessageFunction(on_message);
+Plymouth.SetHideMessageFunction(on_hide_message);

@@ -1,0 +1,38 @@
+// The machine's details in the terminal (fastfetch, neofetch): the ArkadeOS
+// mark instead of Bazzite's, in the ArkadeOS white and rose.
+{
+    "$schema": "https://github.com/fastfetch-cli/fastfetch/raw/dev/doc/json_schema.json",
+    "logo": {
+        "type": "file",
+        "source": "/usr/share/arkadeos/fastfetch/logo.txt",
+        "color": { "1": "97", "2": "91" },
+        "padding": { "top": 1, "right": 3 }
+    },
+    "display": {
+        "separator": "  ",
+        "color": { "keys": "91" }
+    },
+    "modules": [
+        { "type": "title", "key": " ", "color": { "user": "97", "at": "37", "host": "91" } },
+        "break",
+        { "type": "os", "key": " 󰣛", "format": "{pretty-name}" },
+        { "type": "command", "key": " 󱋩", "text": "jq -r '\"\\(.[\"image-name\"]):\\(.[\"image-branch\"])\"' /usr/share/ublue-os/image-info.json" },
+        { "type": "kernel", "key": " ", "format": "{1} {2}" },
+        { "type": "uptime", "key": " 󰅐" },
+        "break",
+        { "type": "host", "key": " 󰾰" },
+        { "type": "cpu", "key": " 󰻠" },
+        { "type": "gpu", "key": " 󰍛" },
+        { "type": "memory", "key": " " },
+        { "type": "disk", "key": " ", "hideFS": "overlay" },
+        { "type": "display", "key": " 󰍹" },
+        { "type": "battery", "key": " " },
+        { "type": "gamepad", "key": " 󰖺" },
+        "break",
+        { "type": "de", "key": " 󰕮" },
+        { "type": "shell", "key": " " },
+        { "type": "terminal", "key": " " },
+        "break",
+        { "type": "colors", "paddingLeft": 2, "symbol": "circle" }
+    ]
+}

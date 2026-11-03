@@ -1,0 +1,13 @@
+#!/usr/bin/bash
+# One image for every graphics card (T080): a machine still following the old
+# name, ghcr.io/tenarkhq/arkadeos-nvidia, follows ghcr.io/tenarkhq/arkadeos from
+# now on, same tag. Both names carry the same image, so only the name the
+# updates come from changes: nothing is downloaded, no restart is needed.
+set -euo pipefail
+bootc=${ARKADEOS_BOOTC:-bootc}  # the VM test: echo, with the booted name given
+ref=${ARKADEOS_IMAGE_REF:-$("${bootc}" status --json | jq -r '.status.booted.image.image.image // empty')}
+case "${ref}" in
+    ghcr.io/tenarkhq/arkadeos-nvidia:*)
+        "${bootc}" switch --mutate-in-place --enforce-container-sigpolicy "ghcr.io/tenarkhq/arkadeos:${ref##*:}"
+        ;;
+esac
