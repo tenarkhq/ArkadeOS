@@ -2,15 +2,12 @@
 // Plasma runs this once, when a user first logs in. ArkadeOS Dark falls back
 // to this package, so both global themes give the same layout.
 
-// Top bar: Ark logo (opens the launcher), the active app's menu, power
-// profile, tray, clock (the calendar opens from the clock).
+// Top bar: the active app's menu, power profile, tray, clock (the calendar
+// opens from the clock). The ArkadeOS menu is on the dock (Roland, 11-03).
 var bar = new Panel
 bar.location = "top"
 bar.floating = false
 bar.height = 2 * Math.ceil(gridUnit * 1.5 / 2)
-var launcher = bar.addWidget("org.kde.plasma.kickoff")
-launcher.currentConfigGroup = ["General"]
-launcher.writeConfig("icon", "arkadeos-launcher")
 bar.addWidget("org.kde.plasma.appmenu")
 bar.addWidget("org.kde.plasma.panelspacer")
 bar.addWidget("org.arkadeos.power")  // power profile switch (T012)
@@ -28,9 +25,16 @@ dock.alignment = "center"
 dock.hiding = "none"
 dock.height = 2 * Math.ceil(gridUnit * 3 / 2)
 
+// First the ArkadeOS menu (Ark logo; Meta and Alt+F1 open it), then the app
+// grid; their pictures are as big as the app icons (70-theme.sh).
+var launcher = dock.addWidget("org.kde.plasma.kickoff")
+launcher.currentConfigGroup = ["General"]
+launcher.writeConfig("icon", "/usr/share/arkadeos/icons/dock-menu.svg")
 var grid = dock.addWidget("org.kde.plasma.kickerdash")
 grid.currentConfigGroup = ["General"]
 grid.writeConfig("icon", "view-app-grid")
+grid.writeConfig("useCustomButtonImage", true)
+grid.writeConfig("customButtonImage", "/usr/share/arkadeos/icons/dock-app-grid.svg")
 
 var tasks = dock.addWidget("org.kde.plasma.icontasks")
 tasks.currentConfigGroup = ["General"]
@@ -39,10 +43,10 @@ tasks.writeConfig("launchers", [
     "preferred://browser",
     "applications:steam.desktop",
     "applications:org.arkadeos.BattleNet.desktop",
-    "applications:org.arkadeos.GameMode.desktop",
     "applications:net.lutris.Lutris.desktop",
     "applications:io.github.kolunmi.Bazaar.desktop",
     "applications:org.kde.konsole.desktop",
+    "applications:org.arkadeos.Portal.desktop",
     "applications:systemsettings.desktop"
 ])
 

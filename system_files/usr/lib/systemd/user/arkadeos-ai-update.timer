@@ -1,0 +1,11 @@
+# T072: Claude and Codex Desktop offer their new version (Roland, 2026-11-03,
+# the approved draft): checked after login and every hour.
+[Unit]
+Description=Look for new Claude and Codex Desktop versions at login and hourly
+
+[Timer]
+OnStartupSec=5min
+OnUnitActiveSec=1h
+
+[Install]
+WantedBy=timers.target

@@ -48,6 +48,13 @@ colour() {  # colour [slider]: the slider's own change never lights an off keybo
             asusctl aura effect static -c "${c}" || true
         fi
     fi
+    # A laptop keyboard lit through HID LampArray (FA608) has no brightness of
+    # its own the slider reaches: the slider's level goes with the colour.
+    if [[ "${c}" == off ]]; then
+        /usr/libexec/arkadeos/lamparray 0
+    else
+        /usr/libexec/arkadeos/lamparray "${level}" "${c}"
+    fi
     command -v openrgb >/dev/null || return 0
     # A device that does not answer must not hold the lighting up for good.
     local rgb=(timeout 20 openrgb --noautoconnect)

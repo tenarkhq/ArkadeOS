@@ -1,9 +1,0 @@
-[Desktop Entry]
-Type=Application
-Name=Game Mode
-Name[hu]=Játékmód
-Comment=Full-screen Steam for controllers and TVs
-Comment[hu]=Teljes képernyős Steam kontrollerhez és tévéhez
-Exec=arkadeos-session game
-Icon=applications-games
-Categories=Game;

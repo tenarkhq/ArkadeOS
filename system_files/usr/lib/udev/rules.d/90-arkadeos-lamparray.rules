@@ -1,0 +1,4 @@
+# Laptop keyboards lit through HID LampArray (the ITE5570 of the ASUS TUF A16
+# FA608, T044): the user's session sets their colour and brightness
+# (/usr/libexec/arkadeos/lamparray).
+ACTION=="add|change", SUBSYSTEM=="hidraw", KERNELS=="0018:0B05:19B6.*", TAG+="uaccess"

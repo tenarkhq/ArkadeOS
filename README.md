@@ -21,7 +21,6 @@ A macOS-style KDE desktop, one image for NVIDIA, AMD and Intel graphics, Steam a
 | | Feature | Status |
 |---|---|---|
 | 🎮 | Steam, Proton-GE, Proton Experimental, Gamescope, MangoHud, GameMode | in testing |
-| 🕹️ | Game Mode session: boot straight into full-screen Steam, or switch from the desktop | in testing |
 | ⚔️ | One-click Battle.net with World of Warcraft, WowUp for addons | **tested on hardware** |
 | 🛒 | EA app, Ubisoft Connect, Heroic (Epic, GOG, Amazon), Lutris | in testing |
 | 🪟 | Borderless windowed games run full screen, above the top bar and the dock | in testing |

@@ -46,6 +46,14 @@ remove=(
     cockpit-system
     # Running ARM programs
     qemu-user-static-aarch64
+    # The Oxygen global themes (Oxygen Dark, Oxygen Light) and what only
+    # they use: cursors, icons, sounds (Roland, 2026-11-03)
+    plasma-oxygen
+    plasma-oxygen-qt5
+    plasma-oxygen-qt6
+    oxygen-cursor-themes
+    oxygen-icon-theme
+    oxygen-sounds
 )
 # Its start at the first login comes with every new user's files.
 rm -f /etc/skel/.config/autostart/bazzite-portal.desktop

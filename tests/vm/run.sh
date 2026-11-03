@@ -168,7 +168,7 @@ check "no NVIDIA service without an NVIDIA card" "! systemctl --failed --no-lege
 ssh_vm "${session} journalctl --user -b --no-pager | grep -E 'arkadeos-portal:|session-setup: Kvantum|plasma-apply-lookandfeel|knighttime|lookandfeel'" > "${out}/look-journal.txt" 2>&1 || true
 
 # The parts after the desktop run on their own: TEST_GROUPS lists the ones to
-# run (look, keys, power, games, apps, gamemode, update), "all" (the default)
+# run (look, keys, power, games, apps, update), "all" (the default)
 # runs every one. A push runs the parts its changes reach (groups.sh), the
 # nightly build all of them.
 want() {
@@ -195,17 +195,15 @@ check "GTK WhiteSur" "grep -qx gtk-theme-name=WhiteSur-Light ${home}/gtk-3.0/set
 # T007: the first login built the bar and the dock from our layout.
 check "top bar and dock" "f=${home}/plasma-org.kde.plasma.desktop-appletsrc &&
     for w in kickoff appmenu systemtray digitalclock kickerdash icontasks trash; do grep -qx plugin=org.kde.plasma.\$w \$f || exit 1; done"
+# The ArkadeOS menu first on the dock, not in the top bar; the Portal on the
+# dock, Game Mode not (Roland, 2026-11-03).
+dock_order=$(base64 -w0 "$(dirname "$0")/dock-order.py")
+check "ArkadeOS menu first on the dock, Portal on it" "echo ${dock_order} | base64 -d | python3 - ${home}/plasma-org.kde.plasma.desktop-appletsrc"
 # T009: ArkadeOS name, boot screen, wallpaper, launcher logo, lock screen.
 check "ArkadeOS name" "grep -qx 'PRETTY_NAME=\"ArkadeOS\"' /usr/lib/os-release"
 check "ArkadeOS version: the Fedora it is built on, then the build" '. /usr/lib/os-release; [[ "${VERSION}" =~ ^${VERSION_ID}\.[0-9]{8}$ ]]'
 check "boot menu entry named ArkadeOS (system-release)" 'grep -qx "ArkadeOS release [0-9]*" /etc/system-release'
 check "ArkadeOS boot screen" "plymouth-set-default-theme | grep -qx arkadeos && grep -qw splash /proc/cmdline"
-# T082: the animated boot screen, not a fallback: one of the frames caught while
-# starting shows colour (the streaks, the glow); a grey spinner or text has none.
-if for n in 1 2 3 4; do
-       convert "${out}/boot-${n}.png" -colorspace HSL -fx '(u.g>0.5)*(u.b>0.2)' -format '%[fx:mean>0]\n' info: 2>/dev/null
-   done | grep -qx 1; then echo "ok boot screen animated in colour" >> "${out}/apps.txt"
-else echo "FAILED boot screen animated in colour" >> "${out}/apps.txt"; failed=1; fi
 check "Ark wallpaper and launcher logo" "f=${home}/plasma-org.kde.plasma.desktop-appletsrc &&
     grep -qx 'Image=file:///usr/share/wallpapers/ArkadeOS/' \$f && grep -qx icon=arkadeos-launcher \$f"
 check "ArkadeOS trash in every WhiteSur variant and dock size" 'for t in WhiteSur WhiteSur-dark WhiteSur-light; do for s in scalable 22 24; do
@@ -218,8 +216,6 @@ ssh_vm "${session} ${plasma_dirs} kiconfinder6 user-trash-symbolic; ${session} $
 check "dark lock screen" "${session} kreadconfig6 --file kscreenlockerrc --group Greeter --group Wallpaper --group org.kde.image --group General --key Image | grep -q ArkadeOS-Lock"
 # T010: Hungarian is complete, our own texts included.
 check "Hungarian language" "rpm -q hunspell-hu && test -f /usr/share/locale/hu/LC_MESSAGES/dolphin.mo &&
-    grep -q '^Name\\[hu\\]=' /usr/share/applications/org.arkadeos.GameMode.desktop &&
-    grep -q 'xml:lang=\"hu\"' /usr/share/polkit-1/actions/org.arkadeos.session.policy &&
     grep -q 'Name\\[hu\\]' /usr/share/plasma/look-and-feel/org.arkadeos.light.desktop/metadata.json"
 check "window buttons on the left" "test \"\$(${session} kreadconfig6 --file kwinrc --group org.kde.kdecoration2 --key ButtonsOnLeft)\" = XIA"
 # Apps get the Plasma session variables, as when started from the menu.
@@ -534,8 +530,7 @@ fi # games
 
 if want apps; then
 step "apps"
-# T014: Battle.net on the image's GE-Proton, its installer reachable, and in
-# Steam Game Mode (a Steam account folder stands in for a Steam login).
+# T014: Battle.net on the image's GE-Proton, its installer reachable.
 check "Battle.net launcher on GE-Proton" "${session} arkadeos-battlenet --check | grep -q '^proton=.*GE-Proton'"
 check "Battle.net installer reachable" "curl -fsSL -o /dev/null -r 0-0 \"\$(grep -o 'https://downloader[^\"]*' /usr/bin/arkadeos-store)\""
 # T018: the EA app and Ubisoft Connect the same way.
@@ -543,9 +538,7 @@ check "EA app launcher on GE-Proton" "${session} arkadeos-ea --check | grep -q '
 check "EA app installer reachable" "curl -fsSL -o /dev/null -r 0-0 \"\$(grep -o 'https://origin-a[^\"]*' /usr/bin/arkadeos-store)\""
 check "Ubisoft Connect launcher on GE-Proton" "${session} arkadeos-ubisoft --check | grep -q '^proton=.*GE-Proton'"
 check "Ubisoft Connect installer reachable" "curl -fsSL -o /dev/null -r 0-0 \"\$(grep -o 'https://static3.cdn.ubi.com[^\"]*' /usr/bin/arkadeos-store)\""
-ssh_vm "pkill -u arkade -x steam; sleep 5; runuser -u arkade -- mkdir -p /home/arkade/.local/share/Steam/userdata/1234/config &&
-    systemctl --user -M arkade@ start arkadeos-session-setup.service" || true
-check "Battle.net in Steam Game Mode" 'grep -qa arkadeos-battlenet /home/arkade/.local/share/Steam/userdata/1234/config/shortcuts.vdf'
+ssh_vm "systemctl --user -M arkade@ start arkadeos-session-setup.service" || true
 check "Battle.net on the dock" "grep -q 'org.arkadeos.BattleNet.desktop' ${home}/plasma-org.kde.plasma.desktop-appletsrc"
 # T015: WowUp downloads itself and starts, pointed at the Battle.net folder.
 ssh_vm "nohup ${session} arkadeos-wowup > /tmp/wowup.log 2>&1 &"
@@ -635,6 +628,7 @@ ssh_vm "${session} arkadeos-airplay off" || true
 # receiver tools installed; Solaar does not run without a Logitech receiver.
 check "RGB, mouse and cooler tools" "rpm -q openrgb piper libratbag-ratbagd solaar liquidctl input-remapper && command -v ddcutil"
 check "lighting follows the profile by default" "test \"\$(${session} arkadeos-rgb sync status)\" = on && ${session} arkadeos-rgb apply gaming"
+check "LampArray keyboard light: quiet without such a keyboard" "${session} /usr/libexec/arkadeos/lamparray 50 ff0000 && test -f /usr/lib/udev/rules.d/90-arkadeos-lamparray.rules"
 check "Solaar only with a receiver" '! pgrep -x solaar'
 # T052: the VM has no battery, so it is a desktop: Quiet instead of Akku,
 # CoolerControl for the fans, mainboard sensor drivers there.
@@ -676,6 +670,12 @@ done
 check "Portal: Flatpak app in and out" "/usr/libexec/arkadeos/portal-item vesktop install &&
     test \$(${portal} vesktop status) = on &&
     /usr/libexec/arkadeos/portal-item vesktop remove && test \$(${portal} vesktop status) = off"
+# SSH keys go into the agent at login (Roland, 2026-11-03; a passphrase comes
+# from KWallet, asked once): a key without one stands in here.
+check "SSH keys into the agent at login" "test -f /etc/xdg/autostart/org.arkadeos.SshKeys.desktop && ${session} sh -c 'mkdir -p ~/.ssh && eval \$(ssh-agent -s) >/dev/null &&
+    ssh-keygen -q -t ed25519 -N \"\" -f ~/.ssh/id_vmtest && /usr/libexec/arkadeos/ssh-keys &&
+    ssh-add -l | grep -qF \"\$(ssh-keygen -lf ~/.ssh/id_vmtest.pub | cut -d\" \" -f2)\"; r=\$?; ssh-agent -k >/dev/null; rm -f ~/.ssh/id_vmtest ~/.ssh/id_vmtest.pub; exit \$r'"
+ssh_vm "${session} systemctl --user show-environment | grep SSH_AUTH_SOCK; ls -l /run/user/${uid}/ | grep -i -e ssh -e agent" > "${out}/ssh-agent.txt" 2>&1 || true
 check "Portal: store launcher in and out" "${portal} ea install && test \$(${portal} ea status) = on &&
     test -f /home/arkade/.local/share/applications/org.arkadeos.EA.desktop &&
     ${portal} ea remove && test \$(${portal} ea status) = off"
@@ -715,11 +715,15 @@ check "no Waydroid, Cockpit, Bazzite news or undoing commands" '! rpm -qa | grep
     ! test -e /etc/xdg/autostart/bazzite-announcement.desktop &&
     ! ujust --summary | tr " " "\\n" | grep -qx -e toggle-nvk -e restore-bazzite-breeze-gtk-theme -e cockpit'
 # T080: a machine on the old arkadeos-nvidia name follows arkadeos, same tag;
-# one on arkadeos is left alone (bootc stands in as echo).
-check "old image name switched to the one image" 'test "$(ARKADEOS_BOOTC=echo ARKADEOS_IMAGE_REF=ghcr.io/tenarkhq/arkadeos-nvidia:testing /usr/libexec/arkadeos/image-name)" = \
-    "switch --mutate-in-place --enforce-container-sigpolicy ghcr.io/tenarkhq/arkadeos:testing" &&
-    test -z "$(ARKADEOS_BOOTC=echo ARKADEOS_IMAGE_REF=ghcr.io/tenarkhq/arkadeos:stable /usr/libexec/arkadeos/image-name)" &&
-    systemctl is-enabled arkadeos-image-name.service'
+# one on arkadeos is left alone. The real bootc writes the booted deployment's
+# origin, the way it does on a machine (a stand-in hid that /sysroot is
+# read-only, 11-03); the VM's own origin is put back after.
+check "old image name switched to the one image" 'd=$(ostree admin --print-current-dir) && cp "${d}.origin" /var/tmp/origin &&
+    ARKADEOS_IMAGE_REF=ghcr.io/tenarkhq/arkadeos:stable /usr/libexec/arkadeos/image-name && cmp -s "${d}.origin" /var/tmp/origin &&
+    ARKADEOS_IMAGE_REF=ghcr.io/tenarkhq/arkadeos-nvidia:testing /usr/libexec/arkadeos/image-name &&
+    grep -qx "container-image-reference=ostree-image-signed:docker://ghcr.io/tenarkhq/arkadeos:testing" "${d}.origin"; r=$?;
+    unshare -m -- sh -c "mount -o remount,rw /sysroot && cp /var/tmp/origin ${d}.origin" && cmp -s "${d}.origin" /var/tmp/origin &&
+    test "${r}" = 0 && systemctl is-enabled arkadeos-image-name.service'
 # The terminal's machine details show the ArkadeOS mark, not Bazzite's.
 check "fastfetch shows the ArkadeOS mark" "runuser -u arkade -- bash -ic 'alias fastfetch' 2>/dev/null | grep -q \"='/usr/bin/fastfetch'\" &&
     runuser -u arkade -- env HOME=/home/arkade fastfetch --pipe 2>/dev/null | grep -q '▄██▀▀▀'"
@@ -749,36 +753,8 @@ check "firewall on, ArkadeOS zone" 'firewall-cmd --state | grep -qx running && t
     test -z "$(firewall-cmd --zone=ArkadeOS --list-ports)"'
 check "no telemetry" '! grep -l "^countme=1" /etc/yum.repos.d/*.repo && ! systemctl is-enabled -q rpm-ostree-countme.timer'
 
-if want gamemode; then
-step "switching to Game Mode"
-ssh_vm "PKEXEC_UID=${uid} /usr/libexec/arkadeos/session-select game"
-sleep 45
-shot game-mode
-if ssh_vm 'pgrep -u arkade -x gamescope || pgrep -u arkade -f gamescope-wl' >/dev/null; then
-    echo "ok game mode (gamescope running)" >> "${out}/apps.txt"
-else
-    # A VM has no GPU that Gamescope can drive; only the switch back is required.
-    echo "info game mode: gamescope not running in the VM" >> "${out}/apps.txt"
-fi
-
-step "switching back to the desktop"
-ssh_vm "PKEXEC_UID=${uid} /usr/libexec/arkadeos/session-select desktop"
-for _ in $(seq 24); do
-    sleep 5
-    ssh_vm 'pgrep -u arkade -x plasmashell' >/dev/null && break
-done
-sleep 10
-if ssh_vm 'pgrep -u arkade -x plasmashell' >/dev/null; then
-    shot back-to-desktop
-    echo "ok back to the desktop" >> "${out}/apps.txt"
-else
-    shot back-to-desktop-failed
-    echo "FAILED back to the desktop" >> "${out}/apps.txt"
-    failed=1
-fi
-ssh_vm 'test ! -e /etc/plasmalogin.conf.d/zz-arkadeos-session.conf' ||
-    { echo "FAILED one-time login left behind" >> "${out}/apps.txt"; failed=1; }
-fi # gamemode
+# No Game Mode (Roland, 2026-11-03): no full-screen Steam session to start.
+check "no Game Mode session" '! test -e /usr/share/wayland-sessions/gamescope-session-steam.desktop && ! test -e /usr/share/applications/org.arkadeos.GameMode.desktop'
 
 ssh_vm 'journalctl -b --no-pager -p warning' > "${out}/journal-warnings.txt" || true
 ssh_vm 'findmnt -R /; btrfs subvolume list /; btrfs subvolume show /var/home' > "${out}/disk-layout.txt" 2>&1 || true

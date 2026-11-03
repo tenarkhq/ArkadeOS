@@ -4,10 +4,14 @@
 # now on, same tag. Both names carry the same image, so only the name the
 # updates come from changes: nothing is downloaded, no restart is needed.
 set -euo pipefail
-bootc=${ARKADEOS_BOOTC:-bootc}  # the VM test: echo, with the booted name given
-ref=${ARKADEOS_IMAGE_REF:-$("${bootc}" status --json | jq -r '.status.booted.image.image.image // empty')}
+ref=${ARKADEOS_IMAGE_REF:-$(bootc status --json | jq -r '.status.booted.image.image.image // empty')}  # the VM test gives it
 case "${ref}" in
     ghcr.io/tenarkhq/arkadeos-nvidia:*)
-        "${bootc}" switch --mutate-in-place --enforce-container-sigpolicy "ghcr.io/tenarkhq/arkadeos:${ref##*:}"
+        # The in-place switch writes the deployment's origin under /sysroot,
+        # which is read-only; unlike bootc's other writes it does not make it
+        # writable itself (bootc 1.17), so it runs in a mount namespace of its
+        # own where /sysroot is writable.
+        unshare -m --propagation=slave -- sh -c 'mount -o remount,rw /sysroot && exec "$@"' sh \
+            bootc switch --mutate-in-place --enforce-container-sigpolicy "ghcr.io/tenarkhq/arkadeos:${ref##*:}"
         ;;
 esac

@@ -10,9 +10,8 @@ nodeps=(--setopt=install_weak_deps=False)
 # T002: the Bazzite parts ArkadeOS does not need.
 bash "${here}/remove.sh"
 
-# T003 (60-gaming.sh): GameMode and the Steam Game Mode session.
+# T003 (60-gaming.sh): GameMode.
 dnf5 -y install "${nodeps[@]}" gamemode gamemode.i686
-dnf5 -y install --enable-repo=terra "${nodeps[@]}" gamescope-session gamescope-session-steam
 
 # T013 (63-asus.sh): asusctl and ROG Control Center. The COPRs go after use:
 # the image brings updates, not dnf on the installed system.

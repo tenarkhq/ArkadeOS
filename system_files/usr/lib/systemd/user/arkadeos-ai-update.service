@@ -1,0 +1,7 @@
+[Unit]
+Description=Tell the user when Claude or Codex Desktop has a new version
+After=plasma-plasmashell.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/libexec/arkadeos/ai-desktop notify

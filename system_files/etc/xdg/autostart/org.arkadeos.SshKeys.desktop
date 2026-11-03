@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=ArkadeOS SSH keys
+Comment=Loads the SSH keys into the agent at login
+Comment[hu]=Bejelentkezéskor betölti az SSH-kulcsokat
+Exec=/usr/libexec/arkadeos/ssh-keys
+NoDisplay=true
+X-KDE-autostart-phase=2

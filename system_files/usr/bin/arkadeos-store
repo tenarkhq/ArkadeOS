@@ -19,19 +19,16 @@ case "${store}" in
         name="Battle.net"
         installer_url="https://downloader.battle.net/download/getInstaller?os=win&installer=Battle.net-Setup.exe"
         launcher="drive_c/Program Files (x86)/Battle.net/Battle.net Launcher.exe"
-        icon=/usr/share/icons/WhiteSur/apps/scalable/battlenet.svg
         ;;
     ea)
         name="EA app"
         installer_url="https://origin-a.akamaihd.net/EA-Desktop-Client-Download/installer-releases/EAappInstaller.exe"
         launcher="drive_c/Program Files/Electronic Arts/EA Desktop/EA Desktop/EADesktop.exe"
-        icon=/usr/share/icons/WhiteSur/apps/scalable/applications-games.svg
         ;;
     ubisoft)
         name="Ubisoft Connect"
         installer_url="https://static3.cdn.ubi.com/orbit/launcher_installer/UbisoftConnectInstaller.exe"
         launcher="drive_c/Program Files (x86)/Ubisoft/Ubisoft Game Launcher/UbisoftConnect.exe"
-        icon=/usr/share/icons/WhiteSur/apps/scalable/applications-games.svg
         ;;
     *) echo "unknown store: ${store}" >&2; exit 2 ;;
 esac
@@ -72,9 +69,6 @@ case "${1:-}" in
         exit 0
         ;;
 esac
-
-# Also reachable from Steam Game Mode (added while Steam is closed).
-/usr/libexec/arkadeos/steam-shortcut "${name}" "/usr/bin/arkadeos-${store}" "${icon}" || true
 
 export WINEPREFIX="${prefix}" PROTONPATH="${PROTON}" GAMEID=umu-default STORE="${store}"
 mkdir -p "${prefix}"

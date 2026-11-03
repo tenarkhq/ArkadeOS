@@ -7,6 +7,10 @@ updated while the system stays as it is. Every download is checked against
 the maker's signed index (the signing keys ship in the image).
   ai-desktop APP install|remove|status|update    status prints on or off
   ai-desktop APP latest                          newest version in the repository
+  ai-desktop notify          a notification for each installed app that has
+                             a newer version; its button updates the app and,
+                             if it was running, restarts it
+                             (arkadeos-ai-update.timer: at login and hourly)
 APP: claude | chatgpt"""
 import gzip
 import hashlib
@@ -19,6 +23,8 @@ import subprocess
 import sys
 import tarfile
 import tempfile
+import threading
+import time
 import urllib.request
 import xml.etree.ElementTree as ET
 from pathlib import Path
@@ -197,6 +203,65 @@ def installed(name):
     return os.readlink(current) if current.is_symlink() and current.exists() else None
 
 
+def running(name):
+    """The app's processes: those run from its folder in the user's home."""
+    pids = []
+    for proc in Path("/proc").iterdir():
+        try:
+            if proc.name.isdigit() and os.readlink(proc / "exe").startswith(str(OPT / name) + "/"):
+                pids.append(int(proc.name))
+        except OSError:
+            pass
+    return pids
+
+
+def hu():
+    return any(os.environ.get(v, "").startswith("hu") for v in ("LANG", "LANGUAGE"))
+
+
+def say(en, hu_text):
+    return hu_text if hu() else en
+
+
+def notify(name, app):
+    """Roland, 2026-11-03 (the approved draft): Update / Later. Later only
+    closes it; the next hour or the next login asks again."""
+    old = installed(name)
+    if not old:
+        return
+    new = (latest_claude if name == "claude" else latest_chatgpt)(app)[0]
+    if vkey(new) <= vkey(old):
+        return
+    entry = dict(re.findall(r"^(Name|Icon)=(.*)$", (DATA / "applications" / app["entry"]).read_text(), re.M))
+    title, icon = entry.get("Name", name), entry.get("Icon", "system-software-update")
+    action = subprocess.run(
+        ["notify-send", "-a", title, "-i", icon,
+         "-A", "update=" + say("Update", "Frissítés"), "-A", "later=" + say("Later", "Később"),
+         title, say(f"A new version is available: {old} → {new}", f"Új verzió érhető el: {old} → {new}")],
+        capture_output=True, text=True).stdout.strip()
+    if action != "update":
+        return
+    was_running = running(name)
+    install(name, app)
+    if was_running:
+        for pid in was_running:
+            try:
+                os.kill(pid, 15)
+            except OSError:
+                pass
+        for _ in range(20):
+            if not running(name):
+                break
+            time.sleep(0.5)
+        # A scope of its own, or the app would end with this service.
+        subprocess.run(["systemd-run", "--user", "--scope", "--collect", "--quiet",
+                        "gtk-launch", app["entry"].removesuffix(".desktop")])
+    new = installed(name)
+    subprocess.run(["notify-send", "-a", title, "-i", icon, title,
+                    say(f"Updated to {new}.", f"Frissítve {new} verzióra.")
+                    + (say(" The app restarted.", " Az app újraindult.") if was_running else "")])
+
+
 def remove(name, app):
     shutil.rmtree(OPT / name, ignore_errors=True)
     (DATA / "applications" / app["entry"]).unlink(missing_ok=True)
@@ -204,6 +269,15 @@ def remove(name, app):
 
 
 def main():
+    if sys.argv[1:] == ["notify"]:
+        # One thread per app: a notification waiting for its click does not
+        # hold back the other app's.
+        threads = [threading.Thread(target=notify, args=item) for item in APPS.items()]
+        for t in threads:
+            t.start()
+        for t in threads:
+            t.join()
+        return
     if len(sys.argv) != 3 or sys.argv[1] not in APPS:
         sys.exit(__doc__)
     name, action = sys.argv[1:]

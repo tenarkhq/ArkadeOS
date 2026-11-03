@@ -55,6 +55,24 @@ for theme in WhiteSur WhiteSur-dark WhiteSur-light; do
     done
     gtk-update-icon-cache -f -q "/usr/share/icons/${theme}"
 done
+# The power profile icons (the top bar's profile switch) come in one fixed
+# grey, dark in the light theme, and vanished on the dark top bar (Roland,
+# 11-03): they take the panel's text colour, as KDE's own icons do.
+for theme in WhiteSur WhiteSur-dark WhiteSur-light; do
+    for f in "/usr/share/icons/${theme}"/status/symbolic/power-profile-*.svg; do
+        grep -q 'id="current-color-scheme"' "${f}" && continue  # a link to one done already
+        sed -i -e 's/fill="#\(363636\|dedede\)"/class="ColorScheme-Text" fill="currentColor"/g' \
+            -e 's#^\(<svg[^>]*>\)$#\1\n <style id="current-color-scheme" type="text/css">.ColorScheme-Text { color:\#363636; }</style>#' "${f}"
+        grep -q 'id="current-color-scheme"' "${f}"
+    done
+done
+# The dock's app grid icon as big as the app icons beside it (Roland, 11-03):
+# Plasma draws a square menu icon one standard size smaller than the dock's
+# app icons, a picture that is not quite square fills the dock like them
+# (the menu's own, /usr/share/arkadeos/icons/dock-menu.svg, is made so).
+sed 's/width="64" height="64"/viewBox="0 0 64 64" width="512" height="508"/' \
+    /usr/share/icons/WhiteSur/apps/scalable/view-app-grid.svg > /usr/share/arkadeos/icons/dock-app-grid.svg
+grep -q 'height="508"' /usr/share/arkadeos/icons/dock-app-grid.svg
 # The read-only system layer is no drive in the sidebar (arkadeos-root-hidden).
 systemctl enable arkadeos-root-hidden.service
 # Nor the free space Dolphin shows: Solid rebuilt with patches/solid-composefs-root.patch
@@ -63,11 +81,13 @@ rpm -q kf6-solid | grep -q '\.arkadeos\.'
 
 # Fewer wallpapers to choose from (Roland, 2026-11-01): the Fedora ones and
 # the KDE ones he picked go; the rest of KDE's, Bazzite's and ours stay.
+# Cold Ripple, Grey, Cluster, Canopée, Cascade, Bazzite's Half-Life VGUI2, ublue and bazzite-glass went too (Roland, 2026-11-03).
 cd /usr/share/wallpapers
 rm -rf Default Fedora F44 \
     Altai OneStandsOut ScarletTree giants.jxl FallenLeaf IceCold Shell Kay Kokkini \
     Honeywave summer_1am Nuvole Orionids Kite PastelHills SafeLanding FlyingKonqui \
-    EveningGlow ColorfulCups Sub-Arctic MilkyWay Volna Next BytheWater Autumn Path
+    EveningGlow ColorfulCups Sub-Arctic MilkyWay Volna Next BytheWater Autumn Path \
+    ColdRipple Grey Cluster Canopee Cascade VGUI2.jpg ublue.png bazzite-glass.png
 cd /
 rm -rf /usr/share/backgrounds/f44 /usr/share/backgrounds/fedora-workstation
 # The Breeze and Fedora global themes named two of them; they get the Ark.

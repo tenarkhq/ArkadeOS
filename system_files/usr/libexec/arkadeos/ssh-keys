@@ -1,0 +1,17 @@
+#!/usr/bin/bash
+# At login, the user's SSH keys (~/.ssh/id_*) go into the SSH agent, so apps
+# that connect over SSH (the Claude app, Git) work after a restart too
+# (Roland, 2026-11-03: his key has a passphrase and every restart broke the
+# Claude app's connection). A passphrase is asked once by KDE's dialog, which
+# keeps it in KWallet when "Remember" is ticked; from then on it loads without
+# asking, the way Windows' OpenSSH agent does.
+set -uo pipefail
+export SSH_AUTH_SOCK=${SSH_AUTH_SOCK:-${XDG_RUNTIME_DIR:-/run/user/$(id -u)}/ssh-agent.socket}
+[[ -S "${SSH_AUTH_SOCK}" ]] || exit 0
+loaded=$(ssh-add -l 2>/dev/null)
+for key in "${HOME}"/.ssh/id_*; do
+    [[ -f "${key}" && "${key}" != *.pub && -f "${key}.pub" ]] || continue
+    grep -qF -- "$(ssh-keygen -lf "${key}.pub" | cut -d' ' -f2)" <<< "${loaded}" && continue
+    SSH_ASKPASS=/usr/bin/ksshaskpass SSH_ASKPASS_REQUIRE=prefer ssh-add -q "${key}" < /dev/null
+done
+exit 0

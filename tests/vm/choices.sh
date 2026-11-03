@@ -200,6 +200,20 @@ ssh_vm "nohup ${gui} gtk-launch chatgpt >/dev/null 2>&1 &" || true
 check_wait "Claude Desktop starts" "pgrep -u arkade -f '${opt}/claude/'" 120
 check_wait "Codex Desktop starts" "pgrep -u arkade -f '${opt}/chatgpt/'" 120
 shot ai-desktop-apps
+# T072: a running, older Codex Desktop is offered the new version; the
+# notification's Update button updates and restarts it.
+check "new app versions looked for at login and hourly" "systemctl --user -M arkade@ is-enabled arkadeos-ai-update.timer"
+ver=$(ssh_vm "readlink ${opt}/chatgpt/current")
+ssh_vm "cd ${opt}/chatgpt && mv ${ver} 0.0.1 && ln -sfn 0.0.1 current" || true
+ssh_vm "nohup ${gui} /usr/libexec/arkadeos/ai-desktop notify >/dev/null 2>&1 &" || true
+sleep 30
+shot ai-update-notice
+ssh_vm "pkill -u arkade -f 'ai-desktop notify'" || true
+# The click: notify-send answers with the Update button.
+ssh_vm "mkdir -p /tmp/click && printf '#!/bin/sh\ncase \"\$*\" in *update=*) echo update ;; esac\n' > /tmp/click/notify-send && chmod 755 /tmp/click/notify-send"
+ssh_vm "timeout 600 ${gui} PATH=/tmp/click:/usr/bin /usr/libexec/arkadeos/ai-desktop notify" > "${out}/ai-update.log" 2>&1 || true
+check "Codex Desktop updated from its notification" "test \"\$(readlink ${opt}/chatgpt/current)\" = '${ver}'"
+check_wait "Codex Desktop restarted in the new version" "for p in \$(pgrep -u arkade); do readlink /proc/\$p/exe; done | grep -q '^${opt}/chatgpt/${ver}/'" 120
 install gh 600
 check "GitHub CLI starts" "${user} gh --version"
 

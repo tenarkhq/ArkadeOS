@@ -59,6 +59,7 @@ while read -r f; do
         build_files/62-power.sh | build_files/63-*.sh | build_files/64-peripherals.sh | \
         system_files/usr/lib/tuned/* | system_files/etc/tuned/* | \
         system_files/usr/bin/arkadeos-power | system_files/usr/bin/arkadeos-vendor | system_files/usr/bin/arkadeos-rgb | \
+        system_files/usr/libexec/arkadeos/lamparray | system_files/usr/lib/udev/rules.d/90-arkadeos-lamparray.rules | \
         system_files/usr/libexec/arkadeos/power-* | system_files/usr/libexec/arkadeos/gpu-cap | \
         system_files/usr/libexec/arkadeos/no-power-save | system_files/usr/libexec/arkadeos/vendor-* | \
         system_files/usr/libexec/arkadeos/asus-defaults | system_files/usr/libexec/arkadeos/x3d-vcache) add power games apps ;;
@@ -68,16 +69,15 @@ while read -r f; do
         # Apps, stores, the Portal.
         build_files/66-apps.sh | build_files/69-desktop-extras.sh | \
         system_files/usr/bin/arkadeos-portal | system_files/usr/libexec/arkadeos/portal-item | \
-        system_files/usr/libexec/arkadeos/apps-* | system_files/usr/libexec/arkadeos/steam-shortcut | \
-        system_files/usr/libexec/arkadeos/ai-desktop | system_files/usr/libexec/arkadeos/sunshine-up | system_files/usr/libexec/arkadeos/sunshine-encoder | \
+        system_files/usr/libexec/arkadeos/apps-* | \
+        system_files/usr/libexec/arkadeos/ai-desktop | system_files/usr/lib/systemd/user/arkadeos-ai-update.* | system_files/usr/libexec/arkadeos/sunshine-up | system_files/usr/libexec/arkadeos/sunshine-encoder | \
         system_files/usr/share/arkadeos/portal/* | system_files/etc/xdg/autostart/* | \
         system_files/usr/bin/arkadeos-airplay | system_files/usr/bin/arkadeos-anticheat | \
         system_files/usr/bin/arkadeos-battlenet | system_files/usr/bin/arkadeos-ea | system_files/usr/bin/arkadeos-ubisoft | \
         system_files/usr/bin/arkadeos-store | system_files/usr/bin/arkadeos-wowup | system_files/usr/bin/arkadeos-webapp | \
         system_files/usr/bin/arkadeos-tiling | system_files/usr/bin/arkadeos-firmware | system_files/usr/bin/arkadeos-monitor) add apps choices ;;
-        # Game Mode and the session switch.
-        system_files/usr/bin/arkadeos-session | system_files/usr/libexec/arkadeos/session-select | \
-        system_files/usr/lib/plasmalogin/*) add gamemode ;;
+        # The login screen.
+        system_files/usr/lib/plasmalogin/*) add look ;;
         # Updates, rollback, reset, the boot menu.
         build_files/68-updates.sh | system_files/usr/bin/arkadeos-update | \
         system_files/usr/libexec/arkadeos/migrate | system_files/usr/libexec/arkadeos/reset-* | \

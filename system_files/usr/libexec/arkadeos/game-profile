@@ -235,6 +235,10 @@ def main():
                 # here once too; that run sets the same lighting.
                 kbd = level
                 if level is not None:
+                    # A LampArray keyboard (FA608) follows the slider even
+                    # in a profile without lighting.
+                    subprocess.Popen(["/usr/libexec/arkadeos/lamparray", str(level)],
+                                     stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
                     subprocess.Popen(["arkadeos-rgb", "apply", now, str(level)],
                                      stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         except dbus.exceptions.DBusException:

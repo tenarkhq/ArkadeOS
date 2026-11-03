@@ -85,7 +85,7 @@ jobs:
             echo "${out:-none}"
           }
           echo "half1=$(half 'look keys power games')" >> "$GITHUB_OUTPUT"
-          echo "half2=$(half 'apps gamemode update')" >> "$GITHUB_OUTPUT"
+          echo "half2=$(half 'apps update')" >> "$GITHUB_OUTPUT"
 
   vm-test:
     # The parts in the name: promote.yml takes a build to stable only after a
@@ -151,7 +151,11 @@ jobs:
           echo "$GITHUB_TOKEN" | sudo podman login ghcr.io -u "${{ github.actor }}" --password-stdin
           start=$(date +%s)
           sudo podman pull -q "$IMAGE"
+          # The runner died out of room on 11-03 and took its log with it; each
+          # finished step's summary stays, so the room left after each big step shows
+          # where it goes.
           echo "pull: $(( $(date +%s) - start )) s" >> "$GITHUB_STEP_SUMMARY"
+          echo "free after it: $(df -h --output=avail / | tail -1) on /, $(df -h --output=avail /mnt | tail -1) on /mnt" >> "$GITHUB_STEP_SUMMARY"
           # The test reaches the VM over SSH, which ArkadeOS keeps off. The VM
           # installs from and updates through a registry on this runner
           # (127.0.0.1 here, 10.0.2.2 from inside the VM).
@@ -168,6 +172,7 @@ jobs:
           sudo podman run -d --name registry -p 127.0.0.1:5000:5000 docker.io/library/registry:2@sha256:a3d8aaa63ed8681a604f1dea0aa03f100d5895b6a58ace528858a7b332415373
           sudo podman push -q --tls-verify=false localhost/vm-test 127.0.0.1:5000/arkadeos:test
           echo "registry push: $(( $(date +%s) - start )) s" >> "$GITHUB_STEP_SUMMARY"
+          echo "free after it: $(df -h --output=avail / | tail -1) on /, $(df -h --output=avail /mnt | tail -1) on /mnt" >> "$GITHUB_STEP_SUMMARY"
 
       - name: Disk image
         if: env.NEEDED == 'true'
@@ -179,6 +184,7 @@ jobs:
             registry:127.0.0.1:5000/arkadeos:test 10.0.2.2:5000/arkadeos:test
           sudo chown "$USER" /mnt/disk.raw
           echo "disk image: $(( $(date +%s) - start )) s" >> "$GITHUB_STEP_SUMMARY"
+          echo "free after it: $(df -h --output=avail / | tail -1) on /, $(df -h --output=avail /mnt | tail -1) on /mnt" >> "$GITHUB_STEP_SUMMARY"
 
       - name: Boot, desktop, apps
         if: matrix.suite == 'run'

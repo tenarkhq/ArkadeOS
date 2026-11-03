@@ -1,11 +1,13 @@
 #!/usr/bin/bash
 # Apps (T014-T018, T021, T041): Battle.net and WowUp launchers, Flathub apps installed at
-# first boot (arkadeos-apps), per-user setup at login (Steam shortcuts,
-# microphone filter, dock stores).
+# first boot (arkadeos-apps), per-user setup at login (microphone
+# filter, dock stores).
 set -euo pipefail
 
 systemctl enable arkadeos-apps.service
 systemctl --global enable arkadeos-session-setup.service arkadeos-session-setup.path
+# T072: new Claude and Codex Desktop versions offered in a notification.
+systemctl --global enable arkadeos-ai-update.timer
 desktop-file-validate /usr/share/applications/org.arkadeos.BattleNet.desktop \
     /usr/share/applications/org.arkadeos.WowUp.desktop /usr/share/applications/org.arkadeos.AntiCheat.desktop \
     /usr/share/applications/org.arkadeos.WebApp.desktop /usr/share/applications/org.arkadeos.Tiling.desktop \

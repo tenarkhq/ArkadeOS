@@ -1,7 +1,7 @@
 #!/usr/bin/bash
 # Per-user setup at each login, and again when apps are installed or removed
-# (arkadeos-session-setup.path): game folders out of home snapshots, Steam
-# Game Mode shortcuts, EasyEffects microphone noise filter, stores on the dock,
+# (arkadeos-session-setup.path): game folders out of home snapshots,
+# EasyEffects microphone noise filter, stores on the dock,
 # one-time update steps for the user's settings.
 set -uo pipefail
 
@@ -97,11 +97,6 @@ if [[ "$(stat -f -c %T "${HOME}")" == btrfs ]]; then
         [[ "$(stat -c %C "${d}" 2>/dev/null)" == *:user_home_t:* ]] || restorecon -R "${d}" 2>/dev/null || true
     done
 fi
-
-# Steam Game Mode shortcuts (T014); written only while Steam is closed.
-grep -v '^#' /usr/share/arkadeos/steam-shortcuts.list | while IFS='|' read -r name exe icon; do
-    /usr/libexec/arkadeos/steam-shortcut "${name}" "${exe}" "${icon}"
-done
 
 # EasyEffects (T016): noise filter on every microphone, running in the
 # background from login. Set up once; the user's own changes stay.
