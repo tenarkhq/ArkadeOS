@@ -20,11 +20,11 @@ A clean KDE Plasma desktop, one image for NVIDIA, AMD and Intel graphics, Steam 
 
 | | Feature | Status |
 |---|---|---|
-| 🎮 | Steam, Proton-GE, Proton Experimental, Gamescope, MangoHud, GameMode | in testing |
+| 🎮 | Steam, Proton-GE, Proton Experimental, Gamescope, MangoHud (set up in MangoJuice), GameMode, Protontricks | in testing |
 | ⚔️ | One-click Battle.net with World of Warcraft, WowUp for addons | **tested on hardware** |
 | 🛒 | EA app, Ubisoft Connect, Heroic (Epic, GOG, Amazon), Lutris | in testing |
 | 🪟 | Borderless windowed games run full screen, above the taskbar | in testing |
-| 🎞️ | Frame generation (lsfg-vk) per game, instant replay (GPU Screen Recorder), OBS, Sunshine | in testing |
+| 🎞️ | Frame generation (lsfg-vk) per game, instant replay (GPU Screen Recorder), OBS, Sunshine and Moonlight | in testing |
 | 💬 | Discord preinstalled, Vesktop optional for Wayland screen sharing with audio | in testing |
 | 🧲 | qBittorrent: free, open-source torrent client without ads (ticked by default, can be left out) | in testing |
 | 🎙️ | Microphone noise filter and low-latency audio | in testing |

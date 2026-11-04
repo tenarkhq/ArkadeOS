@@ -9,3 +9,6 @@ vlc|org.videolan.VLC|always
 protonplus|com.vysp3r.ProtonPlus|always
 qbittorrent|org.qbittorrent.qBittorrent|on
 heroic|com.heroicgameslauncher.hgl|off
+mangojuice|io.github.radiolamp.mangojuice|always
+protontricks|com.github.Matoking.protontricks|off
+moonlight|com.moonlight_stream.Moonlight|off
