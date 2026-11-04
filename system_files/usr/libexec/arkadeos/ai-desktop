@@ -204,11 +204,13 @@ def installed(name):
 
 
 def running(name):
-    """The app's processes: those run from its folder in the user's home."""
+    """The app's processes: those run from its folder in the user's home
+    (/home is a link to /var/home, the processes show the real path)."""
+    folder = os.path.realpath(OPT / name) + "/"
     pids = []
     for proc in Path("/proc").iterdir():
         try:
-            if proc.name.isdigit() and os.readlink(proc / "exe").startswith(str(OPT / name) + "/"):
+            if proc.name.isdigit() and os.readlink(proc / "exe").startswith(folder):
                 pids.append(int(proc.name))
         except OSError:
             pass

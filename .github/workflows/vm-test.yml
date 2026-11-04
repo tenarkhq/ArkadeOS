@@ -215,14 +215,6 @@ jobs:
           tests/vm/choices.sh /mnt/disk.raw vm-key vm-out
           echo "choices: $(( $(date +%s) - start )) s" >> "$GITHUB_STEP_SUMMARY"
 
-      - name: Stop the whole run
-        # Roland, 2026-11-03: a failed part fails the run; the other parts
-        # need not run to the end.
-        if: failure()
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: gh run cancel ${{ github.run_id }} --repo ${{ github.repository }}
-
       - name: Results
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
@@ -230,6 +222,14 @@ jobs:
           name: vm-test-arkadeos${{ matrix.suite == 'choices' && '-choices' || format('-{0}', matrix.half) }}
           path: vm-out/
           if-no-files-found: ignore
+
+      - name: Stop the whole run
+        # Roland, 2026-11-03: a failed part fails the run; the other parts
+        # need not run to the end.
+        if: failure()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh run cancel ${{ github.run_id }} --repo ${{ github.repository }}
 
   # T051: the previous build, installed and used, updates to this one without
   # reinstalling. One image is enough: both share everything but the driver.
@@ -323,14 +323,6 @@ jobs:
             "sudo podman push -q --tls-verify=false localhost/vm-new 127.0.0.1:5000/arkadeos:test" \
             "${{ steps.builds.outputs.previous }}"
 
-      - name: Stop the whole run
-        # Roland, 2026-11-03: a failed part fails the run; the other parts
-        # need not run to the end.
-        if: failure()
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: gh run cancel ${{ github.run_id }} --repo ${{ github.repository }}
-
       - name: Results
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
@@ -338,6 +330,14 @@ jobs:
           name: vm-test-update-path
           path: vm-out/
           if-no-files-found: ignore
+
+      - name: Stop the whole run
+        # Roland, 2026-11-03: a failed part fails the run; the other parts
+        # need not run to the end.
+        if: failure()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh run cancel ${{ github.run_id }} --repo ${{ github.repository }}
 
   # The testing channel moves to a main build only once its VM test passed
   # (T081): machines on testing never get a build that failed it.

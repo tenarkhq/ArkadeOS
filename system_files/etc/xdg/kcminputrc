@@ -1,0 +1,5 @@
+# ArkadeOS input defaults. The touchpad scrolls the natural way, as on a Mac
+# (Roland, 11-03); a mouse keeps the usual Windows direction. KWin takes this
+# group for every touchpad until the user sets one in System Settings.
+[Libinput][Defaults][Touchpad]
+NaturalScroll=true

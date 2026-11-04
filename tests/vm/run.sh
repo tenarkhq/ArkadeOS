@@ -218,6 +218,8 @@ check "dark lock screen" "${session} kreadconfig6 --file kscreenlockerrc --group
 check "Hungarian language" "rpm -q hunspell-hu && test -f /usr/share/locale/hu/LC_MESSAGES/dolphin.mo &&
     grep -q 'Name\\[hu\\]' /usr/share/plasma/look-and-feel/org.arkadeos.light.desktop/metadata.json"
 check "window buttons on the left" "test \"\$(${session} kreadconfig6 --file kwinrc --group org.kde.kdecoration2 --key ButtonsOnLeft)\" = XIA"
+check "touchpad scrolls the natural way, the mouse does not" "test \"\$(${session} kreadconfig6 --file kcminputrc --group Libinput --group Defaults --group Touchpad --key NaturalScroll)\" = true &&
+    test -z \"\$(${session} kreadconfig6 --file kcminputrc --group Libinput --group Defaults --group Pointer --key NaturalScroll)\""
 # Apps get the Plasma session variables, as when started from the menu.
 # Both themes with Dolphin open in front: the day/night switch must restyle
 # running apps, not only new ones. (System Settings is left out: Plasma does
