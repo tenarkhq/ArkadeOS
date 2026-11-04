@@ -173,7 +173,9 @@ shot ai-update-notice
 ssh_vm "pkill -u arkade -f 'ai-desktop notify'" || true
 # The click: notify-send answers with the Update button.
 ssh_vm "mkdir -p /tmp/click && printf '#!/bin/sh\ncase \"\$*\" in *update=*) echo update ;; esac\n' > /tmp/click/notify-send && chmod 755 /tmp/click/notify-send"
-ssh_vm "timeout 600 ${gui} PATH=/tmp/click:/usr/bin /usr/libexec/arkadeos/ai-desktop notify" > "${out}/ai-update.log" 2>&1 || true
+# The log stays in the VM: the restarted app would hold the connection open.
+ssh_vm "timeout 600 ${gui} PATH=/tmp/click:/usr/bin /usr/libexec/arkadeos/ai-desktop notify > /tmp/ai-update.log 2>&1" || true
+ssh_vm "cat /tmp/ai-update.log" > "${out}/ai-update.log" 2>&1 || true
 check "Codex Desktop updated from its notification" "test \"\$(readlink ${opt}/chatgpt/current)\" = '${ver}'"
 check_wait "Codex Desktop restarted in the new version" "for p in \$(pgrep -u arkade); do readlink /proc/\$p/exe; done | grep -q \"^\$(readlink -f ${opt})/chatgpt/${ver}/\"" 120
 install gh 600

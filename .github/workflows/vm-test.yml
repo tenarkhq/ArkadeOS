@@ -49,7 +49,14 @@ jobs:
           groups=all
           if [ "${EVENT}" = schedule ]; then
             # A nightly run without a new build (build.yml): nothing to test
-            # again when this commit already passed every part.
+            # while this commit's push run is still going (GitHub's nightly
+            # can start hours late), or when it already passed every part.
+            if gh api "repos/${GITHUB_REPOSITORY}/actions/workflows/vm-test.yml/runs?head_sha=$(git rev-parse HEAD)" \
+                --jq ".workflow_runs[] | select(.id != ${GITHUB_RUN_ID} and (.status == \"in_progress\" or .status == \"queued\")) | .id" | grep -q .; then
+              echo "skip=true" >> "$GITHUB_OUTPUT"
+              echo "This build is being tested by another run." >> "$GITHUB_STEP_SUMMARY"
+              exit 0
+            fi
             for id in $(gh api "repos/${GITHUB_REPOSITORY}/actions/workflows/vm-test.yml/runs?status=success&head_sha=$(git rev-parse HEAD)" --jq '.workflow_runs[].id'); do
               if gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${id}/jobs" --jq '.jobs[].name' | grep -q ' · all$' &&
                 [ "$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${id}" --jq .created_at)" \> "$(skopeo inspect --no-tags "docker://ghcr.io/tenarkhq/arkadeos:${TAG}" | jq -r .Created)" ]; then
