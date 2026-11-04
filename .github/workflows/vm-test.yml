@@ -316,10 +316,10 @@ jobs:
             printf '%s\n' "FROM $2" 'RUN systemctl enable sshd.service && mkdir -p /etc/containers/registries.conf.d && printf "[[registry]]\nlocation = \"%s\"\ninsecure = true\n" 127.0.0.1:5000 10.0.2.2:5000 > /etc/containers/registries.conf.d/50-vm-test.conf' |
               sudo podman build -q -t "localhost/vm-$1" -f - .
           }
-          # The new build is needed only at the update: it comes in while the
-          # previous one is installed and used (/tmp/vm-new.done or .failed).
-          ( vm_build new "${REPO}@${new}" > /tmp/vm-new.log 2>&1 && touch /tmp/vm-new.done || touch /tmp/vm-new.failed ) &
+          # One after the other: two pulls at once slowed every step of this
+          # job (2026-11-04: 39 minutes instead of 30).
           vm_build old "${REPO}:${previous}"
+          vm_build new "${REPO}@${new}"
           sudo podman run -d --name registry -p 127.0.0.1:5000:5000 docker.io/library/registry:2@sha256:a3d8aaa63ed8681a604f1dea0aa03f100d5895b6a58ace528858a7b332415373
           sudo podman push -q --tls-verify=false localhost/vm-old 127.0.0.1:5000/arkadeos:test
           sudo podman push -q --tls-verify=false localhost/vm-old "127.0.0.1:5000/arkadeos:${previous}"
@@ -336,7 +336,7 @@ jobs:
         if: steps.builds.outputs.skip != 'true'
         run: |
           tests/vm/update-path.sh /mnt/disk.raw vm-key vm-out \
-            "until [ -e /tmp/vm-new.done ]; do if [ -e /tmp/vm-new.failed ]; then cat /tmp/vm-new.log; exit 1; fi; sleep 5; done; sudo podman push -q --tls-verify=false localhost/vm-new 127.0.0.1:5000/arkadeos:test" \
+            "sudo podman push -q --tls-verify=false localhost/vm-new 127.0.0.1:5000/arkadeos:test" \
             "${{ steps.builds.outputs.previous }}"
 
       - name: Results
