@@ -21,14 +21,16 @@ has_app() {
 # Finder-like sidebar (T069): Games in it, Remote and Recent hidden; once,
 # when KDE has written the places file.
 places_done="${XDG_STATE_HOME:-${HOME}/.local/state}/arkadeos/places-v1"
-if [[ ! -e "${places_done}" ]]; then
+places() {
+    [[ -e "${places_done}" ]] && return 0
     if /usr/libexec/arkadeos/places-setup; then
         mkdir -p "$(dirname "${places_done}")" && touch "${places_done}"
         echo "session-setup: sidebar set up" >&2
     else
-        echo "session-setup: sidebar waits for the places file" >&2
+        return 1
     fi
-fi
+}
+places || echo "session-setup: sidebar waits for the places file" >&2
 
 # The folders browsers put web apps in (T067): Flatpak only lets Chrome reach
 # them when they exist, and a new user has neither.
@@ -102,4 +104,12 @@ for _ in $(seq 30); do
     busctl --user call org.kde.plasmashell /PlasmaShell org.kde.PlasmaShell evaluateScript s "${js}" \
         &>/dev/null && break
     sleep 2
+done
+
+# KDE often writes the places file at the first login while this runs, and the
+# path unit does not start a run that is still going: try once more, after
+# waiting a little for the file.
+for _ in {1..10}; do
+    places && break
+    sleep 1
 done
