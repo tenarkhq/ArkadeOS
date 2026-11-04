@@ -219,6 +219,8 @@ check "dark lock screen" "${session} kreadconfig6 --file kscreenlockerrc --group
 # T010: Hungarian is complete, our own texts included.
 check "Hungarian language" "rpm -q hunspell-hu && test -f /usr/share/locale/hu/LC_MESSAGES/dolphin.mo &&
     grep -q 'Name\\[hu\\]' /usr/share/plasma/look-and-feel/org.arkadeos.light.desktop/metadata.json"
+check "each ArkadeOS global theme has its own preview" "for v in light dark; do
+    test -s /usr/share/plasma/look-and-feel/org.arkadeos.\$v.desktop/contents/previews/preview.png || exit 1; done"
 # KDE's own window buttons (on the right) and screen corners (Roland, 2026-11-04).
 check "window buttons and screen corners as in KDE" "! grep -qE 'ButtonsOn|ElectricBorders|Effect-overview' /etc/xdg/kwinrc &&
     test \"\$(${session} kreadconfig6 --file kwinrc --group org.kde.kdecoration2 --key ButtonsOnLeft)\" != XIA"
@@ -245,6 +247,11 @@ check "Finder-like sidebar: Games in it, Remote and Recent hidden" "grep -qE 'hr
     grep -q '<GroupState-RecentlySaved-IsHidden>true' ${home%/.config}/.local/share/user-places.xbel"
 ssh_vm "${session} systemctl --user status --no-pager arkadeos-session-setup.path arkadeos-session-setup.service;
     ${session} journalctl --user -b -u arkadeos-session-setup --no-pager | tail -60;     grep -h ColorScheme ${home}/kdeglobals ${home}/kdedefaults/kdeglobals; ls -la ${home%/.config}/.local/share/user-places.xbel ${home%/.config}/.local/state/arkadeos" > "${out}/session-setup.txt" 2>&1 || true
+# Every ArkadeOS menu entry has its icon (the Battle.net one came from
+# WhiteSur's icons until 11-04).
+check "every ArkadeOS menu entry has its icon" 'for f in /usr/share/applications/org.arkadeos.*.desktop; do
+    i=$(sed -n "s/^Icon=//p" $f | head -1);
+    find /usr/share/icons/hicolor /usr/share/icons/breeze /usr/share/pixmaps -name "$i.*" | grep -q . || { echo $f; exit 1; }; done'
 check "thin Dolphin status bar" 'grep -qx ShowStatusBar=FullWidth /etc/xdg/dolphinrc'
 # The menu bar in the window again, Dolphin's from its first start; not in
 # Konsole (Roland, 2026-11-04). A shown menu bar is the default: Dolphin drops

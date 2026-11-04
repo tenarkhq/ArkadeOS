@@ -23,7 +23,7 @@ out = sys.argv[1]
 
 step, text, overall, failed = portal.parse_update_log(LOG[:1])
 assert (step, overall, failed) == (0, 20, []), (step, overall, failed)
-assert text in ("System: download (80%)", "Rendszer: letöltés (80%)"), text
+assert text in ("System: download", "Rendszer: letöltés"), text
 step, text, overall, failed = portal.parse_update_log(LOG[:5])
 assert (step, overall) == (2, 74), (step, overall)
 step, text, overall, failed = portal.parse_update_log(LOG)

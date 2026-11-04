@@ -303,8 +303,10 @@ def parse_update_log(lines):
                 continue
             step, overall = i, e.get("overall")
             if i == 0:
+                # The stage only: the one percentage shown is the whole update's
+                # (11-04: the step's own 2% beside the whole 0% read as a fault).
                 stage = SYSTEM_STAGES.get(e.get("description", ""), e.get("description", ""))
-                text = f"{UPDATE_STEPS[0][2]}: {stage} ({round(e.get('step_progress') or 0)}%)"
+                text = f"{UPDATE_STEPS[0][2]}: {stage}"
             else:
                 text = STEP_DOING[i - 1]
         elif e.get("msg") == "module_fail":
@@ -441,11 +443,18 @@ class SystemTab(QWidget):
         u.addWidget(self.version)
         self.progress = UpdateProgress()
         u.addWidget(self.progress)
-        u.addWidget(QLabel(tr(
+        daily = QLabel(tr(
             "The system, apps and Homebrew update every day by themselves; a new system "
             "version starts at the next reboot.",
             "A rendszer, az appok és a Homebrew naponta maguktól frissülnek; az új "
-            "rendszerverzió a következő újraindításkor indul.")))
+            "rendszerverzió a következő újraindításkor indul."))
+        daily.setWordWrap(True)
+        u.addWidget(daily)
+        # Roland, 2026-11-04: whether a newer version is out on the channel.
+        self.latest = QLabel()
+        self.latest.setWordWrap(True)
+        self.latest.setVisible(False)
+        u.addWidget(self.latest)
         row = QHBoxLayout()
         self.restart = QPushButton(QIcon.fromTheme("system-reboot"), tr("Restart now", "Újraindítás most"))
         self.restart.clicked.connect(lambda: subprocess.Popen(
@@ -459,6 +468,11 @@ class SystemTab(QWidget):
                                     ["arkadeos-update", "rollback"])
         row.addWidget(self.rollback)
         u.addLayout(row)
+        self.check = QPushButton(QIcon.fromTheme("view-refresh"), tr("Look for a newer version", "Újabb verzió keresése"))
+        self.check.clicked.connect(self.look_for_newer)
+        self.checker = QProcess(self)
+        self.checker.finished.connect(self.newer_found)
+        u.addWidget(self.check)
         row = QHBoxLayout()
         row.addWidget(QLabel(tr("Channel:", "Csatorna:")))
         self.channel = QComboBox()
@@ -525,6 +539,18 @@ class SystemTab(QWidget):
     def showEvent(self, event):
         super().showEvent(event)
         self.poll()
+
+    def look_for_newer(self):
+        self.check.setEnabled(False)
+        self.latest.setText(tr("Looking…", "Keresés…"))
+        self.latest.setVisible(True)
+        self.checker.start("arkadeos-update", ["latest"])
+
+    def newer_found(self):
+        out = bytes(self.checker.readAllStandardOutput()).decode().strip()
+        err = bytes(self.checker.readAllStandardError()).decode().strip()
+        self.latest.setText(out or err or tr("The channel could not be reached.", "A csatorna nem érhető el."))
+        self.check.setEnabled(True)
 
     def button(self, icon, text, command):
         b = QPushButton(QIcon.fromTheme(icon), text)

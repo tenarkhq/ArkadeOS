@@ -146,7 +146,7 @@ check "Proton picked for a store" "${user} arkadeos-store ea --check | grep -qx 
 install claude-code 600
 check "Claude Code starts" "${user} claude --version"
 install codex 900
-check "Codex starts" "${user} codex --version"
+check "Codex starts, from OpenAI's own installer" "${user} codex --version && test -x /home/arkade/.local/bin/codex"
 # T072: the desktop apps in the user's home, started from their menu entry.
 opt=/home/arkade/.local/opt/arkadeos
 apps=/home/arkade/.local/share/applications

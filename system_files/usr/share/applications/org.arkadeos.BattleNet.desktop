@@ -4,7 +4,7 @@ Name=Battle.net
 Comment=Blizzard games (World of Warcraft) through Proton
 Comment[hu]=Blizzard-játékok (World of Warcraft) Protonnal
 Exec=arkadeos-battlenet
-Icon=battlenet
+Icon=arkadeos-battlenet
 Categories=Game;
 Actions=ChooseProton;
 

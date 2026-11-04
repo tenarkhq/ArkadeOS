@@ -234,7 +234,10 @@ def notify(name, app):
     new = (latest_claude if name == "claude" else latest_chatgpt)(app)[0]
     if vkey(new) <= vkey(old):
         return
-    entry = dict(re.findall(r"^(Name|Icon)=(.*)$", (DATA / "applications" / app["entry"]).read_text(), re.M))
+    # The app's own name and icon: the first [Desktop Entry] group, not its
+    # actions' (Claude's "New Claude Code Session").
+    main = re.split(r"^\[Desktop Action ", (DATA / "applications" / app["entry"]).read_text(), flags=re.M)[0]
+    entry = dict(re.findall(r"^(Name|Icon)=(.*)$", main, re.M))
     title, icon = entry.get("Name", name), entry.get("Icon", "system-software-update")
     action = subprocess.run(
         ["notify-send", "-a", title, "-i", icon,

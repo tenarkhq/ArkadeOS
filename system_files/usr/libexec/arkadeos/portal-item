@@ -87,12 +87,19 @@ case "${kind}:${action}" in
     script:status)
         case "${item}" in
             claude-code) status test -x "${HOME}/.local/bin/claude" ;;
+            codex) status test -x "${HOME}/.local/bin/codex" ;;
             lsfg-vk) status test -f "${HOME}/.local/lib/liblsfg-vk-layer.so" ;;
         esac
         ;;
     script:install)
         case "${item}" in
             claude-code) curl -fsSL https://claude.ai/install.sh | bash ;;
+            # T079: OpenAI's own installer, like Claude's; a Homebrew Codex of
+            # an earlier ArkadeOS goes, the settings in ~/.codex stay.
+            codex)
+                curl -fsSL https://chatgpt.com/codex/install.sh | CODEX_NON_INTERACTIVE=1 sh || exit 1
+                if "${brew}" list codex &>/dev/null; then "${brew}" uninstall codex; fi
+                ;;
             # T056: lsfg-vk, its makers' own build into ~/.local, as their guide
             # says; the frame generation itself comes from the user's Lossless
             # Scaling (Steam). Pinned, checksum checked.
@@ -110,6 +117,7 @@ case "${kind}:${action}" in
     script:remove)
         case "${item}" in
             claude-code) rm -rf "${HOME}/.local/bin/claude" "${HOME}/.local/share/claude" ;;
+            codex) rm -rf "${HOME}/.local/bin/codex" "${HOME}/.local/bin/codex-code-mode-host" "${HOME}/.codex/packages/standalone" ;;
             lsfg-vk)
                 while read -r f; do rm -f "${HOME}/.local/${f#./}"; done < "${HOME}/.local/share/arkadeos/lsfg-vk.files"
                 rm -f "${HOME}/.local/share/arkadeos/lsfg-vk.files"

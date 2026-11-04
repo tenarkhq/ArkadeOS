@@ -10,6 +10,8 @@
 #   arkadeos-update versions   the builds of the last 90 days of this channel (T036)
 #   arkadeos-update version TAG   start that build at the next reboot; it stays
 #                              until "channel" brings the newest again
+#   arkadeos-update latest     whether the channel has a newer version than the
+#                              running one (and the one waiting for the reboot)
 #   arkadeos-update notify     tells the user once when a new version waits
 #                              for the reboot (arkadeos-update-notify.timer)
 set -euo pipefail
@@ -69,6 +71,30 @@ case "${1:-status}" in
         ;;
     staged)
         version staged
+        ;;
+    latest)
+        # Roland, 2026-11-04: the channel's newest build against the running
+        # and the staged one, by image digest (two builds of a day share the
+        # version number).
+        ref=$(image_ref)
+        [[ -n "${ref}" ]] || { say "No ArkadeOS image found." "Nem található ArkadeOS image."; exit 1; }
+        remote=$(skopeo inspect --no-tags "docker://${ref}" 2>/dev/null) ||
+            { say "The channel could not be reached." "A csatorna nem érhető el."; exit 1; }
+        digest=$(jq -r .Digest <<< "${remote}")
+        newest=$(jq -r '.Labels["org.opencontainers.image.version"] // empty' <<< "${remote}")
+        have() {
+            deployments | jq -r --arg w "$1" '.deployments[]? | select(if $w == "booted" then .booted else .staged end)
+                | ."container-image-reference-digest" // empty' | head -1
+        }
+        if [[ "${digest}" == "$(have booted)" ]]; then
+            say "This is the newest version (${newest})." "Ez a legfrissebb verzió (${newest})."
+        elif [[ "${digest}" == "$(have staged)" ]]; then
+            say "The newest version (${newest}) is downloaded; it starts at the next reboot." \
+                "A legfrissebb verzió (${newest}) már letöltve, a következő újraindításkor indul."
+        else
+            say "A newer version is out: ${newest}. Update now brings it." \
+                "Újabb verzió érhető el: ${newest}. A Frissítés most gombbal jön le."
+        fi
         ;;
     now)
         exec pkexec systemctl start --no-block uupd.service
@@ -130,7 +156,7 @@ for tag in sorted(json.load(sys.stdin)["Tags"], reverse=True):
         switch_to "${ref%:*}:${tag}" "${3:-}"
         ;;
     *)
-        sed -n '2,14p' "$0" | sed 's/^# \{0,1\}//'
+        sed -n '2,16p' "$0" | sed 's/^# \{0,1\}//'
         exit 2
         ;;
 esac
