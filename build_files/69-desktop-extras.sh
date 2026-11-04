@@ -20,10 +20,8 @@ test -f /usr/share/pipewire/pipewire.conf.avail/50-raop.conf
 
 # Bazzite commands that undo ArkadeOS or need what it leaves out stay out of
 # the ujust lists: NVK switches to another image for the nouveau driver (one
-# image, nouveau off, T080), the Breeze GTK theme replaces WhiteSur (T006),
-# and Cockpit is not in the image.
-for recipe in 40-nvidia.just:toggle-nvk 90-bazzite-de.just:restore-bazzite-breeze-gtk-theme \
-              82-bazzite-cockpit.just:cockpit; do
+# image, nouveau off, T080), and Cockpit is not in the image.
+for recipe in 40-nvidia.just:toggle-nvk 82-bazzite-cockpit.just:cockpit; do
     file=/usr/share/ublue-os/just/${recipe%%:*}
     grep -qE "^${recipe#*:}[ :]" "${file}"
     sed -i -E "/^${recipe#*:}[ :]/i [private]" "${file}"

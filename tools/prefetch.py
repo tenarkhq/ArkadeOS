@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Keep the newest build inputs in a local cache on the build server.
 
-Downloads the latest release asset of every GitHub-hosted app ArkadeOS ships,
-the WhiteSur theme sources and the Battle.net installer into $ARKADEOS_CACHE
+Downloads the latest release asset of every GitHub-hosted app ArkadeOS ships
+and the Battle.net installer into $ARKADEOS_CACHE
 (default ~/arkadeos-cache). Each app keeps only its newest files; manifest.json
 lists what is cached. Fedora-specific packages follow the Fedora version of
 the Bazzite base image.
@@ -25,12 +25,6 @@ RELEASES = {
     "ollama": ("ollama/ollama", [r"ollama-linux-amd64\.tar\.zst$", r"ollama-linux-amd64-rocm\.tar\.zst$"]),
     "mcontrolcenter": ("dmitry-s93/MControlCenter", [r"MControlCenter-.*-bin\.tar\.gz$"]),
     "lenovolegionlinux": ("johnfanv2/LenovoLegionLinux", ["SOURCE"]),
-}
-GIT = {
-    "whitesur-kde": "https://github.com/vinceliuice/WhiteSur-kde",
-    "whitesur-gtk": "https://github.com/vinceliuice/WhiteSur-gtk-theme",
-    "whitesur-icons": "https://github.com/vinceliuice/WhiteSur-icon-theme",
-    "whitesur-cursors": "https://github.com/vinceliuice/WhiteSur-cursors",
 }
 DIRECT = {
     "battlenet": ("Battle.net-Setup.exe", "https://downloader.battle.net/download/getInstaller?os=win&installer=Battle.net-Setup.exe"),
@@ -96,17 +90,6 @@ def main():
                 if old.name not in keep:
                     old.unlink()
             manifest[name] = {"version": rel["tag_name"], "files": keep}
-        except Exception as e:
-            failed.append(f"{name}: {e}")
-    for name, url in GIT.items():
-        d = CACHE / "git" / name
-        try:
-            if d.exists():
-                subprocess.run(["git", "-C", str(d), "pull", "--ff-only", "-q"], check=True)
-            else:
-                subprocess.run(["git", "clone", "-q", "--depth", "1", url, str(d)], check=True)
-            rev = subprocess.run(["git", "-C", str(d), "rev-parse", "--short", "HEAD"], capture_output=True, text=True).stdout.strip()
-            manifest[name] = {"version": rev}
         except Exception as e:
             failed.append(f"{name}: {e}")
     for name, (fname, url) in DIRECT.items():

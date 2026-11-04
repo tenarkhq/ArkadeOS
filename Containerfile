@@ -18,9 +18,6 @@ FROM scratch AS ctx-packages
 COPY build_files/packages /packages
 COPY system_files/etc/pki/arkadeos/arkadeos-mok.der /packages/arkadeos-mok.der
 
-FROM scratch AS ctx-whitesur
-COPY build_files/whitesur.sh /whitesur.sh
-
 FROM scratch AS ctx-proton
 COPY build_files/proton-ge.sh /proton-ge.sh
 
@@ -40,11 +37,6 @@ RUN --mount=type=bind,from=ctx-packages,source=/,target=/ctx \
     --mount=type=secret,id=mok,required=false \
     --mount=type=bind,from=solid,source=/solid,target=/solid \
     /ctx/packages/install.sh
-
-# WhiteSur theme files (T006), pinned upstream commits.
-RUN --mount=type=bind,from=ctx-whitesur,source=/,target=/ctx \
-    --mount=type=tmpfs,dst=/tmp \
-    /ctx/whitesur.sh
 
 # Proton-GE: rebuilt with each GE-Proton release.
 ARG PROTON_GE_VERSION

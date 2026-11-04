@@ -1,8 +1,7 @@
 #!/usr/bin/bash
-# Layout (T007) and Windows keys (T008). The bar, dock, window buttons and hot
-# corners are config files under system_files; this sets the shortcuts that
-# come from desktop files: Meta+Space for KRunner, like Spotlight, and the
-# Windows keys below.
+# Layout (T007) and Windows keys (T008). The taskbar is in the global theme
+# under system_files; this sets the shortcuts that come from desktop files:
+# Meta+Space for KRunner, like Spotlight, and the Windows keys below.
 set -euo pipefail
 
 sed -i 's/^X-KDE-Shortcuts=Alt+Space,Alt+F2,Search$/&,Meta+Space/' /usr/share/kglobalaccel/org.kde.krunner.desktop

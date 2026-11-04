@@ -5,11 +5,8 @@ PartOf=graphical-session.target
 [Path]
 PathChanged=/var/lib/flatpak/exports/share/applications
 PathChanged=%h/.local/share/flatpak/exports/share/applications
-# Web apps the browser adds (their dock name, T067).
+# Web apps the browser adds (their taskbar name, T067).
 PathChanged=%h/.local/share/applications
-# Light or dark look: the Kvantum theme follows (T069).
-PathChanged=%h/.config/kdeglobals
-PathChanged=%h/.config/kdedefaults/kdeglobals
 # KDE's places file, first written when a file view opens (T069).
 PathChanged=%h/.local/share/user-places.xbel
 Unit=arkadeos-session-setup.service

@@ -7,8 +7,8 @@
             }
         ],
         "Category": "Global Themes (Plasma 6)",
-        "Description": "WhiteSur look for ArkadeOS, light",
-        "Description[hu]": "WhiteSur-kinézet az ArkadeOS-hez, világos",
+        "Description": "Breeze look for ArkadeOS, light",
+        "Description[hu]": "Breeze-kinézet az ArkadeOS-hez, világos",
         "EnabledByDefault": true,
         "Id": "org.arkadeos.light.desktop",
         "License": "GPLv3",

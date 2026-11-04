@@ -66,9 +66,9 @@ toshy_pkgs=(cairo-devel cairo-gobject-devel dbus-daemon dbus-devel evtest gcc gi
 dnf5 -y install "${nodeps[@]}" "${toshy_pkgs[@]}"
 rpm -q "${toshy_pkgs[@]}" >/dev/null
 
-# T006, T069 (70-theme.sh): the Inter font, the Kvantum app style, and Solid
-# rebuilt with ArkadeOS's patch (solid.sh, its own build stage).
-dnf5 -y install "${nodeps[@]}" rsms-inter-fonts kvantum
+# T006 (70-theme.sh): the Inter font, and Solid rebuilt with ArkadeOS's patch
+# (solid.sh, its own build stage).
+dnf5 -y install "${nodeps[@]}" rsms-inter-fonts
 dnf -y -q install /solid/kf6-solid-*.rpm
 
 # T082: the boot screen's animation runs in Plymouth's script module.

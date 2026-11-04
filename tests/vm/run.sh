@@ -110,9 +110,10 @@ if ssh_vm 'pgrep -u arkade -f "arkadeos-portal --first-run"' >/dev/null; then
 else
     echo "FAILED Portal choice screen on the first login" >> "${out}/apps.txt"
 fi
-# The app style when the choice screen closes: the look can still change
-# after it opens, and the open Portal follows it (checked below).
-ssh_vm "sed -n 's/^theme=//p' /home/arkade/.config/Kvantum/kvantum.kvconfig > /tmp/portal-closed-style" || true
+# The colours when the choice screen closes: the look must have been final
+# when it opened (checked below).
+ssh_vm "cat /home/arkade/.config/kdeglobals /home/arkade/.config/kdedefaults/kdeglobals 2>/dev/null |
+    sed -n 's/^ColorScheme=//p' | head -1 > /tmp/portal-closed-colours" || true
 ssh_vm 'pkill -u arkade -f "arkadeos-portal --first-run"' || true
 sleep 3
 shot desktop
@@ -152,12 +153,11 @@ check() {
     fi
 }
 
-# The Portal choice screen opens once the automatic light/dark look is final,
-# in its app style, and follows a later switch while it is open: its last
-# style is the desktop's when it closed.
+# The Portal choice screen opens once the automatic light/dark look is final:
+# its colours are the desktop's when it closed.
 check "Portal choice screen shows the desktop's look" "${session} journalctl --user -b --no-pager |
-    grep -oE 'arkadeos-portal: (opens with|follows) the app style .*' | tail -1 |
-    grep -qE \"^arkadeos-portal: (opens with|follows) the app style \$(cat /tmp/portal-closed-style)\$\""
+    grep -oE 'arkadeos-portal: opens with the colours .*' | tail -1 |
+    grep -qx \"arkadeos-portal: opens with the colours \$(cat /tmp/portal-closed-colours)\""
 # One image for every graphics card (T080): without an NVIDIA card (the VM)
 # the NVIDIA services and the settings loader at login are masked, none failed.
 check "no NVIDIA service without an NVIDIA card" "! systemctl --failed --no-legend --plain | grep -qi nvidia &&
@@ -165,7 +165,7 @@ check "no NVIDIA service without an NVIDIA card" "! systemctl --failed --no-lege
         test \"\$(systemctl show -p LoadState --value \$u)\" = masked || exit 1; done &&
     test \"\$(${session} systemctl --user show -p LoadState --value 'app-nvidia\\x2dsettings\\x2dload@autostart.service')\" = masked"
 # What switched the look at the first login, for comparing runs.
-ssh_vm "${session} journalctl --user -b --no-pager | grep -E 'arkadeos-portal:|session-setup: Kvantum|plasma-apply-lookandfeel|knighttime|lookandfeel'" > "${out}/look-journal.txt" 2>&1 || true
+ssh_vm "${session} journalctl --user -b --no-pager | grep -E 'arkadeos-portal:|plasma-apply-lookandfeel|knighttime|lookandfeel'" > "${out}/look-journal.txt" 2>&1 || true
 
 # The parts after the desktop run on their own: TEST_GROUPS lists the ones to
 # run (look, keys, power, games, apps, update), "all" (the default)
@@ -186,38 +186,34 @@ ssh_vm "${session} kwriteconfig6 --file kscreenlockerrc --group Daemon --key Aut
 
 if want look; then
 step "look"
-# T006: WhiteSur global theme applied at first login, day/night switch on.
-check "WhiteSur global theme" "grep -qE '^org\.arkadeos\.(light|dark)\.desktop' ${home}/kdedefaults/package &&
-    grep -qE '^ColorScheme=WhiteSur(Dark)?$' ${home}/kdedefaults/kdeglobals"
+# T006: the ArkadeOS global theme, Breeze inside (Roland, 2026-11-04), applied
+# at first login, day/night switch on; WhiteSur gone.
+check "Breeze in the ArkadeOS global theme" "grep -qE '^org\.arkadeos\.(light|dark)\.desktop' ${home}/kdedefaults/package &&
+    grep -qE '^ColorScheme=Breeze(Light|Dark)$' ${home}/kdedefaults/kdeglobals &&
+    grep -qx widgetStyle=Breeze ${home}/kdedefaults/kdeglobals &&
+    ! ls -d /usr/share/icons/WhiteSur* /usr/share/themes/WhiteSur* /usr/share/plasma/desktoptheme/WhiteSur* 2>/dev/null"
 check "day/night switch on" "test \"\$(${session} kreadconfig6 --group KDE --key AutomaticLookAndFeel)\" = true"
 check "Inter font" "fc-list : family | grep -qx Inter"
-check "GTK WhiteSur" "grep -qx gtk-theme-name=WhiteSur-Light ${home}/gtk-3.0/settings.ini && test -f /usr/share/themes/WhiteSur-Light/gtk-3.0/gtk.css"
-# T007: the first login built the bar and the dock from our layout.
-check "top bar and dock" "f=${home}/plasma-org.kde.plasma.desktop-appletsrc &&
-    for w in kickoff appmenu systemtray digitalclock kickerdash icontasks trash; do grep -qx plugin=org.kde.plasma.\$w \$f || exit 1; done"
-# The ArkadeOS menu first on the dock, not in the top bar; the Portal on the
-# dock, Game Mode not (Roland, 2026-11-03).
-dock_order=$(base64 -w0 "$(dirname "$0")/dock-order.py")
-check "ArkadeOS menu first on the dock, Portal on it" "echo ${dock_order} | base64 -d | python3 - ${home}/plasma-org.kde.plasma.desktop-appletsrc"
+check "GTK Breeze" "test \"\$(${session} gsettings get org.gnome.desktop.interface gtk-theme)\" = \"'Breeze'\" &&
+    test -f /usr/share/themes/Breeze/gtk-3.0/gtk.css"
+# T007: the first login built the taskbar from our layout (Roland,
+# 2026-11-04): the ArkadeOS menu first, the Portal among the apps.
+taskbar=$(base64 -w0 "$(dirname "$0")/taskbar.py")
+check "one taskbar, ArkadeOS menu first, Portal on it" "echo ${taskbar} | base64 -d | python3 - ${home}/plasma-org.kde.plasma.desktop-appletsrc"
 # T009: ArkadeOS name, boot screen, wallpaper, launcher logo, lock screen.
 check "ArkadeOS name" "grep -qx 'PRETTY_NAME=\"ArkadeOS\"' /usr/lib/os-release"
 check "ArkadeOS version: the Fedora it is built on, then the build" '. /usr/lib/os-release; [[ "${VERSION}" =~ ^${VERSION_ID}\.[0-9]{8}$ ]]'
 check "boot menu entry named ArkadeOS (system-release)" 'grep -qx "ArkadeOS release [0-9]*" /etc/system-release'
 check "ArkadeOS boot screen" "plymouth-set-default-theme | grep -qx arkadeos && grep -qw splash /proc/cmdline"
 check "Ark wallpaper and launcher logo" "f=${home}/plasma-org.kde.plasma.desktop-appletsrc &&
-    grep -qx 'Image=file:///usr/share/wallpapers/ArkadeOS/' \$f && grep -qx icon=/usr/share/arkadeos/icons/dock-menu.svg \$f"
-check "ArkadeOS trash in every WhiteSur variant and dock size" 'for t in WhiteSur WhiteSur-dark WhiteSur-light; do for s in scalable 22 24; do
-    cmp -s /usr/share/icons/$t/places/$s/user-trash.svg /usr/share/arkadeos/icons/user-trash.svg &&
-    cmp -s /usr/share/icons/$t/places/$s/user-trash-full.svg /usr/share/arkadeos/icons/user-trash-full.svg || exit 1; done; done'
-# The trash widget on the dock asks for the one-colour name, from the look's
-# icon theme.
-check "dock trash widget gets the ArkadeOS trash" "${session} ${plasma_dirs} kiconfinder6 user-trash-symbolic | grep -q /places/dock/"
-ssh_vm "${session} ${plasma_dirs} kiconfinder6 user-trash-symbolic; ${session} ${plasma_dirs} kreadconfig6 --group Icons --key Theme; grep -n places/dock /usr/share/icons/WhiteSur*/index.theme | cut -c1-120; ls -l /usr/share/icons/WhiteSur-dark/places/dock/" > "${out}/dock-trash.txt" 2>&1 || true
+    grep -qx 'Image=file:///usr/share/wallpapers/ArkadeOS/' \$f && grep -qx icon=arkadeos-launcher \$f"
 check "dark lock screen" "${session} kreadconfig6 --file kscreenlockerrc --group Greeter --group Wallpaper --group org.kde.image --group General --key Image | grep -q ArkadeOS-Lock"
 # T010: Hungarian is complete, our own texts included.
 check "Hungarian language" "rpm -q hunspell-hu && test -f /usr/share/locale/hu/LC_MESSAGES/dolphin.mo &&
     grep -q 'Name\\[hu\\]' /usr/share/plasma/look-and-feel/org.arkadeos.light.desktop/metadata.json"
-check "window buttons on the left" "test \"\$(${session} kreadconfig6 --file kwinrc --group org.kde.kdecoration2 --key ButtonsOnLeft)\" = XIA"
+# KDE's own window buttons (on the right) and screen corners (Roland, 2026-11-04).
+check "window buttons and screen corners as in KDE" "! grep -qE 'ButtonsOn|ElectricBorders|Effect-overview' /etc/xdg/kwinrc &&
+    test \"\$(${session} kreadconfig6 --file kwinrc --group org.kde.kdecoration2 --key ButtonsOnLeft)\" != XIA"
 check "touchpad scrolls the natural way, the mouse does not" "test \"\$(${session} kreadconfig6 --file kcminputrc --group Libinput --group Defaults --group Touchpad --key NaturalScroll)\" = true &&
     test -z \"\$(${session} kreadconfig6 --file kcminputrc --group Libinput --group Defaults --group Pointer --key NaturalScroll)\""
 # Apps get the Plasma session variables, as when started from the menu.
@@ -233,28 +229,26 @@ for variant in light dark; do
     shot "look-${variant}"
     ssh_vm "grep -A3 '^\\[Colors:Window\\]' ${home}/kdeglobals; cat ${home}/kdedefaults/kdeglobals" >> "${out}/look-${variant}.log" 2>&1 || true
 done
-check "dark theme applied" "grep -qx ColorScheme=WhiteSurDark ${home}/kdedefaults/kdeglobals &&
-    grep -A3 '^\\[Colors:Window\\]' ${home}/kdeglobals | grep -qx BackgroundNormal=54,54,54"
-# T069: apps in the Kvantum WhiteSur style, dark with the dark look; a new
-# Dolphin shows it (Kvantum does not restyle running apps).
+check "dark theme applied" "grep -qx ColorScheme=BreezeDark ${home}/kdedefaults/kdeglobals &&
+    grep -A3 '^\\[Colors:Window\\]' ${home}/kdeglobals | grep -qx BackgroundNormal=32,35,38"
 sleep 20
-check "Kvantum WhiteSurDark with the dark look" "cat ${home}/kdeglobals ${home}/kdedefaults/kdeglobals | grep -qx widgetStyle=kvantum &&
-    grep -qx theme=WhiteSurDark ${home}/Kvantum/kvantum.kvconfig"
 check "Finder-like sidebar: Games in it, Remote and Recent hidden" "grep -qE 'href=\"file:///(var/)?home/arkade/Games\"' ${home%/.config}/.local/share/user-places.xbel &&
     grep -q '<GroupState-Remote-IsHidden>true' ${home%/.config}/.local/share/user-places.xbel &&
     grep -q '<GroupState-RecentlySaved-IsHidden>true' ${home%/.config}/.local/share/user-places.xbel"
 ssh_vm "${session} systemctl --user status --no-pager arkadeos-session-setup.path arkadeos-session-setup.service;
-    ${session} journalctl --user -b -u arkadeos-session-setup --no-pager | tail -60; ls -la ${home}/Kvantum; cat ${home}/Kvantum/kvantum.kvconfig;
-    grep -h ColorScheme ${home}/kdeglobals ${home}/kdedefaults/kdeglobals; ls -la ${home%/.config}/.local/share/user-places.xbel ${home%/.config}/.local/state/arkadeos" > "${out}/session-setup.txt" 2>&1 || true
-check "blue sidebar icons, thin Dolphin status bar" 'grep -q ColorScheme-Highlight /usr/share/icons/WhiteSur/places/16/user-home.svg &&
-    grep -qx ShowStatusBar=FullWidth /etc/xdg/dolphinrc'
+    ${session} journalctl --user -b -u arkadeos-session-setup --no-pager | tail -60;     grep -h ColorScheme ${home}/kdeglobals ${home}/kdedefaults/kdeglobals; ls -la ${home%/.config}/.local/share/user-places.xbel ${home%/.config}/.local/state/arkadeos" > "${out}/session-setup.txt" 2>&1 || true
+check "thin Dolphin status bar" 'grep -qx ShowStatusBar=FullWidth /etc/xdg/dolphinrc'
+# The menu bar in the window again, Dolphin's from its first start; not in
+# Konsole (Roland, 2026-11-04).
+check "menu bar in Dolphin, not in Konsole" "test \"\$(${session} kreadconfig6 --file dolphinrc --group MainWindow --key MenuBar)\" = Enabled &&
+    test -n \"\$(${session} kreadconfig6 --file dolphinrc --group General --key Version)\" &&
+    test \"\$(${session} kreadconfig6 --file konsolerc --group MainWindow --key MenuBar)\" = Disabled"
 ssh_vm "pkill -u arkade -x dolphin; sleep 2; nohup ${session} dolphin >/dev/null 2>&1 &"
 sleep 10
 shot dolphin-dark
 ssh_vm "${session} plasma-apply-lookandfeel -a org.arkadeos.light.desktop; sleep 15; pkill -u arkade -x dolphin; sleep 2; nohup ${session} dolphin >/dev/null 2>&1 &" || true
 sleep 20
 shot dolphin-light
-check "Kvantum WhiteSur with the light look" "grep -qx theme=WhiteSur ${home}/Kvantum/kvantum.kvconfig"
 # A new image's icons reach the dock: KDE's icon cache goes when they change.
 check "icon cache follows the image's icons" "test -s ${home%/.config}/.cache/arkadeos/icons-key"
 # T073: the terminal welcome is ArkadeOS's and names the image actually running.
@@ -412,8 +406,8 @@ ssh_vm "tuned-adm active; ${session} arkadeos-power status; journalctl -b -t ark
 ssh_vm /usr/libexec/arkadeos/power-set balanced || true
 sleep 4
 check "back to Balanced after WoW" 'tuned-adm active | grep -q arkadeos-balanced && test ! -e /run/arkadeos/power-wow'
-# T012: the switch sits in the top bar and reads the profile.
-check "power switch in the top bar" "grep -qx plugin=org.arkadeos.power ${home}/plasma-org.kde.plasma.desktop-appletsrc &&
+# T012: the switch sits on the taskbar and reads the profile.
+check "power switch on the taskbar" "grep -qx plugin=org.arkadeos.power ${home}/plasma-org.kde.plasma.desktop-appletsrc &&
     ${session} arkadeos-power status | grep -qx profile=balanced"
 check "game watcher running" 'systemctl --user -M arkade@ is-active arkadeos-game-profile.service'
 fi # power
@@ -500,7 +494,7 @@ sleep 20
 
 ssh_vm "loginctl unlock-sessions; ${session} kscreen-doctor --dpms on" >/dev/null 2>&1 || true
 # T070: a borderless game window the size of the screen (a Windows game in
-# windowed full screen) goes full screen, above the top bar and the dock.
+# windowed full screen) goes full screen, above the taskbar.
 check "borderless full-screen script in KWin" "${session} busctl --user call org.kde.KWin /Scripting org.kde.kwin.Scripting isScriptLoaded s arkadeos-borderless-fullscreen | grep -qx 'b true'"
 ssh_vm "nohup ${session} DISPLAY=:0 XAUTHORITY=\$(ls /run/user/1000/xauth_* | head -1) GDK_BACKEND=x11 timeout 60 python3 -c '
 import gi
@@ -715,7 +709,7 @@ check "no Bazzite Portal" '! rpm -q bazzite-portal && ! test -e /home/arkade/.co
 # ujust commands that would undo the one image or the theme.
 check "no Waydroid, Cockpit, Bazzite news or undoing commands" '! rpm -qa | grep -qiE "waydroid|cockpit|qemu-user-static" &&
     ! test -e /etc/xdg/autostart/bazzite-announcement.desktop &&
-    ! ujust --summary | tr " " "\\n" | grep -qx -e toggle-nvk -e restore-bazzite-breeze-gtk-theme -e cockpit'
+    ! ujust --summary | tr " " "\\n" | grep -qx -e toggle-nvk -e cockpit'
 # T080: a machine on the old arkadeos-nvidia name follows arkadeos, same tag;
 # one on arkadeos is left alone. The real bootc writes the booted deployment's
 # origin, the way it does on a machine (a stand-in hid that /sysroot is
@@ -787,7 +781,7 @@ if [[ -n "${UPDATE_PUSH:-}" ]]; then
     # The Portal asks as the user, without root: running and waiting versions.
     check "update status answers the user (Portal)" "${session} LANG=C arkadeos-update status 2>&1 |
         grep -qx 'Running:  [0-9.]*' && ${session} LANG=C arkadeos-update status 2>&1 | grep -q '^At reboot: [0-9]'"
-    # T048: the top bar says so, once.
+    # T048: a notification says so, once.
     ssh_vm "timeout 15 ${session} arkadeos-update notify" || true
     shot update-ready
     check "update ready message" 'test -s /home/arkade/.local/state/arkadeos/update-notified'

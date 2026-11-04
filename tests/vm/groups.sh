@@ -45,8 +45,8 @@ while read -r f; do
         tests/vm/update-path.sh) add update-path ;;
         tests/vm/portal-games.py | tests/vm/portal-update.py | tests/vm/apps.txt) add apps ;;
         tests/vm/proton-test.bat | tests/vm/kwin-probe*) add games ;;
-        # The look: theme, icons, wallpapers, bar and dock, app style.
-        build_files/70-theme.sh | build_files/75-layout.sh | build_files/whitesur.sh | \
+        # The look: theme, icons, wallpapers, taskbar, app style.
+        build_files/70-theme.sh | build_files/75-layout.sh | tests/vm/taskbar.py | \
         build_files/solid.sh | build_files/patches/* | \
         system_files/usr/share/plasma/* | system_files/usr/share/icons/* | \
         system_files/usr/share/wallpapers/* | system_files/usr/share/plymouth/* | \

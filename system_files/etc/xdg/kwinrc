@@ -1,21 +1,9 @@
 # ArkadeOS window manager defaults (T007). Fedora's own kwinrc sits below this
 # in /usr/share/kde-settings; the global theme sets the window decoration.
+# Window buttons and screen corners are KDE's own (Roland, 2026-11-04).
 
-# macOS-style window buttons on the left: close, minimise, maximise.
-[org.kde.kdecoration2]
-ButtonsOnLeft=XIA
-ButtonsOnRight=
-
-# Hot corners: bottom left opens the Overview, bottom right shows the desktop.
-# The top corners stay free for the launcher logo and the tray.
-[Effect-overview]
-BorderActivate=5
-
-[ElectricBorders]
-BottomRight=ShowDesktop
-
-# Pinned windows keep their icon on the dock (T068); a borderless game the
-# size of the screen runs full screen, above the bars (T070).
+# Pinned windows keep their icon on the taskbar (T068); a borderless game the
+# size of the screen runs full screen, above the taskbar (T070).
 [Plugins]
 arkadeos-dock-namesEnabled=true
 arkadeos-borderless-fullscreenEnabled=true

@@ -1,7 +1,7 @@
 # ArkadeOS
 
 **Fast, gaming-first Linux built on Fedora Atomic.**
-A macOS-style KDE desktop, one image for NVIDIA, AMD and Intel graphics, Steam and Proton, Battle.net, smart power profiles, and atomic updates you can roll back.
+A clean KDE Plasma desktop, one image for NVIDIA, AMD and Intel graphics, Steam and Proton, Battle.net, smart power profiles, and atomic updates you can roll back.
 
 > **Status: early development, testing builds only (November 2026).** Not ready for daily use yet. "In testing" means the feature is in the image and checked automatically in a virtual machine on every build; "tested on hardware" means it was also tried on a real gaming laptop. See [Project status](#project-status).
 
@@ -12,7 +12,7 @@ A macOS-style KDE desktop, one image for NVIDIA, AMD and Intel graphics, Steam a
 ## Why ArkadeOS
 
 - **Built for games only.** No background indexing, no services you don't need. The kernel, scheduler and power settings are tuned for low latency and high frame rates.
-- **Looks and feels like macOS.** Top bar with a global menu, a centered dock, Spotlight-style search, gestures. From Windows it keeps only what helps: window snapping, Alt+Tab previews, clipboard history.
+- **KDE Plasma as KDE made it.** The Breeze look, light and dark, one taskbar at the bottom, menus in the windows, quick search on Meta+Space, window snapping, Alt+Tab previews, clipboard history.
 - **Can't be broken by an update.** The whole system is one image. A bad update? Reboot and pick the previous one.
 - **One image for every gaming graphics card.** NVIDIA, AMD and Intel: the NVIDIA driver is built in and only runs where an NVIDIA card is. See [Supported graphics cards](#supported-graphics-cards).
 
@@ -23,7 +23,7 @@ A macOS-style KDE desktop, one image for NVIDIA, AMD and Intel graphics, Steam a
 | 🎮 | Steam, Proton-GE, Proton Experimental, Gamescope, MangoHud, GameMode | in testing |
 | ⚔️ | One-click Battle.net with World of Warcraft, WowUp for addons | **tested on hardware** |
 | 🛒 | EA app, Ubisoft Connect, Heroic (Epic, GOG, Amazon), Lutris | in testing |
-| 🪟 | Borderless windowed games run full screen, above the top bar and the dock | in testing |
+| 🪟 | Borderless windowed games run full screen, above the taskbar | in testing |
 | 🎞️ | Frame generation (lsfg-vk) per game, instant replay (GPU Screen Recorder), OBS, Sunshine | in testing |
 | 💬 | Discord preinstalled, Vesktop optional for Wayland screen sharing with audio | in testing |
 | 🧲 | qBittorrent: free, open-source torrent client without ads (ticked by default, can be left out) | in testing |
@@ -34,8 +34,8 @@ A macOS-style KDE desktop, one image for NVIDIA, AMD and Intel graphics, Steam a
 | 💻 | MSI (msi-ec, MControlCenter), Lenovo Legion (LenovoLegionLinux); battery care at 80% | in testing |
 | 🌈 | RGB that follows the power profile (OpenRGB, ASUS Aura) | **tested on hardware** |
 | 🖱️ | Logitech and Razer mice, ASUS ROG keyboards, monitor control, LACT for the graphics card | in testing |
-| 🍎 | macOS-style KDE Plasma 6 with the WhiteSur theme, light and dark, metal trash on the dock | in testing |
-| 📌 | Anything pinned on the dock stays there: Steam games, Windows programs, Chrome web apps | in testing |
+| 🖥️ | KDE Plasma 6 with Breeze, light and dark switching by the time of day, one taskbar | in testing |
+| 📌 | Anything pinned on the taskbar stays there: Steam games, Windows programs, Chrome web apps | in testing |
 | 🧩 | ArkadeOS Portal: pick apps at first login, add or remove anything later | in testing |
 | 🤖 | Optional AI pack: local models (Ollama, Open WebUI) sized to your GPU, AI command-line tools | in testing |
 | 🔄 | Atomic image updates with rollback, builds of the last 90 days, factory reset that keeps your files | in testing |
@@ -157,7 +157,6 @@ podman build -t arkadeos -f Containerfile .
 - [Fedora Atomic](https://fedoraproject.org/atomic-desktops/)
 - [Bazzite](https://bazzite.gg) and [Universal Blue](https://universal-blue.org)
 - [KDE Plasma](https://kde.org/plasma-desktop/)
-- [WhiteSur](https://github.com/vinceliuice/WhiteSur-kde) by vinceliuice
 
 ## License
 

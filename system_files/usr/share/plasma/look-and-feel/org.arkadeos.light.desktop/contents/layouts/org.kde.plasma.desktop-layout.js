@@ -1,42 +1,20 @@
-// ArkadeOS desktop layout (T007): a bar on top and a dock below, as on macOS.
+// ArkadeOS desktop layout (T007): one taskbar at the bottom.
 // Plasma runs this once, when a user first logs in. ArkadeOS Dark falls back
 // to this package, so both global themes give the same layout.
 
-// Top bar: the active app's menu, power profile, tray, clock (the calendar
-// opens from the clock). The ArkadeOS menu is on the dock (Roland, 11-03).
-var bar = new Panel
-bar.location = "top"
-bar.floating = false
-bar.height = 2 * Math.ceil(gridUnit * 1.5 / 2)
-bar.addWidget("org.kde.plasma.appmenu")
-bar.addWidget("org.kde.plasma.panelspacer")
-bar.addWidget("org.arkadeos.power")  // power profile switch (T012)
-bar.addWidget("org.kde.plasma.systemtray")
-bar.addWidget("org.kde.plasma.digitalclock")
+// One taskbar at the bottom, KDE's own arrangement (Roland, 2026-11-04): the
+// ArkadeOS menu (Ark logo; Meta and Alt+F1 open it), the apps, the power
+// profile switch (T012), tray, clock and the show-desktop button. Stores
+// installed later (Heroic) are added by session-setup (T018).
+var panel = new Panel
+panel.location = "bottom"
+panel.height = 2 * Math.floor(gridUnit * 2.5 / 2)
 
-// Dock: floating, centred, as wide as its icons. Stores installed later
-// (Heroic) are added by session-setup (T018). Always visible; the user can
-// turn on hiding in the panel settings (Roland, 2026-10-30).
-var dock = new Panel
-dock.location = "bottom"
-dock.floating = true
-dock.lengthMode = "fit"
-dock.alignment = "center"
-dock.hiding = "none"
-dock.height = 2 * Math.ceil(gridUnit * 3 / 2)
-
-// First the ArkadeOS menu (Ark logo; Meta and Alt+F1 open it), then the app
-// grid; their pictures are as big as the app icons (70-theme.sh).
-var launcher = dock.addWidget("org.kde.plasma.kickoff")
+var launcher = panel.addWidget("org.kde.plasma.kickoff")
 launcher.currentConfigGroup = ["General"]
-launcher.writeConfig("icon", "/usr/share/arkadeos/icons/dock-menu.svg")
-var grid = dock.addWidget("org.kde.plasma.kickerdash")
-grid.currentConfigGroup = ["General"]
-grid.writeConfig("icon", "view-app-grid")
-grid.writeConfig("useCustomButtonImage", true)
-grid.writeConfig("customButtonImage", "/usr/share/arkadeos/icons/dock-app-grid.svg")
+launcher.writeConfig("icon", "arkadeos-launcher")
 
-var tasks = dock.addWidget("org.kde.plasma.icontasks")
+var tasks = panel.addWidget("org.kde.plasma.icontasks")
 tasks.currentConfigGroup = ["General"]
 tasks.writeConfig("launchers", [
     "preferred://filemanager",
@@ -50,8 +28,11 @@ tasks.writeConfig("launchers", [
     "applications:systemsettings.desktop"
 ])
 
-dock.addWidget("org.kde.plasma.marginsseparator")
-dock.addWidget("org.kde.plasma.trash")
+panel.addWidget("org.kde.plasma.marginsseparator")
+panel.addWidget("org.arkadeos.power")
+panel.addWidget("org.kde.plasma.systemtray")
+panel.addWidget("org.kde.plasma.digitalclock")
+panel.addWidget("org.kde.plasma.showdesktop")
 
 // ArkadeOS wallpaper (T009); Plasma picks the dark images with a dark theme.
 var desktopsArray = desktopsForActivity(currentActivity())

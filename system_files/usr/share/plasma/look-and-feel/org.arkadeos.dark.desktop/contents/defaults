@@ -1,18 +1,18 @@
 [kcminputrc][Mouse]
-cursorTheme=WhiteSur-cursors
+cursorTheme=breeze_cursors
 
 [kdeglobals][General]
-ColorScheme=WhiteSurDark
+ColorScheme=BreezeDark
 
 [kdeglobals][Icons]
-Theme=WhiteSur-dark
+Theme=breeze-dark
 
 [kdeglobals][KDE]
-widgetStyle=kvantum
+widgetStyle=Breeze
 
 [kwinrc][org.kde.kdecoration2]
-library=org.kde.kwin.aurorae
-theme=__aurorae__svg__WhiteSur-dark
+library=org.kde.breeze
+theme=Breeze
 
 [plasmarc][Theme]
-name=WhiteSur-dark
+name=default

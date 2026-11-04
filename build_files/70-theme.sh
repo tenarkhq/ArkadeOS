@@ -1,10 +1,10 @@
 #!/usr/bin/bash
-# Look (T006): the WhiteSur files come from whitesur.sh in their own layer;
-# this adds the Inter font and the GTK defaults.
+# Look (T006): Breeze, KDE's own theme, with the Inter font; this sets the
+# boot menu font, the GTK defaults and the wallpapers.
 set -euo pipefail
 
-# Inter and Kvantum come from packages/install.sh.
-rpm -q rsms-inter-fonts kvantum >/dev/null
+# Inter comes from packages/install.sh.
+rpm -q rsms-inter-fonts >/dev/null
 # Inter for the boot menu (T009), Latin letters incl. Hungarian.
 for size in 20 24; do
     grub2-mkfont -r 0x20-0x17F -s "${size}" -o "/usr/share/arkadeos/grub-theme/inter-${size}.pf2" \
@@ -12,67 +12,6 @@ for size in 20 24; do
 done
 glib-compile-schemas /usr/share/glib-2.0/schemas
 
-# Dock trash (T069): our metal bin in place of WhiteSur's in every variant,
-# at every dock size: the scalable folder starts at 32 pixels, a smaller dock
-# takes the 22 and 24 pixel ones. The 16 pixel one stays the sidebar's.
-for theme in WhiteSur WhiteSur-dark WhiteSur-light; do
-    for icon in user-trash user-trash-full; do
-        for size in scalable 22 24; do
-            if [[ -d "/usr/share/icons/${theme}/places/${size}" ]]; then
-                install -m 644 "/usr/share/arkadeos/icons/${icon}.svg" "/usr/share/icons/${theme}/places/${size}/${icon}.svg"
-            fi
-        done
-    done
-    # The dock's trash widget asks for the one-colour name (user-trash-symbolic).
-    # From 22 pixels up it finds the metal bin in places/dock, listed before
-    # WhiteSur's places/symbolic; menus and sidebars keep the 16 pixel one.
-    mkdir -p "/usr/share/icons/${theme}/places/dock"
-    for icon in user-trash user-trash-full; do
-        install -m 644 "/usr/share/arkadeos/icons/${icon}.svg" "/usr/share/icons/${theme}/places/dock/${icon}-symbolic.svg"
-    done
-    index="/usr/share/icons/${theme}/index.theme"
-    if ! grep -q '^\[places/dock\]' "${index}"; then
-        sed -i -e '/^Directories=/s|places/symbolic,|places/dock,places/symbolic,|' \
-            -e '/^ScaledDirectories=/s|places@2x/symbolic,|places@2x/dock,places@2x/symbolic,|' "${index}"
-        printf '\n[places/dock]\nSize=48\nContext=Places\nMinSize=22\nMaxSize=512\nType=Scalable\n' >> "${index}"
-        printf '\n[places@2x/dock]\nSize=48\nScale=2\nContext=Places\nMinSize=22\nMaxSize=512\nType=Scalable\n' >> "${index}"
-    fi
-    grep -q '^Directories=.*places/dock,places/symbolic' "${index}"
-    gtk-update-icon-cache -f -q "/usr/share/icons/${theme}"
-done
-
-# Kvantum app style (T069, Finder-like Dolphin); its WhiteSur themes come
-# from whitesur.sh.
-test -f /usr/share/Kvantum/WhiteSur/WhiteSurDark.kvconfig
-# The small one-colour place and drive icons (Dolphin's sidebar) take the
-# accent colour instead of the text colour, as in Finder.
-for theme in WhiteSur WhiteSur-dark WhiteSur-light; do
-    for d in places/16 devices/16; do
-        [[ -d "/usr/share/icons/${theme}/${d}" ]] || continue
-        { grep -lZ ColorScheme-Text "/usr/share/icons/${theme}/${d}"/*.svg 2>/dev/null || true; } |
-            xargs -0 -r sed -i -e 's/ColorScheme-Text/ColorScheme-Highlight/g' \
-                -e '/ColorScheme-Highlight *{/s/color:#[0-9a-fA-F]*/color:#0860f2/'
-    done
-    gtk-update-icon-cache -f -q "/usr/share/icons/${theme}"
-done
-# The power profile icons (the top bar's profile switch) come in one fixed
-# grey, dark in the light theme, and vanished on the dark top bar (Roland,
-# 11-03): they take the panel's text colour, as KDE's own icons do.
-for theme in WhiteSur WhiteSur-dark WhiteSur-light; do
-    for f in "/usr/share/icons/${theme}"/status/symbolic/power-profile-*.svg; do
-        grep -q 'id="current-color-scheme"' "${f}" && continue  # a link to one done already
-        sed -i -e 's/fill="#\(363636\|dedede\)"/class="ColorScheme-Text" fill="currentColor"/g' \
-            -e 's#^\(<svg[^>]*>\)$#\1\n <style id="current-color-scheme" type="text/css">.ColorScheme-Text { color:\#363636; }</style>#' "${f}"
-        grep -q 'id="current-color-scheme"' "${f}"
-    done
-done
-# The dock's app grid icon as big as the app icons beside it (Roland, 11-03):
-# Plasma draws a square menu icon one standard size smaller than the dock's
-# app icons, a picture that is not quite square fills the dock like them
-# (the menu's own, /usr/share/arkadeos/icons/dock-menu.svg, is made so).
-sed 's/width="64" height="64"/viewBox="0 0 64 64" width="512" height="508"/' \
-    /usr/share/icons/WhiteSur/apps/scalable/view-app-grid.svg > /usr/share/arkadeos/icons/dock-app-grid.svg
-grep -q 'height="508"' /usr/share/arkadeos/icons/dock-app-grid.svg
 # The read-only system layer is no drive in the sidebar (arkadeos-root-hidden).
 systemctl enable arkadeos-root-hidden.service
 # Nor the free space Dolphin shows: Solid rebuilt with patches/solid-composefs-root.patch

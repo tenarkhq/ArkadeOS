@@ -89,17 +89,21 @@ check "no failed services" 'test -z "$(systemctl --failed --no-legend --plain)"'
 check "user setting kept" 'test "$(runuser -u arkade -- env HOME=/home/arkade kreadconfig6 --file kwinrc --group Windows --key FocusPolicy)" = FocusFollowsMouse'
 check "user file kept" 'test -f /home/arkade/keep.txt'
 check "update steps ran for the user" 'test -d /home/arkade/.local/state/arkadeos/migrations'
-# The ArkadeOS menu moves from the top bar to the dock's first place, Game
-# Mode leaves the dock, the Portal joins it (Roland, 2026-11-03); the step
-# waits for the desktop, Plasma writes its file a little later.
+# Breeze and one taskbar instead of WhiteSur, the top bar and the dock
+# (Roland, 2026-11-04): the dock's app icons move to the taskbar, Game Mode
+# leaves, the Portal joins; the step waits for the desktop, Plasma writes its
+# file a little later. Dolphin shows its menu bar.
 for _ in $(seq 30); do
-    ssh_vm 'test -e /home/arkade/.local/state/arkadeos/migrations/003-menu-on-dock.sh' && break
+    ssh_vm 'test -e /home/arkade/.local/state/arkadeos/migrations/004-breeze-taskbar.sh' && break
     sleep 5
 done
 sleep 15
-shot new-dock
-dock_order=$(base64 -w0 "$(dirname "$0")/dock-order.py")
-check "ArkadeOS menu moved to the dock, Portal on it" "echo ${dock_order} | base64 -d | python3 - /home/arkade/.config/plasma-org.kde.plasma.desktop-appletsrc"
+shot new-taskbar
+taskbar=$(base64 -w0 "$(dirname "$0")/taskbar.py")
+check "top bar and dock became one taskbar, Portal on it" "echo ${taskbar} | base64 -d | python3 - /home/arkade/.config/plasma-org.kde.plasma.desktop-appletsrc"
+check "Breeze look after the update" 'f=/home/arkade/.config; cat $f/kdeglobals $f/kdedefaults/kdeglobals 2>/dev/null | grep -m1 ^ColorScheme= | grep -qE "^ColorScheme=Breeze(Light|Dark)$" &&
+    cat $f/kdeglobals $f/kdedefaults/kdeglobals 2>/dev/null | grep -m1 ^widgetStyle= | grep -qx widgetStyle=Breeze'
+check "menu bar in Dolphin after the update" 'grep -qx MenuBar=Enabled /home/arkade/.config/dolphinrc'
 check "previous build kept to go back to" 'test "$(bootc status --json | jq -r .status.rollback.image.imageDigest)" = '"'${before}'"
 if ! cmp -s "${out}/apps-before.txt" "${out}/apps-after.txt"; then
     comm -23 "${out}/apps-before.txt" "${out}/apps-after.txt" | grep -q . &&

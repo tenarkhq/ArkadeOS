@@ -19,7 +19,7 @@ import time
 from pathlib import Path
 
 from PySide6.QtCore import (
-    QFileSystemWatcher, QLocale, QObject, QProcess, Qt, QThread, QTimer, Signal,
+    QLocale, QObject, QProcess, Qt, QThread, QTimer, Signal,
 )
 from PySide6.QtGui import QIcon, QPalette
 from PySide6.QtWidgets import (
@@ -562,9 +562,9 @@ class SystemTab(QWidget):
 
     def reset_desktop(self):
         if QMessageBox.question(self, "ArkadeOS", tr(
-                "Restore the ArkadeOS look, panel, dock and shortcuts? Your own settings are "
+                "Restore the ArkadeOS look, taskbar and shortcuts? Your own settings are "
                 "kept in a backup folder; files and apps stay.",
-                "Visszaállítod az ArkadeOS kinézetét, paneljét, dockját és billentyűparancsait? "
+                "Visszaállítod az ArkadeOS kinézetét, tálcáját és billentyűparancsait? "
                 "A saját beállításaid egy mentési mappába kerülnek; a fájlok és az appok "
                 "megmaradnak.")) != QMessageBox.Yes:
             return
@@ -767,16 +767,16 @@ def config(name, group, key):
 
 def wait_for_look():
     """On the first login the Plasma look is not final yet when the Portal
-    starts: the session opens with the image's default (light) look, Plasma's
-    automatic light/dark switch (a kded module) applies the right one a few
-    seconds later, and session-setup then sets the matching app style. The
-    choice screen waits for that (at most 30 seconds), so it opens in the
-    final look."""
+    starts: the session opens with the image's default (light) look, and
+    Plasma's automatic light/dark switch (a kded module) applies the right one
+    a few seconds later. The choice screen waits for that (at most 30
+    seconds), so it opens in the final look; Breeze follows later switches
+    by itself."""
     home = Path(os.environ.get("XDG_CONFIG_HOME", Path.home() / ".config"))
-    files = [home / "kdeglobals", home / "Kvantum/kvantum.kvconfig"]
+    files = [home / "kdeglobals"]
     automatic = config("kdeglobals", "KDE", "AutomaticLookAndFeel") == "true"
     deadline = time.monotonic() + 30
-    theme = ""
+    scheme = ""
     while time.monotonic() < deadline:
         if automatic:
             kded = subprocess.run(["busctl", "--user", "call", "org.kde.kded6", "/kded",
@@ -785,35 +785,11 @@ def wait_for_look():
         else:
             ready = True
         scheme = config("kdeglobals", "General", "ColorScheme")
-        theme = config("Kvantum/kvantum.kvconfig", "General", "theme")
-        matches = theme == ("WhiteSurDark" if "Dark" in scheme else "WhiteSur") or \
-            theme not in ("", "WhiteSur", "WhiteSurDark")
         still = all(not f.exists() or time.time() - f.stat().st_mtime >= 2 for f in files)
-        if ready and matches and still:
+        if ready and still:
             break
         time.sleep(0.5)
-    print(f"arkadeos-portal: opens with the app style {theme or 'unset'}", file=sys.stderr)
-
-
-def follow_app_style(app):
-    """The Kvantum app style reads its theme once, when the app starts: a
-    light/dark switch while the Portal is open restyles it."""
-    name = app.style().name()
-    if not name.lower().startswith("kvantum"):
-        return
-    folder = Path(os.environ.get("XDG_CONFIG_HOME", Path.home() / ".config")) / "Kvantum"
-    folder.mkdir(parents=True, exist_ok=True)
-    timer = QTimer(app)
-    timer.setSingleShot(True)
-    timer.setInterval(500)
-    def restyle():
-        app.setStyle(name)
-        theme = config("Kvantum/kvantum.kvconfig", "General", "theme")
-        print(f"arkadeos-portal: follows the app style {theme or 'unset'}", file=sys.stderr)
-    timer.timeout.connect(restyle)
-    # KConfig replaces the file: the folder changes, not the watched file.
-    watcher = QFileSystemWatcher([str(folder)], app)
-    watcher.directoryChanged.connect(lambda _: timer.start())
+    print(f"arkadeos-portal: opens with the colours {scheme or 'unset'}", file=sys.stderr)
 
 
 def main():
@@ -824,7 +800,6 @@ def main():
         wait_for_look()
     app = QApplication(sys.argv)
     app.setDesktopFileName("org.arkadeos.Portal")
-    follow_app_style(app)
     window = QTabWidget()
     window.setWindowTitle("ArkadeOS Portal")
     window.setWindowIcon(QIcon.fromTheme("arkadeos-portal", QIcon.fromTheme("preferences-system")))

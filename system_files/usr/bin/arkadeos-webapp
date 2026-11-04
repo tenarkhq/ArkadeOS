@@ -1,6 +1,6 @@
 #!/usr/bin/bash
 # A website as an app of its own (T039): own window (Chrome app mode), own
-# entry in the menu, and on the dock.
+# entry in the menu, and on the taskbar.
 #   arkadeos-webapp                    ask name and address in a window
 #   arkadeos-webapp add NAME URL       e.g. add "Tenark Console" https://console.tenark.dev
 #   arkadeos-webapp remove NAME
