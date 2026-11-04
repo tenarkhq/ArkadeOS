@@ -102,7 +102,12 @@ for _ in $(seq 60); do
     sleep 5
 done
 ssh_vm 'pgrep -u arkade -x plasmashell' >/dev/null || { shot desktop-missing; echo "plasmashell did not start" >&2; exit 1; }
-sleep 20
+# The choice screen waits for the look to settle (at most 30 s), then shows.
+for _ in $(seq 15); do
+    ssh_vm 'pgrep -u arkade -f "arkadeos-portal --first-run"' >/dev/null && break
+    sleep 2
+done
+sleep 5
 # T026: the Portal opens by itself on the first login as the choice screen.
 shot portal-first-run
 if ssh_vm 'pgrep -u arkade -f "arkadeos-portal --first-run"' >/dev/null; then
@@ -119,12 +124,15 @@ sleep 3
 shot desktop
 
 # T050: idle load of the fresh desktop, a minute after login: memory, CPU,
-# running services and the heaviest processes, for comparison between runs.
+# running services and the heaviest processes, for comparison between runs;
+# measured on the VM that runs the look (one is enough).
+if [[ ",${TEST_GROUPS:-all}," == *,all,* || ",${TEST_GROUPS}," == *,look,* ]]; then
 sleep 40
 ssh_vm 'echo "== memory (MiB)"; free -m; echo "== load"; cat /proc/loadavg; echo "== CPU over 10 s"; vmstat 10 2 | tail -1
     echo "== running system services"; systemctl list-units --type=service --state=running --no-legend --plain | cut -d" " -f1
     echo "== running user services"; systemctl --user -M arkade@ list-units --type=service --state=running --no-legend --plain | cut -d" " -f1
     echo "== top memory"; ps -eo rss,comm --sort=-rss | head -15' > "${out}/idle.txt" 2>&1 || true
+fi
 uid=$(ssh_vm 'id -u arkade')
 session="runuser -u arkade -- env HOME=/home/arkade USER=arkade XDG_RUNTIME_DIR=/run/user/${uid} WAYLAND_DISPLAY=wayland-0 QT_QPA_PLATFORM=wayland XDG_CURRENT_DESKTOP=KDE KDE_FULL_SESSION=true KDE_SESSION_VERSION=6 XDG_SESSION_TYPE=wayland DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/${uid}/bus"
 failed=0
