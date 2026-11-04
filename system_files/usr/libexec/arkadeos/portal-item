@@ -132,20 +132,12 @@ case "${kind}:${action}" in
     script:status)
         case "${item}" in
             claude-code) status test -x "${HOME}/.local/bin/claude" ;;
-            toshy) status test -d "${HOME}/.config/toshy" ;;
             lsfg-vk) status test -f "${HOME}/.local/lib/liblsfg-vk-layer.so" ;;
         esac
         ;;
     script:install)
         case "${item}" in
             claude-code) curl -fsSL https://claude.ai/install.sh | bash ;;
-            # Toshy's own setup asks questions and needs the password once.
-            toshy)
-                src="${XDG_CACHE_HOME:-${HOME}/.cache}/arkadeos/toshy"
-                rm -rf "${src}"
-                git clone --depth 1 https://github.com/RedBearAK/toshy "${src}"
-                in_terminal "${src}/setup_toshy.py" install
-                ;;
             # T056: lsfg-vk, its makers' own build into ~/.local, as their guide
             # says; the frame generation itself comes from the user's Lossless
             # Scaling (Steam). Pinned, checksum checked.
@@ -163,7 +155,6 @@ case "${kind}:${action}" in
     script:remove)
         case "${item}" in
             claude-code) rm -rf "${HOME}/.local/bin/claude" "${HOME}/.local/share/claude" ;;
-            toshy) in_terminal "${HOME}/.local/bin/toshy-uninstall" ;;
             lsfg-vk)
                 while read -r f; do rm -f "${HOME}/.local/${f#./}"; done < "${HOME}/.local/share/arkadeos/lsfg-vk.files"
                 rm -f "${HOME}/.local/share/arkadeos/lsfg-vk.files"

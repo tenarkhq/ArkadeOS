@@ -56,16 +56,6 @@ rm -rf "${tmp}"
 # T040: AirPlay receive (UxPlay, Shairport Sync).
 dnf5 -y install "${nodeps[@]}" uxplay shairport-sync
 
-# T020: what Toshy (Mac keyboard, chosen in the Portal) builds against. Its
-# setup layers whatever is missing with rpm-ostree, which would slow every
-# update and need a reboot; with these in the image it layers nothing.
-toshy_pkgs=(cairo-devel cairo-gobject-devel dbus-daemon dbus-devel evtest gcc git
-    gobject-introspection-devel libappindicator-gtk3 libinput-utils libjpeg-turbo-devel
-    libnotify libxkbcommon-devel python3-dbus python3-devel python3-pip python3-tkinter
-    systemd-devel wayland-devel xset zenity)
-dnf5 -y install "${nodeps[@]}" "${toshy_pkgs[@]}"
-rpm -q "${toshy_pkgs[@]}" >/dev/null
-
 # T006 (70-theme.sh): the Inter font, and Solid rebuilt with ArkadeOS's patch
 # (solid.sh, its own build stage).
 dnf5 -y install "${nodeps[@]}" rsms-inter-fonts

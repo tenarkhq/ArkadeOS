@@ -1,7 +1,7 @@
 #!/usr/bin/bash
 # Desktop extras: LACT GPU control (T033), Polonium auto-tiling, off by
 # default (T038), AirPlay receive and send, off by default (T040). Their
-# packages and what Toshy builds against (T020) come from packages/install.sh.
+# packages come from packages/install.sh.
 set -euo pipefail
 
 # T033: LACT (packages/install.sh); lactd applies the GPU settings at boot.

@@ -1,9 +1,8 @@
 #!/usr/bin/bash
 # The parts a user picks on the choice screen or later in the Portal (T019,
 # T020, T035): each one is installed the way the Portal installs it and then
-# has to work: OBS starts, Decky Loader runs, the
-# Mac keyboard (Toshy) runs without layering packages, Ollama answers, Open
-# WebUI serves its page, the command-line AI tools start.
+# has to work: OBS starts, Decky Loader runs, Ollama answers, Open WebUI
+# serves its page, the command-line AI tools start.
 # Usage: choices.sh <raw disk> <root ssh private key> <out dir>
 set -euo pipefail
 
@@ -118,10 +117,6 @@ install lsfg-vk 300
 check "frame generation layer seen by Vulkan" "${user} vulkaninfo --summary 2>/dev/null | grep -q VK_LAYER_LSFGVK_frame_generation"
 ssh_vm "${portal} lsfg-vk remove" || true
 check "frame generation removed" "test \$(${portal} lsfg-vk status) = off && ! ls /home/arkade/.local/lib/liblsfg-vk-layer.so"
-
-# T020: Mac keyboard.
-install toshy 1500
-check_wait "Mac keyboard (Toshy) running" "systemctl --user -M arkade@ is-active toshy-config.service" 120
 
 # T035: Decky Loader.
 install decky 900

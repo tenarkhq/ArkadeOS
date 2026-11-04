@@ -23,7 +23,6 @@ decky	gaming	ujust	setup-decky install	Decky Loader (Steam game mode plugins)	De
 mangojuice	gaming	flatpak	io.github.radiolamp.mangojuice	MangoJuice (FPS counter settings)	MangoJuice (FPS-kijelző beállítása)
 protontricks	gaming	flatpak	com.github.Matoking.protontricks	Protontricks (fixes for Windows games)	Protontricks (Windows-játékok javítása)
 tiling	desktop	switch	arkadeos-tiling	Tiling windows	Csempés ablakok
-toshy	desktop	script	toshy	Mac keyboard shortcuts (Toshy)	Mac-billentyűkiosztás (Toshy)
 ollama	ai	quadlet	ollama	Ollama (local AI models)	Ollama (helyi AI modellek)
 open-webui	ai	quadlet	open-webui	Open WebUI (chat for local AI)	Open WebUI (csevegés a helyi AI-val)
 claude-code	ai	script	claude-code	Claude CLI (Claude Code)	Claude CLI (Claude Code)
