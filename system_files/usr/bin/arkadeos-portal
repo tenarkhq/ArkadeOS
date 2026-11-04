@@ -19,7 +19,7 @@ import time
 from pathlib import Path
 
 from PySide6.QtCore import (
-    QLocale, QObject, QProcess, Qt, QThread, QTimer, Signal,
+    QEvent, QLocale, QObject, QProcess, Qt, QThread, QTimer, Signal,
 )
 from PySide6.QtGui import QIcon, QPalette
 from PySide6.QtWidgets import (
@@ -789,7 +789,26 @@ def wait_for_look():
         if ready and still:
             break
         time.sleep(0.5)
-    print(f"arkadeos-portal: opens with the colours {scheme or 'unset'}", file=sys.stderr)
+    print(f"arkadeos-portal: waited for the look, {scheme or 'unset'}", file=sys.stderr)
+
+
+class LookLog(QObject):
+    """Writes the colours the window shows to the journal: when it opens and
+    at each light/dark switch it follows (for the VM test)."""
+
+    def __init__(self, window):
+        super().__init__(window)
+        window.installEventFilter(self)
+        self.log()
+
+    def log(self):
+        scheme = config("kdeglobals", "General", "ColorScheme")
+        print(f"arkadeos-portal: shows the colours {scheme or 'unset'}", file=sys.stderr, flush=True)
+
+    def eventFilter(self, obj, event):
+        if event.type() == QEvent.ApplicationPaletteChange:
+            self.log()
+        return False
 
 
 def main():
@@ -808,6 +827,7 @@ def main():
         window.addTab(SystemTab(), QIcon.fromTheme("preferences-system"), tr("System", "Rendszer"))
         window.addTab(GamesTab(), QIcon.fromTheme("applications-games"), tr("Games", "Játékok"))
     window.resize(760, 640)
+    LookLog(window)
     window.show()
     app.exec()
 

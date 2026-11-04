@@ -153,11 +153,11 @@ check() {
     fi
 }
 
-# The Portal choice screen opens once the automatic light/dark look is final:
-# its colours are the desktop's when it closed.
+# The Portal choice screen follows the automatic light/dark look: the last
+# colours it showed are the desktop's when it closed.
 check "Portal choice screen shows the desktop's look" "${session} journalctl --user -b --no-pager |
-    grep -oE 'arkadeos-portal: opens with the colours .*' | tail -1 |
-    grep -qx \"arkadeos-portal: opens with the colours \$(cat /tmp/portal-closed-colours)\""
+    grep -oE 'arkadeos-portal: shows the colours .*' | tail -1 |
+    grep -qx \"arkadeos-portal: shows the colours \$(cat /tmp/portal-closed-colours)\""
 # One image for every graphics card (T080): without an NVIDIA card (the VM)
 # the NVIDIA services and the settings loader at login are masked, none failed.
 check "no NVIDIA service without an NVIDIA card" "! systemctl --failed --no-legend --plain | grep -qi nvidia &&
