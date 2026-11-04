@@ -103,7 +103,9 @@ taskbar=$(base64 -w0 "$(dirname "$0")/taskbar.py")
 check "top bar and dock became one taskbar, Portal on it" "echo ${taskbar} | base64 -d | python3 - /home/arkade/.config/plasma-org.kde.plasma.desktop-appletsrc"
 check "Breeze look after the update" 'f=/home/arkade/.config; cat $f/kdeglobals $f/kdedefaults/kdeglobals 2>/dev/null | grep -m1 ^ColorScheme= | grep -qE "^ColorScheme=Breeze(Light|Dark)$" &&
     cat $f/kdeglobals $f/kdedefaults/kdeglobals 2>/dev/null | grep -m1 ^widgetStyle= | grep -qx widgetStyle=Breeze'
-check "menu bar in Dolphin after the update" 'grep -qx MenuBar=Enabled /home/arkade/.config/dolphinrc'
+# Dolphin drops MenuBar=Enabled when it closes with the menu bar shown.
+check "menu bar in Dolphin after the update" '! grep -qx MenuBar=Disabled /home/arkade/.config/dolphinrc &&
+    grep -q ^Version= /home/arkade/.config/dolphinrc'
 check "previous build kept to go back to" 'test "$(bootc status --json | jq -r .status.rollback.image.imageDigest)" = '"'${before}'"
 if ! cmp -s "${out}/apps-before.txt" "${out}/apps-after.txt"; then
     comm -23 "${out}/apps-before.txt" "${out}/apps-after.txt" | grep -q . &&

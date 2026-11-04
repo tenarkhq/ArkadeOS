@@ -239,8 +239,9 @@ ssh_vm "${session} systemctl --user status --no-pager arkadeos-session-setup.pat
     ${session} journalctl --user -b -u arkadeos-session-setup --no-pager | tail -60;     grep -h ColorScheme ${home}/kdeglobals ${home}/kdedefaults/kdeglobals; ls -la ${home%/.config}/.local/share/user-places.xbel ${home%/.config}/.local/state/arkadeos" > "${out}/session-setup.txt" 2>&1 || true
 check "thin Dolphin status bar" 'grep -qx ShowStatusBar=FullWidth /etc/xdg/dolphinrc'
 # The menu bar in the window again, Dolphin's from its first start; not in
-# Konsole (Roland, 2026-11-04).
-check "menu bar in Dolphin, not in Konsole" "test \"\$(${session} kreadconfig6 --file dolphinrc --group MainWindow --key MenuBar)\" = Enabled &&
+# Konsole (Roland, 2026-11-04). A shown menu bar is the default: Dolphin drops
+# MenuBar=Enabled when it closes, so the check is that it is not Disabled.
+check "menu bar in Dolphin, not in Konsole" "test \"\$(${session} kreadconfig6 --file dolphinrc --group MainWindow --key MenuBar)\" != Disabled &&
     test -n \"\$(${session} kreadconfig6 --file dolphinrc --group General --key Version)\" &&
     test \"\$(${session} kreadconfig6 --file konsolerc --group MainWindow --key MenuBar)\" = Disabled"
 ssh_vm "pkill -u arkade -x dolphin; sleep 2; nohup ${session} dolphin >/dev/null 2>&1 &"
