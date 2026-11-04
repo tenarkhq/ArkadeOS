@@ -10,9 +10,8 @@ down. Every change follows these rules (T050):
    choice screen or later in the ArkadeOS Portal, and vendor parts only for
    that vendor's machines.
 2. **Nothing starts by itself unless it has to.** Services start when an app
-   asks for them (D-Bus or socket activation). AirPlay and the AI pack
-   (Ollama) are off by default and run only when switched on; Ollama
-   unloads its model from memory when it is not used.
+   asks for them (D-Bus or socket activation). AirPlay is off by default
+   and runs only when switched on.
 3. **RGB effects run from the devices' own memory.** Effects computed on the
    machine (software effects) are stopped by the Gaming profile.
 4. **The Gaming profile pauses background work while a game runs:** update

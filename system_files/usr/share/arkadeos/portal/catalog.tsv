@@ -1,5 +1,5 @@
 # ArkadeOS Portal catalog (T037, T026): id, group, kind, ref, English name, Hungarian name
-# kind: flatpak | launcher | brew | switch | ujust | quadlet | script | desktop (portal-item),
+# kind: flatpak | launcher | brew | switch | ujust | script | desktop (portal-item),
 # fixed: part of the image, shown ticked and cannot be removed
 steam	base	fixed	steam	Steam	Steam
 firefox	base	flatpak	org.mozilla.firefox	Firefox	Firefox
@@ -15,7 +15,6 @@ ea	stores	launcher	org.arkadeos.EA.desktop	EA app	EA app
 ubisoft	stores	launcher	org.arkadeos.Ubisoft.desktop	Ubisoft Connect	Ubisoft Connect
 heroic	stores	flatpak	com.heroicgameslauncher.hgl	Heroic (Epic, GOG, Amazon)	Heroic (Epic, GOG, Amazon)
 lutris	stores	flatpak	net.lutris.Lutris	Lutris	Lutris
-obs	stream	flatpak	com.obsproject.Studio	OBS Studio	OBS Studio
 gpurecorder	stream	flatpak	com.dec05eba.gpu_screen_recorder	GPU Screen Recorder (instant replay on a hotkey, like ShadowPlay)	GPU Screen Recorder (visszajátszás gyorsgombbal, mint a ShadowPlay)
 lsfg-vk	gaming	script	lsfg-vk	Frame generation (lsfg-vk, needs Lossless Scaling on Steam)	Képkocka-generálás (lsfg-vk, a Steames Lossless Scaling kell hozzá)
 airplay	stream	switch	arkadeos-airplay	AirPlay receiver	AirPlay vevő
@@ -23,8 +22,6 @@ decky	gaming	ujust	setup-decky install	Decky Loader (Steam game mode plugins)	De
 mangojuice	gaming	flatpak	io.github.radiolamp.mangojuice	MangoJuice (FPS counter settings)	MangoJuice (FPS-kijelző beállítása)
 protontricks	gaming	flatpak	com.github.Matoking.protontricks	Protontricks (fixes for Windows games)	Protontricks (Windows-játékok javítása)
 tiling	desktop	switch	arkadeos-tiling	Tiling windows	Csempés ablakok
-ollama	ai	quadlet	ollama	Ollama (local AI models)	Ollama (helyi AI modellek)
-open-webui	ai	quadlet	open-webui	Open WebUI (chat for local AI)	Open WebUI (csevegés a helyi AI-val)
 claude-code	ai	script	claude-code	Claude CLI (Claude Code)	Claude CLI (Claude Code)
 claude-desktop	ai	desktop	claude	Claude Desktop	Claude Desktop
 codex	ai	brew	codex	Codex CLI	Codex CLI

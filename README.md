@@ -24,7 +24,7 @@ A clean KDE Plasma desktop, one image for NVIDIA, AMD and Intel graphics, Steam 
 | ⚔️ | One-click Battle.net with World of Warcraft, WowUp for addons | **tested on hardware** |
 | 🛒 | EA app, Ubisoft Connect, Heroic (Epic, GOG, Amazon), Lutris | in testing |
 | 🪟 | Borderless windowed games run full screen, above the taskbar | in testing |
-| 🎞️ | Frame generation (lsfg-vk) per game, instant replay (GPU Screen Recorder), OBS | in testing |
+| 🎞️ | Frame generation (lsfg-vk) per game, instant replay (GPU Screen Recorder) | in testing |
 | 💬 | Discord preinstalled, Vesktop optional for Wayland screen sharing with audio | in testing |
 | 🧲 | qBittorrent: free, open-source torrent client without ads (ticked by default, can be left out) | in testing |
 | 🎙️ | Microphone noise filter and low-latency audio | in testing |
@@ -37,7 +37,7 @@ A clean KDE Plasma desktop, one image for NVIDIA, AMD and Intel graphics, Steam 
 | 🖥️ | KDE Plasma 6 with Breeze, light and dark switching by the time of day, one taskbar | in testing |
 | 📌 | Anything pinned on the taskbar stays there: Steam games, Windows programs, Chrome web apps | in testing |
 | 🧩 | ArkadeOS Portal: pick apps at first login, add or remove anything later | in testing |
-| 🤖 | Optional AI pack: local models (Ollama, Open WebUI) sized to your GPU, AI command-line tools | in testing |
+| 🤖 | Optional AI tools: Claude and Codex, desktop apps and command line | in testing |
 | 🔄 | Atomic image updates with rollback, builds of the last 90 days, factory reset that keeps your files | in testing |
 | 📦 | Small updates: the image is split into about 100 layers, so an update downloads only what changed | in testing |
 | 💿 | Installer next to Windows, with Windows in the boot menu; shows the download's progress and time left | in testing |

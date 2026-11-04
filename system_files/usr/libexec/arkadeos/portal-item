@@ -14,7 +14,6 @@ LSFG_SHA256=08bdbdf373a111022df87dac7aa87e3b564bb841f961552e3ca85fea12b5aa74
 catalog=/usr/share/arkadeos/portal/catalog.tsv
 brew=/home/linuxbrew/.linuxbrew/bin/brew
 apps="${XDG_DATA_HOME:-${HOME}/.local/share}/applications"
-quadlets="${XDG_CONFIG_HOME:-${HOME}/.config}/containers/systemd"
 
 if [[ "${1:-}" == --list ]]; then
     grep -v '^#' "${catalog}"
@@ -28,22 +27,6 @@ IFS=$'\t' read -r _ _ kind ref _ <<< "${line}"
 status() { if "$@" &>/dev/null; then echo on; else echo off; fi; }
 in_terminal() {  # installers that ask questions run where the user sees them
     if [[ -n "${WAYLAND_DISPLAY:-}${DISPLAY:-}" ]]; then konsole --hold -e "$@"; else "$@"; fi
-}
-
-# The model that fits the graphics card's memory (T019).
-ollama_model() {
-    local mib=0 v
-    if /usr/libexec/arkadeos/has-nvidia; then
-        mib=$(nvidia-smi --query-gpu=memory.total --format=csv,noheader,nounits 2>/dev/null | sort -n | tail -1)
-    fi
-    for v in /sys/class/drm/card*/device/mem_info_vram_total; do
-        [[ -f "${v}" ]] && (( $(cat "${v}") / 1048576 > mib )) && mib=$(( $(cat "${v}") / 1048576 ))
-    done
-    if (( mib >= 20000 )); then echo qwen3:30b
-    elif (( mib >= 14000 )); then echo qwen3:14b
-    elif (( mib >= 7000 )); then echo qwen3:8b
-    else echo qwen3:4b
-    fi
 }
 
 case "${kind}:${action}" in
@@ -92,34 +75,6 @@ case "${kind}:${action}" in
         case "${item}" in
             decky) in_terminal ujust setup-decky uninstall ;;
         esac
-        ;;
-
-    # AI (T019): Ollama and Open WebUI as the user's containers, started with
-    # the session; the GPU build of Ollama that fits the card. Ollama lets go of
-    # a model after 5 minutes unused (T050).
-    quadlet:status) status test -f "${quadlets}/${ref}.container" ;;
-    quadlet:install)
-        mkdir -p "${quadlets}"
-        # The card decides the build: NVIDIA through CDI, AMD on ROCm, else CPU.
-        image=docker.io/ollama/ollama:latest devices=
-        if /usr/libexec/arkadeos/has-nvidia; then
-            devices="AddDevice=nvidia.com/gpu=all"
-        elif [[ -e /dev/kfd ]] && grep -qsx 0x1002 /sys/class/drm/card*/device/vendor; then
-            image=docker.io/ollama/ollama:rocm devices='AddDevice=/dev/kfd\nAddDevice=/dev/dri'
-        fi
-        awk -v img="${image}" -v dev="${devices}" '{ sub(/@OLLAMA_IMAGE@/, img) } /^@DEVICES@$/ { if (dev != "") print dev; next } 1' \
-            "/usr/share/arkadeos/portal/${ref}.container" > "${quadlets}/${ref}.container"
-        systemctl --user daemon-reload
-        systemctl --user start "${ref}.service"
-        if [[ "${ref}" == ollama ]]; then
-            for _ in $(seq 60); do curl -fs http://127.0.0.1:11434/ >/dev/null && break; sleep 5; done
-            podman exec ollama ollama pull "$(ollama_model)"
-        fi
-        ;;
-    quadlet:remove)
-        systemctl --user stop "${ref}.service" || true
-        rm -f "${quadlets}/${ref}.container"
-        systemctl --user daemon-reload
         ;;
 
     # Claude Desktop and Codex Desktop (T072): the makers' packages, unpacked

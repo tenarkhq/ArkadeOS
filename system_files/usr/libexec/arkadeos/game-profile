@@ -19,9 +19,8 @@ alone.
 
 It also sets the lighting of the profile in force whenever that changes, by
 hand or by itself (arkadeos-rgb, T042), and dims or brightens it with the
-keyboard brightness slider (T044), and when a game starts, a model the
-local AI (Ollama, T019) holds lets go of the video memory (T050). While a game
-runs, notifications wait (do not disturb, T062)."""
+keyboard brightness slider (T044). While a game runs, notifications wait
+(do not disturb, T062)."""
 import os
 import re
 import subprocess
@@ -29,8 +28,6 @@ import sys
 import time
 from pathlib import Path
 
-import json
-import urllib.request
 
 import dbus
 
@@ -174,20 +171,6 @@ def tuned_active():
         return None
 
 
-def unload_ai_models():
-    """Ollama keeps a used model in video memory for a while; a game needs it."""
-    try:
-        with urllib.request.urlopen("http://127.0.0.1:11434/api/ps", timeout=2) as r:
-            models = [m["name"] for m in json.load(r).get("models", [])]
-        for name in models:
-            body = json.dumps({"model": name, "keep_alive": 0}).encode()
-            urllib.request.urlopen(urllib.request.Request(
-                "http://127.0.0.1:11434/api/generate", data=body,
-                headers={"Content-Type": "application/json"}), timeout=10).read()
-    except (OSError, ValueError):
-        pass  # no Ollama running
-
-
 def quiet(on, state):
     """Do not disturb while a game runs: Plasma holds back the notifications
     until UnInhibit (or until this program exits)."""
@@ -283,8 +266,6 @@ def main():
                 mark.touch()
             else:
                 mark.unlink(missing_ok=True)
-            if want is not None and current is None:
-                unload_ai_models()
             quiet(want is not None, state)
             current = want
             heals = 0

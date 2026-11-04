@@ -1,8 +1,7 @@
 #!/usr/bin/bash
 # The parts a user picks on the choice screen or later in the Portal (T019,
 # T020, T035): each one is installed the way the Portal installs it and then
-# has to work: OBS starts, Decky Loader runs, Ollama answers, Open WebUI
-# serves its page, the command-line AI tools start.
+# has to work: Decky Loader runs, the AI tools start.
 # Usage: choices.sh <raw disk> <root ssh private key> <out dir>
 set -euo pipefail
 
@@ -102,13 +101,6 @@ install() {  # item, seconds; the log goes to the results
 deployments() { ssh_vm 'rpm-ostree status --json | jq -c "[.deployments[] | .\"requested-packages\"] | add // []"'; }
 layered_before=$(deployments)
 
-# T020: streaming.
-install obs 900
-ssh_vm "${gui} sh -c 'flatpak run com.obsproject.Studio >/tmp/obs.log 2>&1 &'" || true
-check_wait "OBS starts" 'pgrep -u arkade -x obs' 120
-sleep 10
-shot obs
-ssh_vm 'pkill -u arkade -x obs' || true
 # T059: GPU Screen Recorder, off by default, installed from the Portal.
 install gpurecorder 600
 check "GPU Screen Recorder installed" "flatpak info --system com.dec05eba.gpu_screen_recorder"
@@ -150,13 +142,7 @@ key home; sleep 1; key spc; sleep 1; key ret
 sleep 3
 check "Proton picked for a store" "${user} arkadeos-store ea --check | grep -qx 'proton=/home/arkade/.local/share/Steam/compatibilitytools.d/${other}'"
 
-# T019: the AI pack.
-install ollama 1800
-check "Ollama answers" "curl -fs http://127.0.0.1:11434/api/generate -d '{\"model\":\"qwen3:4b\",\"prompt\":\"Hi\",\"stream\":false,\"options\":{\"num_predict\":3}}' | jq -e .response"
-ssh_vm "${user} systemctl --user status --no-pager ollama; ${user} podman ps -a; ${user} podman exec ollama ollama list; ${user} podman logs --tail 40 ollama" > "${out}/ollama.txt" 2>&1 || true
-install open-webui 1200
-check_wait "Open WebUI page answers" 'curl -fs -o /dev/null http://127.0.0.1:3000/' 600
-shot open-webui
+# T019: the AI tools.
 install claude-code 600
 check "Claude Code starts" "${user} claude --version"
 install codex 900

@@ -680,7 +680,7 @@ check "Portal: Battle.net hidden and back" "${portal} battlenet remove && test \
     ${portal} battlenet install && test \$(${portal} battlenet status) = on"
 check "Portal: switch item (tiling)" "${portal} tiling install && test \$(${portal} tiling status) = on &&
     ${portal} tiling remove && test \$(${portal} tiling status) = off"
-check "Portal: AI pack not installed by default" "test \$(${portal} ollama status) = off && test \$(${portal} claude-code status) = off"
+check "Portal: AI tools not installed by default" "test \$(${portal} claude-code status) = off"
 check "Portal: first-start choice saved" "/usr/libexec/arkadeos/apps-choose discord nonsense vlc &&
     test \"\$(cat /etc/arkadeos/apps)\" = \"\$(printf 'discord\\nvlc')\""
 check "Portal: first-boot apps installed once, never again" "grep -qx vlc /var/lib/arkadeos/apps-done"
