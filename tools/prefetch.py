@@ -21,7 +21,6 @@ RELEASES = {
     "wowup": ("WowUp/WowUp.CF", [r"WowUp-CF-.*\.AppImage$"]),
     "lact": ("ilya-zlobintsev/LACT", [r"lact-.*\.x86_64\.fedora-{fc}\.rpm$"]),
     "vesktop": ("Vencord/Vesktop", [r"vesktop-.*\.x86_64\.rpm$"]),
-    "sunshine": ("LizardByte/Sunshine", [r"Sunshine-.*\.fc{fc}\.x86_64\.rpm$"]),
     "ollama": ("ollama/ollama", [r"ollama-linux-amd64\.tar\.zst$", r"ollama-linux-amd64-rocm\.tar\.zst$"]),
     "mcontrolcenter": ("dmitry-s93/MControlCenter", [r"MControlCenter-.*-bin\.tar\.gz$"]),
     "lenovolegionlinux": ("johnfanv2/LenovoLegionLinux", ["SOURCE"]),

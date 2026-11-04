@@ -1,7 +1,7 @@
 #!/usr/bin/bash
 # The parts a user picks on the choice screen or later in the Portal (T019,
 # T020, T035): each one is installed the way the Portal installs it and then
-# has to work: OBS starts, Sunshine serves its page, Decky Loader runs, the
+# has to work: OBS starts, Decky Loader runs, the
 # Mac keyboard (Toshy) runs without layering packages, Ollama answers, Open
 # WebUI serves its page, the command-line AI tools start.
 # Usage: choices.sh <raw disk> <root ssh private key> <out dir>
@@ -91,8 +91,8 @@ uid=$(ssh_vm 'id -u arkade')
 user="runuser -u arkade -- env -C /home/arkade HOME=/home/arkade USER=arkade XDG_RUNTIME_DIR=/run/user/${uid} DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/${uid}/bus PATH=/home/arkade/.local/bin:/home/linuxbrew/.linuxbrew/bin:/usr/local/bin:/usr/bin"
 gui="runuser -u arkade -- env -C /home/arkade HOME=/home/arkade USER=arkade XDG_RUNTIME_DIR=/run/user/${uid} WAYLAND_DISPLAY=wayland-0 QT_QPA_PLATFORM=wayland XDG_CURRENT_DESKTOP=KDE XDG_SESSION_TYPE=wayland DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/${uid}/bus"
 portal="${user} /usr/libexec/arkadeos/portal-item"
-# Long installs outlast the idle lock and the screen turning off; Sunshine
-# then gets no picture and dialogs are hidden. Wake the desktop first.
+# Long installs outlast the idle lock and the screen turning off; dialogs
+# are then hidden. Wake the desktop first.
 ssh_vm "${gui} kwriteconfig6 --notify --file kscreenlockerrc --group Daemon --key Autolock false" || true
 wake() { ssh_vm "loginctl unlock-sessions; ${gui} kscreen-doctor --dpms on" >/dev/null 2>&1 || true; }
 install() {  # item, seconds; the log goes to the results
@@ -118,27 +118,6 @@ install lsfg-vk 300
 check "frame generation layer seen by Vulkan" "${user} vulkaninfo --summary 2>/dev/null | grep -q VK_LAYER_LSFGVK_frame_generation"
 ssh_vm "${portal} lsfg-vk remove" || true
 check "frame generation removed" "test \$(${portal} lsfg-vk status) = off && ! ls /home/arkade/.local/lib/liblsfg-vk-layer.so"
-# Sunshine's own debug log, and the KDE portal's, show which screen sharing
-# step it waits on if it does not come up.
-ssh_vm "${user} sh -c 'mkdir -p .var/app/dev.lizardbyte.app.Sunshine/config/sunshine &&
-    echo min_log_level = debug > .var/app/dev.lizardbyte.app.Sunshine/config/sunshine/sunshine.conf &&
-    systemctl --user set-environment QT_LOGGING_RULES=\"xdp-kde*=true\" &&
-    systemctl --user restart plasma-xdg-desktop-portal-kde'" || true
-wake
-install sunshine 900
-# T078: the VM has no graphics card or real screen, Sunshine keeps asking for
-# screen sharing there and does not come up; whether it streams is tried on a
-# real machine. Here: it installs (Roland, 2026-11-04).
-check "Sunshine installed" "flatpak info --system dev.lizardbyte.app.Sunshine"
-# T078: the encoder is set for the card (the VM has none: the processor), so
-# Sunshine asks for the screen once per start instead of once per encoder.
-check "Sunshine's encoder set for the card" "grep -qx 'encoder = software' /home/arkade/.var/app/dev.lizardbyte.app.Sunshine/config/sunshine/sunshine.conf"
-shot sunshine
-ssh_vm "${user} systemctl --user status --no-pager app-dev.lizardbyte.app.Sunshine; journalctl _UID=${uid} --no-pager | grep -i sunshine | tail -80; tail -80 /home/arkade/.var/app/dev.lizardbyte.app.Sunshine/config/sunshine/sunshine.log; ss -ltnp;
-    journalctl _UID=${uid} --no-pager | grep -i -E 'portal|screencast|remote.?desktop|kwin_wayland' | tail -80;
-    busctl --user -M arkade@ tree org.freedesktop.portal.Desktop | grep -i -E 'session|request';
-    flatpak permission-show dev.lizardbyte.app.Sunshine" > "${out}/sunshine.txt" 2>&1 || true
-ssh_vm "journalctl _UID=${uid} --no-pager --user-unit plasma-xdg-desktop-portal-kde | tail -150" > "${out}/portal-kde.txt" 2>&1 || true
 
 # T020: Mac keyboard.
 install toshy 1500
