@@ -94,7 +94,7 @@ The ArkadeOS Portal does the same from a window, and also switches the channel (
 | Balanced | Automatically on AC | Balanced CPU mode with boost; nothing else saves power (sound, Wi-Fi, USB and disk links stay awake), only an unused graphics card may sleep |
 | Gaming | Automatically while a game runs | Performance CPU mode, low-latency scheduler, GPU boost, no power saving anywhere, huge memory pages for the game |
 | Max | Manually, on AC only | Deep sleep states off, fans and platform profile at maximum |
-| WoW | Automatically while World of Warcraft runs, or manually | Gaming for the CPU; on a laptop the graphics card is held back to 80% of its power (TGP; on ASUS also Dynamic Boost off) so the shared power and cooling go to the CPU. While the card itself is the bottleneck it gets more, up to all of it, so a weaker card is not slowed down. Desktops: nothing held back. The lowest share is `percent=` in `/etc/arkadeos/gpu-cap.conf` |
+| WoW | Automatically while World of Warcraft runs, or manually | Gaming for the CPU; on a laptop the graphics card is held back to 80% of its power (TGP; on ASUS also Dynamic Boost off) so the shared power and cooling go to the CPU. While the card itself is the bottleneck it gets more, up to all of it, so a weaker card is not slowed down. Desktops: nothing held back. The lowest share is `percent=` in `/etc/arkadeos/gpu-cap.conf`. On a processor with two groups of cores (the two CCDs of a Ryzen 9) the game runs on one of them; `arkadeos-power ccd off` lets it use all cores |
 
 ## Project status
 

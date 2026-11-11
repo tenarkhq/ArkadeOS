@@ -450,6 +450,21 @@ check "back to Balanced after WoW" 'tuned-adm active | grep -q arkadeos-balanced
 check "power switch on the taskbar" "grep -qx plugin=org.arkadeos.power ${home}/plasma-org.kde.plasma.desktop-appletsrc &&
     ${session} arkadeos-power status | grep -qx profile=balanced"
 check "game watcher running" 'systemctl --user -M arkade@ is-active arkadeos-game-profile.service'
+# T050: the switch reads the profile when it changes, not every three seconds.
+# A stand-in in front of arkadeos-power notes who asks for the status; the
+# test's own questions come from runuser.
+ssh_vm 'printf "%s\n" "#!/usr/bin/bash" \
+    "[[ \"\$1\" == status ]] && echo \"\$(date +%s) \$(cat /proc/\$PPID/comm)\" >> /tmp/power-status.log" \
+    "exec /usr/bin/arkadeos-power \"\$@\"" > /usr/local/bin/arkadeos-power && chmod +x /usr/local/bin/arkadeos-power'
+sleep 20
+check "power switch: no status question every three seconds" 'n=$(grep -vc runuser /tmp/power-status.log 2>/dev/null); test "${n:-0}" -le 2 &&
+    ! journalctl -b --no-pager | grep -q "org.arkadeos.power/contents/ui/Watch.qml"'
+ssh_vm 'rm -f /tmp/power-status.log'
+ppd_set performance
+check "power switch: a changed profile is read at once" 'grep -qv runuser /tmp/power-status.log'
+ppd_set balanced
+ssh_vm 'cat /tmp/power-status.log; rm -f /usr/local/bin/arkadeos-power /tmp/power-status.log;
+    journalctl -b --no-pager | grep org.arkadeos.power' > "${out}/power-switch.txt" 2>&1 || true
 fi # power
 
 if want games; then
@@ -482,22 +497,43 @@ ssh_vm "cd /home/arkade && ${session} DISPLAY=:0 ARKADEOS_PROFILE=battery GAMEID
 check "per-game profile: Akku game on Akku" 'grep -q arkadeos-battery /tmp/profiles.log'
 sleep 20
 check "Balanced after the Akku game" 'tuned-adm active | grep -q arkadeos-balanced'
+# T084: where the processor has several groups of cores, a game on WoW runs
+# on one of them. A stand-in processor for the game watcher: two groups of
+# two cores, the second rated faster.
+ssh_vm 'for c in 0 1 2 3; do d=/run/cpu-test/cpu$c; mkdir -p $d/cache/index3 $d/acpi_cppc; echo 16384K > $d/cache/index3/size;
+    if [ $c -lt 2 ]; then echo 0-1 > $d/cache/index3/shared_cpu_list; echo 100 > $d/acpi_cppc/highest_perf;
+    else echo 2-3 > $d/cache/index3/shared_cpu_list; echo 120 > $d/acpi_cppc/highest_perf; fi; done'
+check "core group for a game: the faster of two" "${session} ARKADEOS_CPU=/run/cpu-test ARKADEOS_CCD_MIN_CORES=2 arkadeos-power ccd | grep -qx 'on 2-3'"
+check "core group: none where the groups are too small for a game" "${session} ARKADEOS_CPU=/run/cpu-test arkadeos-power ccd | grep -qx none"
+check "core group switched off and on" "${session} arkadeos-power ccd off && test -e ${home}/arkadeos/ccd-off &&
+    ${session} ARKADEOS_CPU=/run/cpu-test ARKADEOS_CCD_MIN_CORES=2 arkadeos-power ccd | grep -qx 'off 2-3' &&
+    ${session} arkadeos-power ccd on && test ! -e ${home}/arkadeos/ccd-off"
+ssh_vm "${session} systemctl --user set-environment ARKADEOS_CPU=/run/cpu-test ARKADEOS_CCD_MIN_CORES=2 &&
+    ${session} systemctl --user restart arkadeos-game-profile.service" || true
 # T055: World of Warcraft (Wow.exe under Wine) switches WoW on by itself,
 # then Balanced comes back. Stand-ins for its wineserver, Battle.net.exe
-# (Gaming first, as on a real machine) and Wow.exe 12 s later.
+# (Gaming first, as on a real machine) and Wow.exe 12 s later; 20 s on, the
+# CPUs Wow.exe may run on are noted.
 ssh_vm "nohup sh -c 'for i in \$(seq 20); do tuned-adm active; ${session} busctl --user get-property org.freedesktop.Notifications \
     /org/freedesktop/Notifications org.freedesktop.Notifications Inhibited; sleep 3; done' > /tmp/wow.log 2>&1 &"
-ssh_vm "${session} bash -c '(exec -a wineserver sleep 45) & (exec -a Battle.net.exe sleep 45) & sleep 12; (exec -a Wow.exe sleep 30) & wait'" || true
+ssh_vm "${session} bash -c '(exec -a wineserver sleep 45) & (exec -a Battle.net.exe sleep 45) & sleep 12; (exec -a Wow.exe sleep 30) &
+    sleep 20; grep Cpus_allowed_list /proc/\$!/status > /tmp/wow-cpus.txt;
+    /usr/libexec/arkadeos/no-game-running > /tmp/wow-jobs.txt; echo \$? >> /tmp/wow-jobs.txt; wait'" || true
 check "World of Warcraft on WoW" 'grep -q arkadeos-wow /tmp/wow.log'
+check "World of Warcraft on one core group" 'grep -q "Cpus_allowed_list:[[:space:]]*2-3\$" /tmp/wow-cpus.txt'
+check "background jobs told to wait while the game runs" 'tail -1 /tmp/wow-jobs.txt | grep -qx 1'
 # The released Gaming hold must not put Balanced back under WoW (2026-11-01).
 check "WoW stays on while the game runs" 'test "$(grep -c arkadeos-wow /tmp/wow.log)" -ge 6'
 # T062: notifications wait while a game runs, and come again after.
 check "do not disturb while a game runs" 'grep -qx "b true" /tmp/wow.log'
 sleep 20
 check "Balanced after World of Warcraft" 'tuned-adm active | grep -q arkadeos-balanced && test ! -e /run/arkadeos/power-wow'
+check "background jobs may run after the game" '/usr/libexec/arkadeos/no-game-running'
 check "notifications back after the game" "${session} busctl --user get-property org.freedesktop.Notifications /org/freedesktop/Notifications org.freedesktop.Notifications Inhibited | grep -qx 'b false'"
-ssh_vm "cat /tmp/wow.log; tuned-adm active; ls /run/arkadeos; journalctl -b -u tuned-ppd --no-pager | tail -30;
+ssh_vm "cat /tmp/wow.log /tmp/wow-cpus.txt; tuned-adm active; ls /run/arkadeos; journalctl -b -u tuned-ppd --no-pager | tail -30;
     ${session} journalctl --user -b -u arkadeos-game-profile --no-pager | tail -40" > "${out}/wow-game.txt" 2>&1 || true
+ssh_vm "${session} systemctl --user unset-environment ARKADEOS_CPU ARKADEOS_CCD_MIN_CORES &&
+    ${session} systemctl --user restart arkadeos-game-profile.service" || true
 
 # T068: a window whose app has no menu entry under its name gets a hidden one,
 # so it can be pinned on the dock. A Windows program in the Battle.net prefix
@@ -789,6 +825,26 @@ check "firewall on, ArkadeOS zone" 'firewall-cmd --state | grep -qx running && t
     test -z "$(firewall-cmd --zone=ArkadeOS --list-ports)"'
 check "no telemetry" '! grep -l "^countme=1" /etc/yum.repos.d/*.repo && ! systemctl is-enabled -q rpm-ostree-countme.timer'
 
+# T050: nothing runs that nobody asked for. The key remapper's service starts
+# only for a user with a preset, and its udev rule runs nothing without the
+# service; the PlayStation controller helper waits for such a controller; the
+# bridge for X11 screen sharing does not start at login.
+ssh_vm 'systemctl start input-remapper.service' || true
+check "key remapper off for a user without presets" '! systemctl is-active -q input-remapper.service && ! test -e /run/input-remapper &&
+    grep -q "TEST==\"/run/input-remapper\", RUN+=" /usr/lib/udev/rules.d/99-input-remapper.rules &&
+    grep -qx "Exec=/usr/libexec/arkadeos/input-remapper-autoload" /etc/xdg/autostart/input-remapper-autoload.desktop'
+ssh_vm "${session} mkdir -p ${home}/input-remapper-2/presets/Test && ${session} touch ${home}/input-remapper-2/presets/Test/test.json &&
+    systemctl start input-remapper.service; sleep 5" || true
+check "key remapper runs for a user with a preset" 'systemctl is-active -q input-remapper.service && test -d /run/input-remapper'
+ssh_vm "systemctl stop input-remapper.service; rm -rf ${home}/input-remapper-2/presets/Test" || true
+check "PlayStation controller helper waits for a controller" '! systemctl is-active -q ds-inhibit.service &&
+    ! systemctl is-enabled -q ds-inhibit.service && udevadm verify /usr/lib/udev/rules.d/90-arkadeos-ds-inhibit.rules'
+check "no X11 screen-sharing bridge at login" 'grep -qx Hidden=true /etc/xdg/autostart/org.kde.xwaylandvideobridge.desktop &&
+    ! pgrep -f "[x]waylandvideobridge"'
+# The old image name is looked for in the origin files; bootc is not asked
+# at every boot.
+check "image name: bootc not asked on the one image" '! bash -x /usr/libexec/arkadeos/image-name 2>&1 | grep -q "bootc status"'
+
 # No Game Mode (Roland, 2026-11-03): no full-screen Steam session to start.
 check "no Game Mode session" '! test -e /usr/share/wayland-sessions/gamescope-session-steam.desktop && ! test -e /usr/share/applications/org.arkadeos.GameMode.desktop'
 
@@ -810,6 +866,11 @@ reboot_vm() {
 check "daily updates on (system and apps)" 'systemctl is-enabled -q uupd.timer && systemctl is-active -q uupd.timer'
 check "home snapshots" 'snapper -c home list | grep -q "ArkadeOS: first snapshot" &&
     btrfs subvolume show /home/arkade/Games'
+# T050: what can wait does not run while a game runs: updates, snapshot
+# cleanup, disk trim and the firmware list (fetched once a day).
+check "background jobs wait for a running game" 'for u in uupd snapper-cleanup fstrim fwupd-refresh; do
+    systemctl show $u.service -p ExecCondition | grep -q no-game-running || exit 1; done;
+    systemctl show fwupd-refresh.timer -p TimersCalendar | grep -q "OnCalendar=\*-\*-\* 00:00:00"'
 check "game folders carry a SELinux label" '! stat -c %C /home/arkade/Games /home/arkade/.local/share/Steam | grep -q unlabeled_t'
 if [[ -n "${UPDATE_PUSH:-}" ]]; then
     before=$(ssh_vm "bootc status --json | jq -r .status.booted.image.imageDigest")
@@ -829,6 +890,9 @@ if [[ -n "${UPDATE_PUSH:-}" ]]; then
     reboot_vm
     ssh_vm 'arkadeos-update status; journalctl -b -1 --no-pager -u ostree-finalize-staged -u bazzite-hardware-setup -u rpm-ostreed | tail -60' >> "${out}/update.txt" 2>&1 || true
     check "update running after the reboot" 'test -f /usr/share/arkadeos/update-test'
+    # T050: at an ordinary boot the makers' parts are as they should be, and
+    # nothing has systemd read every unit file again for them.
+    check "boot: no unit reload for the maker parts" '! journalctl -b --no-pager | grep -q "requested from client PID.*unit arkadeos-vendor.service"'
     check "user file kept through the update" 'test -f /home/arkade/keep.txt'
     ssh_vm 'bootc status; ls -la /home/arkade' >> "${out}/update.txt" 2>&1 || true
     ssh_vm 'arkadeos-update rollback --yes' >> "${out}/update.txt" 2>&1 || true

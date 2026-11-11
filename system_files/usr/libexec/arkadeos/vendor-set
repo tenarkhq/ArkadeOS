@@ -7,17 +7,44 @@ set -euo pipefail
 
 apps=/usr/local/share/applications
 
-# The maker's apps leave the menu when its parts are off.
+# The maker's apps leave the menu when its parts are off. A file that is
+# already as it should be is left alone: a file written again at every boot
+# makes KDE put its menu together again at every login.
 show_apps() {
     local state=$1 app
     shift
-    # /usr/local links to /var/usrlocal, which may not exist yet.
-    mkdir -p "$(readlink -f /usr/local)/share/applications"
     for app in "$@"; do
         [[ -f "/usr/share/applications/${app}" ]] || continue
-        if [[ "${state}" == on ]]; then rm -f "${apps}/${app}"
-        else printf '[Desktop Entry]\nHidden=true\n' > "${apps}/${app}"; fi
+        if [[ "${state}" == on ]]; then
+            rm -f "${apps}/${app}"
+        elif [[ "$(cat "${apps}/${app}" 2>/dev/null)" != $'[Desktop Entry]\nHidden=true' ]]; then
+            # /usr/local links to /var/usrlocal, which may not exist yet.
+            mkdir -p "$(readlink -f /usr/local)/share/applications"
+            printf '[Desktop Entry]\nHidden=true\n' > "${apps}/${app}"
+        fi
     done
+}
+
+# The maker's services allowed to run (on) or masked and stopped (off).
+# systemctl has systemd read every unit file again after each mask and
+# unmask, so it is called only for the units whose state has to change, once
+# for all of them: at an ordinary boot not at all (T050).
+set_units() {
+    local state=$1 unit change=()
+    shift
+    for unit in "$@"; do
+        if [[ "/etc/systemd/system/${unit}" -ef /dev/null ]]; then
+            [[ "${state}" == off ]] || change+=("${unit}")
+        else
+            [[ "${state}" == on ]] || change+=("${unit}")
+        fi
+    done
+    (( ${#change[@]} )) || return 0
+    if [[ "${state}" == on ]]; then
+        systemctl unmask "${change[@]}"
+    else
+        systemctl mask --now "${change[@]}" || true
+    fi
 }
 
 # Secure Boot loads the Legion driver only with the ArkadeOS module key
@@ -33,14 +60,12 @@ enroll_key() {
 }
 
 apply() {
-    local maker=$1 state=$2 unit
+    local maker=$1 state=$2
     case "${maker}" in
         asus)
+            set_units "${state}" asusd.service
             if [[ "${state}" == on ]]; then
-                systemctl unmask asusd.service
                 systemctl start --no-block asusd.service || true
-            else
-                systemctl mask --now asusd.service
             fi
             show_apps "${state}" rog-control-center.desktop
             ;;
@@ -48,12 +73,11 @@ apply() {
             if [[ "${state}" == on ]]; then
                 enroll_key
                 modprobe legion-laptop || true
-                systemctl unmask legiond.service legiond-onresume.service legiond-cpuset.service legiond-cpuset.timer
+            fi
+            set_units "${state}" legiond.service legiond-onresume.service legiond-cpuset.service legiond-cpuset.timer
+            if [[ "${state}" == on ]]; then
                 systemctl start --no-block legiond.service legiond-cpuset.timer || true
-            else
-                for unit in legiond.service legiond-onresume.service legiond-cpuset.service legiond-cpuset.timer; do
-                    systemctl mask --now "${unit}" || true
-                done
+            elif [[ -d /sys/module/legion_laptop ]]; then
                 modprobe -r legion-laptop 2>/dev/null || true
             fi
             show_apps "${state}" legion_gui.desktop

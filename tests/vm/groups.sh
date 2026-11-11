@@ -81,7 +81,10 @@ while read -r f; do
         # Updates, rollback, reset, the boot menu.
         build_files/68-updates.sh | system_files/usr/bin/arkadeos-update | \
         system_files/usr/libexec/arkadeos/migrate | system_files/usr/libexec/arkadeos/reset-* | \
-        system_files/usr/libexec/arkadeos/home-snapshots | system_files/usr/libexec/arkadeos/windows-entry) add update update-path apps ;;
+        system_files/usr/libexec/arkadeos/home-snapshots | system_files/usr/libexec/arkadeos/windows-entry | \
+        system_files/usr/libexec/arkadeos/home-cache | system_files/usr/lib/systemd/system/arkadeos-home-cache.service | \
+        system_files/usr/lib/systemd/system/snapper-*.d/* | system_files/usr/lib/systemd/system/fstrim.service.d/* | \
+        system_files/usr/lib/systemd/system/fwupd-refresh.*.d/* | system_files/usr/lib/systemd/system/uupd.service.d/*) add update update-path apps ;;
         *) all=1 ;;
     esac
 done < <(git diff --name-only "${from}" "${to}")

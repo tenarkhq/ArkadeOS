@@ -4,6 +4,11 @@
 # now on, same tag. Both names carry the same image, so only the name the
 # updates come from changes: nothing is downloaded, no restart is needed.
 set -euo pipefail
+# It runs at every boot, so it asks bootc (a second or so) only when one of
+# the installed versions still has the old name in its origin file (T050).
+if [[ -z "${ARKADEOS_IMAGE_REF:-}" ]]; then
+    grep -qs 'tenarkhq/arkadeos-nvidia' /ostree/deploy/*/deploy/*.origin || exit 0
+fi
 ref=${ARKADEOS_IMAGE_REF:-$(bootc status --json | jq -r '.status.booted.image.image.image // empty')}  # the VM test gives it
 case "${ref}" in
     ghcr.io/tenarkhq/arkadeos-nvidia:*)

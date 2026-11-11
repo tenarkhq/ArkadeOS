@@ -1,0 +1,5 @@
+# The PlayStation controller helper (ds-inhibit: while Steam has the
+# controller, its touchpad does not move the mouse pointer) starts when such
+# a controller is connected, not at every boot on every computer (T050). Its
+# own test for a controller is the same: the sony or playstation driver.
+ACTION=="add", SUBSYSTEM=="hidraw", DRIVERS=="sony|playstation", TAG+="systemd", ENV{SYSTEMD_WANTS}+="ds-inhibit.service"

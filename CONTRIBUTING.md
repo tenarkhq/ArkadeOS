@@ -25,8 +25,8 @@ What enforces them today:
 | Rule | Where |
 |---|---|
 | 1 | `system_files/usr/share/arkadeos/apps.list` (`off` = only when chosen); vendor parts run only for the chosen or detected maker: `usr/libexec/arkadeos/vendor-set` masks the others' services, unloads their drivers and hides their apps at every boot |
-| 2 | `tests/vm/run.sh` checks AirPlay is off by default; `tests/vm` records the running services and idle load (`idle.txt`) |
-| 3, 4 | `usr/libexec/arkadeos/game-profile` (the game watcher); updates wait while a game runs (`uupd.service.d/50-arkadeos-not-while-gaming.conf`); file indexing is off |
+| 2 | `tests/vm/run.sh` checks AirPlay is off by default; `tests/vm` records the running services and idle load (`idle.txt`). The key remapper's service runs only for a user with a preset (`input-remapper.service.d`), the PlayStation controller helper when such a controller is connected (`90-arkadeos-ds-inhibit.rules`); what watches all the time looks cheaply: the game watcher reads only new processes, the power switch reads the profile when it changes |
+| 3, 4 | `usr/libexec/arkadeos/game-profile` (the game watcher) keeps a mark while a game runs; `usr/libexec/arkadeos/no-game-running` reads it, and updates, snapshot cleanup, disk trim and the firmware list wait (their `*.service.d/50-arkadeos-not-while-gaming.conf`); file indexing is off |
 | 5 | `idle.txt` of each VM test run; WoW FPS on real hardware at milestones |
 
 ## Changes

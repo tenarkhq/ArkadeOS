@@ -81,8 +81,21 @@ PlasmoidItem {
     function setCharge(on) { exec.connectSource("arkadeos-power charge " + (on ? "on" : "off")) }
     function setRgbSync(on) { exec.connectSource("arkadeos-rgb sync " + (on ? "on" : "off")) }
 
+    // The profile is read when it changes, not every three seconds (T050):
+    // Watch.qml says when. What changes without a word from it (the lighting
+    // and battery care set elsewhere, Max and WoW set by command) is read
+    // when the switch is opened, and once a minute.
+    Loader {
+        id: watch
+        source: "Watch.qml"
+    }
+    Connections {
+        target: watch.item
+        function onChanged() { root.refresh() }
+    }
+    onExpandedChanged: if (expanded) refresh()
     Timer {
-        interval: 3000
+        interval: watch.status === Loader.Ready ? 60000 : 3000
         running: true
         repeat: true
         triggeredOnStart: true

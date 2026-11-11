@@ -11,3 +11,5 @@ disable cups.path
 disable cups-browsed.service
 # Mobile broadband modems: off until switched on in the ArkadeOS Portal
 disable ModemManager.service
+# PlayStation controller helper: starts when such a controller is connected
+disable ds-inhibit.service

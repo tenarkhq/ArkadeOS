@@ -1,10 +1,10 @@
 #!/usr/bin/bash
-# Exit 0 when no game runs, 1 while one does (T050). A game is running while
-# the game watcher (arkadeos-game-profile) holds a power profile or set Max or
-# WoW (its arkadeos-game-max mark).
-holds=$(busctl get-property net.hadess.PowerProfiles /net/hadess/PowerProfiles \
-    net.hadess.PowerProfiles ActiveProfileHolds 2>/dev/null || true)
-if [[ "${holds}" == *org.arkadeos.GameProfile* ]] || compgen -G '/run/user/*/arkadeos-game-max' >/dev/null; then
+# Exit 0 when no game runs, 1 while one does (T050): the background jobs that
+# can wait run it first (updates, snapshot cleanup, disk trim, the firmware
+# list). The game watcher (game-profile) keeps the mark arkadeos-game in the
+# user's /run/user folder for as long as a game runs, whatever profile the
+# game is on.
+if compgen -G '/run/user/*/arkadeos-game' >/dev/null; then
     echo "a game is running: not now"
     exit 1
 fi

@@ -9,19 +9,21 @@
 #                                a Steam AppId or a program name (Wow.exe)
 #   arkadeos-power game GAME default   back to the default (gaming)
 #   arkadeos-power games         the per-game list
+#   arkadeos-power ccd [on|off]  while WoW is on, a game runs on one group of cores where the
+#                                processor has several (T084, the default) or on all of them;
+#                                alone: on|off with the group's CPUs, or none on other processors
 set -euo pipefail
-
-ppd() {
-    busctl get-property net.hadess.PowerProfiles /net/hadess/PowerProfiles net.hadess.PowerProfiles "$1"
-}
 
 case "${1:-status}" in
     status)
         on_battery=false
-        busctl get-property org.freedesktop.UPower /org/freedesktop/UPower org.freedesktop.UPower OnBattery 2>/dev/null |
-            grep -q true && on_battery=true
-        active=$(ppd ActiveProfile | cut -d'"' -f2)
-        holds=$(ppd ActiveProfileHolds | cut -d' ' -f2)
+        [[ "$(busctl get-property org.freedesktop.UPower /org/freedesktop/UPower org.freedesktop.UPower OnBattery 2>/dev/null)" == "b true" ]] &&
+            on_battery=true
+        # One call for both: s "balanced", then aa{sv} <number of holds> ...
+        ppd=$(busctl get-property net.hadess.PowerProfiles /net/hadess/PowerProfiles net.hadess.PowerProfiles \
+            ActiveProfile ActiveProfileHolds)
+        { read -r _ active; read -r _ holds _; } <<< "${ppd}"
+        active=${active//\"/}
         auto=
         if [[ -e /run/arkadeos/power-max || -e /run/arkadeos/power-wow ]]; then
             [[ -e /run/arkadeos/power-max ]] && profile=max || profile=wow
@@ -41,13 +43,15 @@ case "${1:-status}" in
         fi
         # A desktop has no battery: the Akku profile is called Quiet there (T052).
         has_battery=false
-        grep -qsx Battery /sys/class/power_supply/*/type && has_battery=true
+        for f in /sys/class/power_supply/*/type; do
+            [[ -r "${f}" && "$(<"${f}")" == Battery ]] && has_battery=true
+        done
         # Battery care: on when charging stops below 100%.
         charge=none
         for f in /sys/bus/platform/drivers/ideapad_acpi/*/conservation_mode \
             /sys/class/power_supply/BAT*/charge_control_end_threshold; do
             [[ -f "${f}" ]] || continue
-            v=$(cat "${f}")
+            v=$(<"${f}")
             if [[ "${f}" == *conservation_mode ]]; then [[ "${v}" == 1 ]] && charge=on || charge=off
             else (( v < 100 )) && charge=on || charge=off; fi
             break
@@ -77,8 +81,28 @@ case "${1:-status}" in
         grep -hv '^#' /usr/share/arkadeos/game-profiles.conf \
             "${XDG_CONFIG_HOME:-${HOME}/.config}/arkadeos/game-profiles.conf" 2>/dev/null || true
         ;;
+    ccd)
+        # The game watcher reads the switch at every look, so it also moves a
+        # game that is running.
+        off="${XDG_CONFIG_HOME:-${HOME}/.config}/arkadeos/ccd-off"
+        case "${2:-}" in
+            on) rm -f "${off}" ;;
+            off) mkdir -p "$(dirname "${off}")"; touch "${off}" ;;
+            "")
+                cpus=$(/usr/libexec/arkadeos/game-profile cpus)
+                if [[ -z "${cpus}" ]]; then
+                    echo none
+                elif [[ -e "${off}" ]]; then
+                    echo "off ${cpus}"
+                else
+                    echo "on ${cpus}"
+                fi
+                ;;
+            *) echo "usage: arkadeos-power ccd [on|off]" >&2; exit 2 ;;
+        esac
+        ;;
     *)
-        echo "usage: arkadeos-power status | set <battery|balanced|gaming|max|wow> | charge <on|off> | game <game> <profile> | games" >&2
+        echo "usage: arkadeos-power status | set <battery|balanced|gaming|max|wow> | charge <on|off> | game <game> <profile> | games | ccd [on|off]" >&2
         exit 2
         ;;
 esac

@@ -20,7 +20,15 @@ alone.
 It also sets the lighting of the profile in force whenever that changes, by
 hand or by itself (arkadeos-rgb, T042), and dims or brightens it with the
 keyboard brightness slider (T044). While a game runs, notifications wait
-(do not disturb, T062)."""
+(do not disturb, T062).
+
+While WoW is on, a Windows game runs on one group of cores where the
+processor has several, each with a cache of its own: the two halves (CCDs) of
+a Ryzen 9, say (T084, game_cpus). arkadeos-power ccd off lets it use every
+core again.
+
+It looks every three seconds, for as long as the session lasts, so a look
+costs little (T050): it lists the processes, and reads only the new ones."""
 import os
 import re
 import subprocess
@@ -46,28 +54,42 @@ NOT_GAMES = {
 DIRECT = tuple(FLAGS)  # set straight in TuneD by power-set, not held through PPD
 UID = os.getuid()
 PROFILES = ("battery", "balanced", "gaming", "max", "wow")
-CONFS = [Path(os.environ.get("XDG_CONFIG_HOME", Path.home() / ".config")) / "arkadeos/game-profiles.conf",
-         Path("/usr/share/arkadeos/game-profiles.conf")]
+CONFIG = Path(os.environ.get("XDG_CONFIG_HOME", Path.home() / ".config")) / "arkadeos"
+CONFS = [CONFIG / "game-profiles.conf", Path("/usr/share/arkadeos/game-profiles.conf")]
+CCD_OFF = CONFIG / "ccd-off"  # arkadeos-power ccd off
+# A process is read again 1, 2, 4... looks after it appeared, then every
+# MAX_GAP looks (a minute and a half).
+MAX_GAP = 32
 
 
-def user_processes():
-    for p in Path("/proc").iterdir():
-        if p.name.isdigit():
-            try:
-                if p.stat().st_uid == UID:
-                    yield p
-            except OSError:
-                pass
-
-
-def read(p, name):
+def facts(pid):
+    """What one process says about a running game, or None for nothing: its
+    Steam AppId, whether it is a wineserver, the Windows programs on its
+    command line, and the profile in its environment."""
     try:
-        return (p / name).read_bytes().split(b"\0")
+        if os.stat(f"/proc/{pid}").st_uid != UID:
+            return None
+        with open(f"/proc/{pid}/cmdline", "rb") as f:
+            cmd = [c.decode(errors="replace") for c in f.read().split(b"\0") if c]
+        if not cmd:
+            return None
+        with open(f"/proc/{pid}/environ", "rb") as f:
+            env = re.search(rb"(?:^|\0)ARKADEOS_PROFILE=([^\0]*)", f.read())
     except OSError:
-        return []
+        return None
+    appid = re.search(r"SteamLaunch AppId=(\d+)", " ".join(cmd))
+    appid = int(appid.group(1)) if appid else None
+    wineserver = os.path.basename(cmd[0]) == "wineserver"
+    exes = tuple(re.split(r"[\\/]", c)[-1].lower() for c in cmd if c.lower().endswith(".exe"))
+    profile = env.group(1).decode(errors="replace") if env else None
+    if profile not in PROFILES:
+        profile = None
+    if appid is None and not wineserver and not exes and profile is None:
+        return None
+    return appid, wineserver, exes, profile
 
 
-def table():
+def read_table():
     out = {}
     for conf in reversed(CONFS):  # the user's file wins
         try:
@@ -80,52 +102,239 @@ def table():
     return out
 
 
-def running_game():
-    """None when no game runs, else the profile the game wants."""
-    names, env_profile, game = table(), None, False
-    windows = windows_game = False  # Wine or a Steam shortcut runs; a game in it
-    keys = []
-    for p in user_processes():
-        cmd = [c.decode(errors="replace") for c in read(p, "cmdline") if c]
-        if not cmd:
-            continue
-        line = " ".join(cmd)
-        appid = re.search(r"SteamLaunch AppId=(\d+)", line)
-        if appid:
-            # A Steam shortcut of another program (its number is above 2^31,
-            # e.g. Battle.net) counts only with a game in it, as Wine does.
-            if int(appid.group(1)) < 2**31:
-                game = True
+def gamemode_active():
+    """A game asked GameMode for its tweaks. Its daemon starts when a game
+    asks; the question alone does not start it."""
+    try:
+        session = dbus.SessionBus()
+        if not session.name_has_owner("com.feralinteractive.GameMode"):
+            return False
+        props = dbus.Interface(session.get_object("com.feralinteractive.GameMode", "/com/feralinteractive/GameMode",
+                                                  introspect=False), "org.freedesktop.DBus.Properties")
+        return int(props.Get("com.feralinteractive.GameMode", "ClientCount")) > 0
+    except dbus.exceptions.DBusException:
+        return False
+
+
+class Games:
+    """The running game, from the user's processes.
+
+    What a process says about a game (facts) stays the same for as long as it
+    lives, unless it starts another program in its own place. So every look
+    lists the processes, and reads only the ones that are new or due again."""
+
+    def __init__(self):
+        self.looks = 0
+        self.seen = {}     # pid: [look it is read again, looks until the one after, its facts]
+        self.said = {}     # pid: facts, of the processes that say something
+        self.stamp = None  # the per-game lists' dates and sizes when they were read
+        self.names = {}
+        self.found = (False, "gaming", ())
+
+    def scan(self):
+        """True when a process that says something came, went or changed."""
+        self.looks += 1
+        changed = False
+        alive = set()
+        for name in os.listdir("/proc"):
+            if not name.isdigit():
+                continue
+            pid = int(name)
+            alive.add(pid)
+            entry = self.seen.get(pid)
+            if entry is None:
+                entry = self.seen[pid] = [self.looks + 1, 1, None]
+            elif entry[0] > self.looks:
+                continue
+            elif entry[1] < MAX_GAP:
+                entry[1] *= 2
+                # The first long wait differs from process to process, so the
+                # ones that appeared together are not all read in one look.
+                entry[0] = self.looks + (entry[1] if entry[1] < MAX_GAP else 1 + pid % MAX_GAP)
             else:
-                windows = True
-            keys.append(appid.group(1))
-        if os.path.basename(cmd[0]) == "wineserver":
-            windows = True
-        for c in cmd:
-            if c.lower().endswith(".exe"):
-                exe = re.split(r"[\\/]", c)[-1].lower()
-                keys.append(exe)
-                if exe not in NOT_GAMES:
-                    windows_game = True
-        for e in read(p, "environ"):
-            if e.startswith(b"ARKADEOS_PROFILE="):
-                value = e.split(b"=", 1)[1].decode(errors="replace")
-                if value in PROFILES:
-                    env_profile = value
-    # Wine stays up while only a store's launcher runs (Battle.net after the
-    # game closed): that is not a game.
-    game = game or (windows and windows_game)
-    if not game:
-        status = subprocess.run(["gamemoded", "-s"], capture_output=True, text=True)
-        game = "is active" in status.stdout
-    if not game:
+                entry[0] = self.looks + MAX_GAP
+            now = facts(pid)
+            if now != entry[2]:
+                entry[2] = now
+                changed = True
+                if now is None:
+                    del self.said[pid]
+                else:
+                    self.said[pid] = now
+        for pid in self.seen.keys() - alive:
+            del self.seen[pid]
+            if self.said.pop(pid, None) is not None:
+                changed = True
+        return changed
+
+    def table(self):
+        """True when one of the per-game lists changed; they are read again then."""
+        stamp = []
+        for conf in CONFS:
+            try:
+                st = conf.stat()
+                stamp.append((st.st_mtime_ns, st.st_size))
+            except OSError:
+                stamp.append(None)
+        if stamp == self.stamp:
+            return False
+        self.stamp, self.names = stamp, read_table()
+        return True
+
+    def running(self):
+        """(profile, programs): the profile the running game wants, None when
+        no game runs, and the pids of the Windows game programs."""
+        # Both run at every look: each keeps its own state up to date.
+        changed = [self.scan(), self.table()]
+        if any(changed):
+            self.found = self.judge()
+        game, profile, programs = self.found
+        if not game and not gamemode_active():
+            return None, ()
+        return profile, programs
+
+    def judge(self):
+        """(a game runs, the profile it wants, its Windows programs), as the
+        processes say; GameMode can still say that a game runs."""
+        game = windows = False  # Steam launched a game; Wine or a Steam shortcut runs
+        env_profile, keys, programs = None, [], []
+        for pid in sorted(self.said):
+            appid, wineserver, exes, profile = self.said[pid]
+            if appid is not None:
+                # A Steam shortcut of another program (its number is above
+                # 2^31, e.g. Battle.net) counts only with a game in it, as
+                # Wine does.
+                if appid < 2**31:
+                    game = True
+                else:
+                    windows = True
+                keys.append(str(appid))
+            windows = windows or wineserver
+            keys.extend(exes)
+            if any(exe not in NOT_GAMES for exe in exes):
+                programs.append(pid)
+            env_profile = profile or env_profile
+        # Wine stays up while only a store's launcher runs (Battle.net after
+        # the game closed): that is not a game.
+        game = game or (windows and bool(programs))
+        profile = env_profile or next((self.names[k] for k in keys if k in self.names), "gaming")
+        return game, profile, tuple(programs)
+
+
+def cpu_list(text):
+    """The CPU numbers of a kernel list such as 0-7,16-23."""
+    out = set()
+    for part in text.strip().split(","):
+        first, _, last = part.partition("-")
+        out.update(range(int(first), int(last or first) + 1))
+    return frozenset(out)
+
+
+def cpu_text(cpus):
+    """A set of CPU numbers as the kernel writes it: 0-7,16-23."""
+    out, cpus = [], sorted(cpus)
+    while cpus:
+        last = cpus[0]
+        while last + 1 in cpus:
+            last += 1
+        out.append(str(cpus[0]) if last == cpus[0] else f"{cpus[0]}-{last}")
+        cpus = [c for c in cpus if c > last]
+    return ",".join(out)
+
+
+def game_cpus():
+    """The CPUs a game on WoW runs on, or None for all of them (T084).
+
+    Where the processor has two or more groups of cores, each with a cache of
+    its own (the two CCDs of a Ryzen 9 8940HX or 9950X, or two processors),
+    the game's threads stay in one group: they share one cache, and none of
+    them moves to a core that has none of the game's data. The group with the
+    biggest cache, then the one the firmware rates fastest, then the first.
+
+    None with one group, with groups of different sizes (a processor with big
+    and small cores has its own order), with groups under six cores (too few
+    for a game), and where the kernel steers games itself (AMD 3D V-Cache,
+    x3d-vcache)."""
+    sys_cpu = Path(os.environ.get("ARKADEOS_CPU", "/sys/devices/system/cpu"))  # a stand-in tree in the VM test
+    least = int(os.environ.get("ARKADEOS_CCD_MIN_CORES", 6))
+    if list(Path("/sys/bus/platform/drivers/amd_x3d_vcache").glob("*/amd_x3d_mode")):
         return None
-    if env_profile:
-        return env_profile
-    for k in keys:
-        if k.lower() in names:
-            return names[k.lower()]
-    return "gaming"
+    groups = {}
+    for cache in sys_cpu.glob("cpu[0-9]*/cache/index3"):
+        try:
+            cpus = cpu_list((cache / "shared_cpu_list").read_text())
+            size = int(re.sub(r"\D", "", (cache / "size").read_text()) or 0)
+        except (OSError, ValueError):
+            return None
+        groups[cpus] = size
+    if len(groups) < 2 or len({len(g) for g in groups}) != 1:
+        return None
+
+    def read(cpu, name, default):
+        try:
+            return (sys_cpu / f"cpu{cpu}" / name).read_text().strip()
+        except OSError:
+            return default
+
+    best = None
+    for cpus, size in groups.items():
+        if len({read(c, "topology/core_cpus_list", str(c)) for c in cpus}) < least:
+            return None
+        speed = max(int(read(c, "acpi_cppc/highest_perf", 0) or 0) for c in cpus)
+        rank = (size, speed, -min(cpus))
+        if best is None or rank > best[0]:
+            best = (rank, cpus)
+    return best[1]
+
+
+def threads(pid):
+    try:
+        return [int(t) for t in os.listdir(f"/proc/{pid}/task")]
+    except OSError:
+        return []
+
+
+def program(pid):
+    """Wow.exe (1234), for the log."""
+    try:
+        return f"{Path(f'/proc/{pid}/comm').read_text().strip()} ({pid})"
+    except OSError:
+        return f"process {pid}"
+
+
+def pin(programs, cpus, state):
+    """Keeps every thread of the game programs on cpus, also the ones the
+    game moved since the last look, and lets the programs go that are no
+    longer kept there (cpus None: all of them)."""
+    kept = state.setdefault("pinned", {})  # pid: the CPUs it is kept on
+    for pid in list(kept):
+        if cpus is None or pid not in programs:
+            everywhere = os.sched_getaffinity(0)
+            was = kept.pop(pid)
+            moved = False
+            for tid in threads(pid):
+                try:
+                    if os.sched_getaffinity(tid) == was:
+                        os.sched_setaffinity(tid, everywhere)
+                        moved = True
+                except OSError:
+                    pass
+            if moved:
+                print(f"game-profile: {program(pid)} on every CPU again", file=sys.stderr, flush=True)
+    if cpus is None:
+        return
+    for pid in programs:
+        moved = False
+        for tid in threads(pid):
+            try:
+                if not os.sched_getaffinity(tid) <= cpus:
+                    os.sched_setaffinity(tid, cpus)
+                    moved = True
+            except OSError:  # the thread ended meanwhile
+                pass
+        if moved and pid not in kept:
+            print(f"game-profile: {program(pid)} on CPUs {cpu_text(cpus)}", file=sys.stderr, flush=True)
+        kept[pid] = cpus
 
 
 def kbd_level():
@@ -200,6 +409,11 @@ def main():
     level = None     # keyboard brightness now
     seen = None      # keyboard brightness at the last look
     heals = 0        # times TuneD was put back under this game
+    games = Games()
+    try:
+        cpus = game_cpus()  # one core group for a game on WoW, where there are several
+    except (OSError, ValueError):
+        cpus = None
     while True:
         try:
             now = profile_in_force(bus)
@@ -226,7 +440,16 @@ def main():
                                      stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         except dbus.exceptions.DBusException:
             pass
-        want = running_game()
+        want, programs = games.running()
+        # The mark the background jobs wait on (no-game-running): a game
+        # runs, also on a profile set by hand.
+        if (want is not None) != state.get("game"):
+            state["game"] = want is not None
+            mark = Path(f"/run/user/{UID}/arkadeos-game")
+            if state["game"]:
+                mark.touch()
+            else:
+                mark.unlink(missing_ok=True)
         if want == "max":
             try:
                 if on_battery(bus):
@@ -259,8 +482,8 @@ def main():
                     time.sleep(2)  # the released hold first puts PPD's own profile back
                 power_set(want)
                 ours = want
-            # Marks a game on Max or WoW for no-game-running and
-            # arkadeos-power status (no PPD hold then).
+            # Marks a game on Max or WoW for arkadeos-power status (no PPD
+            # hold then).
             mark = Path(f"/run/user/{UID}/arkadeos-game-max")
             if want in DIRECT:
                 mark.touch()
@@ -278,8 +501,14 @@ def main():
             print(f"game-profile: TuneD on {tuned_active()} under the game, back to {ours}",
                   file=sys.stderr, flush=True)
             power_set(ours)
+        if cpus:
+            on = os.path.exists(FLAGS["wow"]) and not CCD_OFF.exists()
+            pin(programs, cpus if on else None, state)
         time.sleep(3)
 
 
 if __name__ == "__main__":
-    main()
+    if sys.argv[1:] == ["cpus"]:  # for arkadeos-power ccd
+        print(cpu_text(game_cpus() or ()))
+    else:
+        main()

@@ -1,0 +1,6 @@
+#!/usr/bin/bash
+# The key remapper's presets at login, in place of the command in its own
+# autostart entry (50-services.sh): only for a user who has a preset. The
+# command starts a Python program twice, over a second at every login (T050).
+compgen -G "${XDG_CONFIG_HOME:-${HOME}/.config}/input-remapper-2/presets/*/*.json" >/dev/null || exit 0
+input-remapper-control --command stop-all && input-remapper-control --command autoload
