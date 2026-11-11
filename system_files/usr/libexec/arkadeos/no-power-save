@@ -8,8 +8,11 @@
 #   management (ASPM) off, every PCI and USB device kept awake (runtime power
 #   management off), SATA links at full power, the sound chip never sleeps,
 #   Intel's low-power daemon (intel_lpmd, moves work to the E-cores) stopped.
-saved=/run/arkadeos/no-power-save.saved
-sys=${ARKADEOS_SYS:-/sys}  # a stand-in tree in the VM test
+# Balanced on the charger runs it too, with ARKADEOS_KEEP_PCI_PM set: PCI
+# devices then keep their own power management, so a graphics card nothing
+# uses can sleep (a laptop in hybrid mode stays cool on the desk).
+sys=${ARKADEOS_SYS:-/sys}  # a stand-in tree in the VM test, with its own list
+saved=${ARKADEOS_SYS:-/run/arkadeos}/no-power-save.saved
 
 # path value: remember the old value once, then write the new one.
 put() {
@@ -23,6 +26,7 @@ start() {
     mkdir -p "$(dirname "${saved}")"
     put "${sys}/module/pcie_aspm/parameters/policy" performance
     for f in "${sys}"/bus/pci/devices/*/power/control "${sys}"/bus/usb/devices/*/power/control; do
+        [[ -n "${ARKADEOS_KEEP_PCI_PM:-}" && "${f}" == */bus/pci/* ]] && continue
         put "${f}" on
     done
     for f in "${sys}"/class/scsi_host/*/link_power_management_policy; do

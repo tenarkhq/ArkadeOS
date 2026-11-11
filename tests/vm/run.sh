@@ -362,19 +362,43 @@ check "back to Balanced" 'tuned-adm active | grep -q arkadeos-balanced && test !
 ppd_set performance
 check "Gaming: no power saving" 'test "$(sysctl -n kernel.nmi_watchdog)" = 0 &&
     ! grep -L -x on /sys/bus/pci/devices/*/power/control | grep -q . && test -s /run/arkadeos/no-power-save.saved'
+# T084: huge pages for every game, a small write buffer, and ArkadeOS's own
+# swappiness, not the server profile's 10.
+check "Gaming: memory set for games" 'grep -q "\[always\]" /sys/kernel/mm/transparent_hugepage/enabled &&
+    test "$(sysctl -n vm.dirty_bytes)" = 268435456 && test "$(sysctl -n vm.dirty_background_bytes)" = 67108864 &&
+    test "$(sysctl -n vm.swappiness)" = 180'
+# Balanced on the charger saves no power either, but PCI devices keep their
+# own power management there (a graphics card nothing uses may sleep). Only
+# Akku saves power.
 ppd_set balanced
-check "power saving back after Gaming" 'test ! -e /run/arkadeos/no-power-save.saved'
+check "Balanced on the charger: no power saving" 'test -s /run/arkadeos/no-power-save.saved &&
+    ! grep -q /bus/pci/ /run/arkadeos/no-power-save.saved &&
+    ! grep -l -x -E "min_power|min_power_with_partial|med_power|med_power_with_dipm" \
+        /sys/class/scsi_host/*/link_power_management_policy | grep -q .'
+check "memory as before after Gaming, set for zram" 'grep -q "\[madvise\]" /sys/kernel/mm/transparent_hugepage/enabled &&
+    test "$(sysctl -n vm.dirty_bytes)" = 0 && test "$(sysctl -n vm.swappiness)" = 180 &&
+    test "$(sysctl -n vm.page-cluster)" = 0 && test "$(sysctl -n vm.watermark_scale_factor)" = 125'
+ppd_set power-saver
+check "power saving back on Akku" 'test ! -e /run/arkadeos/no-power-save.saved'
+ppd_set balanced
 ssh_vm 'd=/run/nps-test; mkdir -p $d/module/pcie_aspm/parameters $d/bus/pci/devices/0000:00:01.0/power \
     $d/bus/usb/devices/1-1/power $d/class/scsi_host/host0 $d/module/snd_hda_intel/parameters &&
     echo default > $d/module/pcie_aspm/parameters/policy && echo auto > $d/bus/pci/devices/0000:00:01.0/power/control &&
     echo auto > $d/bus/usb/devices/1-1/power/control && echo 1 > $d/module/snd_hda_intel/parameters/power_save &&
     echo med_power_with_dipm > $d/class/scsi_host/host0/link_power_management_policy'
-check "no power saving: ASPM, USB, SATA, sound, then back" 'd=/run/nps-test; export ARKADEOS_SYS=$d;
+check "no power saving: ASPM, PCI, USB, SATA, sound, then back" 'd=/run/nps-test; export ARKADEOS_SYS=$d;
     /usr/libexec/arkadeos/no-power-save start && test "$(cat $d/module/pcie_aspm/parameters/policy)" = performance &&
+    test "$(cat $d/bus/pci/devices/0000:00:01.0/power/control)" = on &&
     test "$(cat $d/bus/usb/devices/1-1/power/control)" = on && test "$(cat $d/module/snd_hda_intel/parameters/power_save)" = 0 &&
     test "$(cat $d/class/scsi_host/host0/link_power_management_policy)" = max_performance &&
     /usr/libexec/arkadeos/no-power-save stop && test "$(cat $d/module/pcie_aspm/parameters/policy)" = default &&
+    test "$(cat $d/bus/pci/devices/0000:00:01.0/power/control)" = auto &&
     test "$(cat $d/bus/usb/devices/1-1/power/control)" = auto && test "$(cat $d/class/scsi_host/host0/link_power_management_policy)" = med_power_with_dipm'
+check "Balanced on the charger: PCI devices keep their power management" 'd=/run/nps-test; export ARKADEOS_SYS=$d ARKADEOS_KEEP_PCI_PM=1;
+    /usr/libexec/arkadeos/no-power-save start && test "$(cat $d/bus/pci/devices/0000:00:01.0/power/control)" = auto &&
+    test "$(cat $d/bus/usb/devices/1-1/power/control)" = on && test "$(cat $d/module/snd_hda_intel/parameters/power_save)" = 0 &&
+    /usr/libexec/arkadeos/no-power-save stop && test "$(cat $d/bus/usb/devices/1-1/power/control)" = auto &&
+    test ! -e $d/no-power-save.saved && test -s /run/arkadeos/no-power-save.saved'
 # T057: big shader caches for every game.
 check "shader cache 12 GB" "${session} systemctl --user show-environment | grep -qx __GL_SHADER_DISK_CACHE_SIZE=12000000000"
 # T055: WoW, full CPU with the graphics card held back. The VM has no

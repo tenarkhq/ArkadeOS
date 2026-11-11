@@ -57,7 +57,7 @@ while read -r f; do
         system_files/usr/share/kwin/* | system_files/usr/libexec/arkadeos/dock-names) add games apps ;;
         # Power profiles, laptops' and makers' parts, lighting.
         build_files/62-power.sh | build_files/63-*.sh | build_files/64-peripherals.sh | \
-        system_files/usr/lib/tuned/* | system_files/etc/tuned/* | \
+        system_files/usr/lib/tuned/* | system_files/etc/tuned/* | system_files/usr/lib/sysctl.d/* | \
         system_files/usr/bin/arkadeos-power | system_files/usr/bin/arkadeos-vendor | system_files/usr/bin/arkadeos-rgb | \
         system_files/usr/libexec/arkadeos/lamparray | system_files/usr/lib/udev/rules.d/90-arkadeos-lamparray.rules | \
         system_files/usr/libexec/arkadeos/power-* | system_files/usr/libexec/arkadeos/gpu-cap | \
