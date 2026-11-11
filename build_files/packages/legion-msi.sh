@@ -15,6 +15,13 @@ work=$(mktemp -d)
 coprs=(francoism/lenovolegionlinux teackot/msi)
 for c in "${coprs[@]}"; do dnf5 -y copr enable "${c}"; done
 dnf5 -y download --arch x86_64 --destdir "${work}" dkms-LenovoLegionLinux python-LenovoLegionLinux mcontrolcenter
+# rpm checks a package's signature itself from Fedora 45 on, and dnf imports
+# a COPR's key only for what it installs itself: the two keys go in here.
+for c in "${coprs[@]}"; do
+    key=$(sed -n 's/^gpgkey=//p' "/etc/yum.repos.d/_copr:copr.fedorainfracloud.org:${c%/*}:${c#*/}.repo")
+    curl -fsSL --retry 3 -o "${work}/key.gpg" "${key}"
+    rpm --import "${work}/key.gpg"
+done
 dnf5 -y install --setopt=install_weak_deps=False \
     python3-pyqt6 python3-pyyaml python3-argcomplete python3-pillow "python3dist(darkdetect)" inih qt6-qtbase-gui
 rpm -i --nodeps "${work}"/python-LenovoLegionLinux-*.x86_64.rpm "${work}"/mcontrolcenter-*.x86_64.rpm

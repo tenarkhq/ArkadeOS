@@ -16,10 +16,10 @@ mv "${info}.new" "${info}"
 cat "${info}"
 
 # ArkadeOS name and logo in os-release (T009), with this build's version:
-# ArkadeOS 44.<build date>, the Fedora it is built on, then the day.
+# the Fedora it is built on, then the day (45.20261111 for one).
 "$(dirname "$0")/os-release.sh" "${IMAGE_VERSION}"
 
 # The firmware's boot menu entry is named from the system-release file
-# (bootupd, at install): ArkadeOS, not the base's "Bazzite release 44 (Kinoite)".
+# (bootupd, at install): ArkadeOS, not the base's "Bazzite release 45 (Kinoite)".
 echo "ArkadeOS release $(rpm -E %fedora)" > /usr/lib/fedora-release
 grep -qx "ArkadeOS release [0-9]*" /etc/system-release

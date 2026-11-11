@@ -131,7 +131,7 @@ case "${1:-status}" in
             -A restart="$(say "Restart now" "Újraindítás most")" \
             "$(say "Update ready" "Frissítés kész")" \
             "$(say "ArkadeOS ${staged} starts at the next reboot." "Az ArkadeOS ${staged} a következő újraindításkor indul.")" || true)
-        [[ "${action}" == restart ]] && exec qdbus org.kde.LogoutPrompt /LogoutPrompt promptReboot
+        [[ "${action}" == restart ]] && exec qdbus-qt6 org.kde.LogoutPrompt /LogoutPrompt promptReboot
         exit 0
         ;;
     versions)

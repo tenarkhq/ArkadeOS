@@ -22,7 +22,8 @@ fi
 
 # Xwayland Video Bridge no longer starts at every login: Discord and the
 # browsers share the screen through Wayland's own way, and KDE has stopped
-# working on the bridge. It stays installed (xwaylandvideobridge starts it).
+# working on the bridge. Where the base still has it (Fedora 44), it stays
+# installed (xwaylandvideobridge starts it); Fedora 45's base has dropped it.
 bridge=/etc/xdg/autostart/org.kde.xwaylandvideobridge.desktop
 if [[ -f "${bridge}" ]]; then
     sed -i -e '/^Hidden=/d' -e '/^\[Desktop Entry\]/a Hidden=true' "${bridge}"

@@ -2,10 +2,10 @@
 # ArkadeOS name and logo (T009) in os-release: About page, boot menu entries,
 # hostname. ID stays bazzite, the inherited update helpers check it.
 #   os-release.sh [VERSION]
-# VERSION is ArkadeOS 44.<build date> in the image: the Fedora it is built
-# on, then the day (30-image-info.sh). Without it the Fedora version alone:
-# the initramfs carries a copy of this file and must not change with every
-# day's build (initramfs.sh, T076).
+# VERSION is <Fedora version>.<build date> in the image, 45.20261111 for one:
+# the Fedora it is built on, then the day (30-image-info.sh). Without it the
+# Fedora version alone: the initramfs carries a copy of this file and must
+# not change with every day's build (initramfs.sh, T076).
 set -euo pipefail
 
 version=${1:-$(rpm -E %fedora)}

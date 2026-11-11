@@ -549,7 +549,8 @@ check "ArkadeOS system partitions hidden" 'p=$(findmnt -nvo SOURCE /sysroot); ud
 check "the read-only system layer is no drive in the sidebar" "${session} solid-hardware6 details /org/kde/fstab/overlay/ | grep -q 'StorageAccess.ignored = true'"
 check "Dolphin's free space is the disk's, not the system layer's" "rpm -q kf6-solid | grep -q '\\.arkadeos\\.' && grep -q /org/kde/fstab/overlay /usr/lib64/libKF6Solid.so.6"
 ssh_vm 'losetup -d $(cat /tmp/win.loop); rm -f /tmp/win.img' || true
-check "only the wallpapers Roland kept" 'cd /usr/share/wallpapers && test -d ArkadeOS && test -d ArkadeOS-Gauge/contents/images && for w in F44 Fedora Altai ColorfulCups Next Path giants.jxl; do test ! -e $w || exit 1; done'
+check "only the wallpapers Roland kept" 'cd /usr/share/wallpapers && test -d ArkadeOS && test -d ArkadeOS-Gauge/contents/images && for w in Fedora Altai ColorfulCups Next Path giants.jxl; do test ! -e $w || exit 1; done &&
+    ! ls -d F[0-9]* /usr/share/backgrounds/f[0-9]* 2>/dev/null | grep -q .'
 check "Chrome opens web links" 'grep -qx x-scheme-handler/https=com.google.Chrome.desktop /etc/xdg/mimeapps.list && ! grep -q "^x-scheme-handler/https=.*firefox" /etc/xdg/mimeapps.list'
 # T071: no on-screen keyboard on its own.
 check "no on-screen keyboard" "test -z \"\$(${session} kreadconfig6 --file kwinrc --group Wayland --key InputMethod)\" && ! pgrep -u arkade -x plasma-keyboard"
@@ -885,6 +886,10 @@ ssh_vm 'journalctl -b -u arkadeos-home-cache --no-pager; btrfs subvolume list /v
 check "background jobs wait for a running game" 'for u in uupd snapper-cleanup fstrim fwupd-refresh; do
     systemctl show $u.service -p ExecCondition | grep -q no-game-running || exit 1; done;
     systemctl show fwupd-refresh.timer -p TimersCalendar | grep -q "OnCalendar=\*-\*-\* 00:00:00"'
+# "Restart now" in the update notice and the Portal asks Plasma's own prompt
+# with a tool Fedora 45 has under one name only.
+check "restart button: its tool and Plasma's prompt are there" 'command -v qdbus-qt6 >/dev/null &&
+    test -e /usr/share/dbus-1/services/org.kde.LogoutPrompt.service'
 check "game folders carry a SELinux label" '! stat -c %C /home/arkade/Games /home/arkade/.local/share/Steam | grep -q unlabeled_t'
 if [[ -n "${UPDATE_PUSH:-}" ]]; then
     before=$(ssh_vm "bootc status --json | jq -r .status.booted.image.imageDigest")

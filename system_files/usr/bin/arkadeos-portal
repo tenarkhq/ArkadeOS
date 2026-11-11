@@ -458,7 +458,7 @@ class SystemTab(QWidget):
         row = QHBoxLayout()
         self.restart = QPushButton(QIcon.fromTheme("system-reboot"), tr("Restart now", "Újraindítás most"))
         self.restart.clicked.connect(lambda: subprocess.Popen(
-            ["qdbus", "org.kde.LogoutPrompt", "/LogoutPrompt", "promptReboot"]))
+            ["qdbus-qt6", "org.kde.LogoutPrompt", "/LogoutPrompt", "promptReboot"]))
         self.restart.setDefault(True)
         row.addWidget(self.restart)
         self.update_now = self.button("system-software-update", tr("Update now", "Frissítés most"),

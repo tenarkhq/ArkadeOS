@@ -22,13 +22,13 @@ rpm -q kf6-solid | grep -q '\.arkadeos\.'
 # the KDE ones he picked go; the rest of KDE's, Bazzite's and ours stay.
 # Cold Ripple, Grey, Cluster, Canopée, Cascade, Bazzite's Half-Life VGUI2, ublue and bazzite-glass went too (Roland, 2026-11-03).
 cd /usr/share/wallpapers
-rm -rf Default Fedora F44 \
+rm -rf Default Fedora F[0-9]* \
     Altai OneStandsOut ScarletTree giants.jxl FallenLeaf IceCold Shell Kay Kokkini \
     Honeywave summer_1am Nuvole Orionids Kite PastelHills SafeLanding FlyingKonqui \
     EveningGlow ColorfulCups Sub-Arctic MilkyWay Volna Next BytheWater Autumn Path \
     ColdRipple Grey Cluster Canopee Cascade VGUI2.jpg ublue.png bazzite-glass.png
 cd /
-rm -rf /usr/share/backgrounds/f44 /usr/share/backgrounds/fedora-workstation
+rm -rf /usr/share/backgrounds/f[0-9]* /usr/share/backgrounds/fedora-workstation
 # The Breeze and Fedora global themes named two of them; they get the Ark.
 sed -i 's/^Image=\(Next\|Fedora\)$/Image=ArkadeOS/' /usr/share/plasma/look-and-feel/*/contents/defaults
 sed -i 's#wallpapers/Fedora/#wallpapers/ArkadeOS-Lock/#' /usr/share/kde-settings/kde-profile/default/xdg/kscreenlockerrc
