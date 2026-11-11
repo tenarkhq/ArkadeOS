@@ -817,6 +817,14 @@ check "factory reset: settings back, files and users stay" "echo '# changed' >> 
 # battery care switch without a battery.
 check "maker parts: none detected, none running" "test \$(arkadeos-vendor detect) = other && test -z \"\$(arkadeos-vendor)\" &&
     ! systemctl is-active -q asusd.service && ${session} arkadeos-power status | grep -qx charge=none"
+# T050: with the makers' parts as they should be, as at an ordinary boot,
+# nothing is masked again and systemd does not read every unit file again.
+# The first run here puts them in order (the factory reset above took the
+# masks away), the second is the one looked at.
+ssh_vm 'systemctl start arkadeos-vendor.service; sleep 2; date +%s > /tmp/vendor-again; sleep 1;
+    systemctl start arkadeos-vendor.service' || true
+check "maker parts in order: no unit reload" 'test -s /tmp/vendor-again &&
+    ! journalctl --since "@$(cat /tmp/vendor-again)" --no-pager | grep -q "requested from client PID.*unit arkadeos-vendor.service"'
 ssh_vm 'kill $(cat /tmp/portal.pid)' || true
 fi # apps
 
@@ -829,7 +837,8 @@ check "no telemetry" '! grep -l "^countme=1" /etc/yum.repos.d/*.repo && ! system
 # T050: nothing runs that nobody asked for. The key remapper's service starts
 # only for a user with a preset, and its udev rule runs nothing without the
 # service; the PlayStation controller helper waits for such a controller; the
-# bridge for X11 screen sharing does not start at login.
+# bridge for X11 screen sharing does not start at login (Fedora 45's base no
+# longer has it).
 ssh_vm 'systemctl start input-remapper.service' || true
 check "key remapper off for a user without presets" '! systemctl is-active -q input-remapper.service && ! test -e /run/input-remapper &&
     grep -q "TEST==\"/run/input-remapper\", RUN+=" /usr/lib/udev/rules.d/99-input-remapper.rules &&
@@ -840,8 +849,8 @@ check "key remapper runs for a user with a preset" 'systemctl is-active -q input
 ssh_vm "systemctl stop input-remapper.service; rm -rf ${home}/input-remapper-2/presets/Test" || true
 check "PlayStation controller helper waits for a controller" '! systemctl is-active -q ds-inhibit.service &&
     ! systemctl is-enabled -q ds-inhibit.service && udevadm verify /usr/lib/udev/rules.d/90-arkadeos-ds-inhibit.rules'
-check "no X11 screen-sharing bridge at login" 'grep -qx Hidden=true /etc/xdg/autostart/org.kde.xwaylandvideobridge.desktop &&
-    ! pgrep -f "[x]waylandvideobridge"'
+check "no X11 screen-sharing bridge at login" '{ ! test -e /etc/xdg/autostart/org.kde.xwaylandvideobridge.desktop ||
+    grep -qx Hidden=true /etc/xdg/autostart/org.kde.xwaylandvideobridge.desktop; } && ! pgrep -f "^[^ ]*xwaylandvideobridge"'
 # The old image name is looked for in the origin files; bootc is not asked
 # at every boot.
 check "image name: bootc not asked on the one image" '! bash -x /usr/libexec/arkadeos/image-name 2>&1 | grep -q "bootc status"'
@@ -909,9 +918,6 @@ if [[ -n "${UPDATE_PUSH:-}" ]]; then
     reboot_vm
     ssh_vm 'arkadeos-update status; journalctl -b -1 --no-pager -u ostree-finalize-staged -u bazzite-hardware-setup -u rpm-ostreed | tail -60' >> "${out}/update.txt" 2>&1 || true
     check "update running after the reboot" 'test -f /usr/share/arkadeos/update-test'
-    # T050: at an ordinary boot the makers' parts are as they should be, and
-    # nothing has systemd read every unit file again for them.
-    check "boot: no unit reload for the maker parts" '! journalctl -b --no-pager | grep -q "requested from client PID.*unit arkadeos-vendor.service"'
     check "user file kept through the update" 'test -f /home/arkade/keep.txt'
     ssh_vm 'bootc status; ls -la /home/arkade' >> "${out}/update.txt" 2>&1 || true
     ssh_vm 'arkadeos-update rollback --yes' >> "${out}/update.txt" 2>&1 || true
