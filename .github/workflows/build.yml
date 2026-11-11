@@ -79,65 +79,32 @@ jobs:
           # are built unsigned.
           MOK_KEY: ${{ secrets.MOK_KEY }}
         run: |
-          secret=()
-          [ -n "${MOK_KEY}" ] && secret=(--secret id=mok,env=MOK_KEY)
-          podman build "${secret[@]}" \
-            --build-arg BASE_IMAGE=${{ steps.ver.outputs.base }} \
-            --build-arg IMAGE_NAME=${IMAGE} \
-            --build-arg PROTON_GE_VERSION=${{ steps.ver.outputs.proton_ge }} \
-            --build-arg IMAGE_VERSION=${{ steps.ver.outputs.version }} \
+          args=(--build-arg BASE_IMAGE=${{ steps.ver.outputs.base }}
+            --build-arg IMAGE_NAME=${IMAGE}
+            --build-arg PROTON_GE_VERSION=${{ steps.ver.outputs.proton_ge }}
+            --build-arg IMAGE_VERSION=${{ steps.ver.outputs.version }})
+          [ -n "${MOK_KEY}" ] && args+=(--secret id=mok,env=MOK_KEY)
+          podman build "${args[@]}" \
             --label org.opencontainers.image.title=ArkadeOS \
             --label org.opencontainers.image.description="Fast, gaming-first Linux built on Fedora Atomic" \
             --label org.opencontainers.image.source=https://github.com/${{ github.repository }} \
             --label org.opencontainers.image.licenses=Apache-2.0 \
             --label org.opencontainers.image.version=${{ steps.ver.outputs.version }} \
             --label org.opencontainers.image.revision=${{ github.sha }} \
+            --label org.arkadeos.base=${{ steps.ver.outputs.base }} \
+            --label org.arkadeos.proton-ge=${{ steps.ver.outputs.proton_ge }} \
             -t localhost/${IMAGE}:build \
             -f Containerfile .
-
-      - name: Rechunk
-        if: steps.ver.outputs.skip != 'true'
-        # Many small layers, one per package group, so an update downloads only
-        # what changed (T076). The image's own rpm-ostree does it, on the built
-        # tree. Keeping the previous build's layer plan (--previous-build) would
-        # keep unchanged parts the same layers, but rpm-ostree 2026.3 stops on
-        # it every time (an assertion in ostree-ext's chunking.rs), four minutes
-        # lost per image: it is used again with a fixed rpm-ostree
-        # (REUSE_PLAN=1).
-        run: |
-          out="${RUNNER_TEMP}/chunked-${IMAGE}"
-          rechunk() {
-            rm -rf "${out}"
-            mkdir -p "${out}/blobs/sha256"
-            echo '{"imageLayoutVersion":"1.0.0"}' > "${out}/oci-layout"
-            echo '{"schemaVersion":2,"manifests":[]}' > "${out}/index.json"
-            podman unshare bash -euo pipefail -c '
-              image=localhost/${IMAGE}:build
-              root=$(podman image mount "${image}")
-              trap "podman image unmount ${image} >/dev/null" EXIT
-              podman run --rm --privileged --security-opt label=disable \
-                -v "${root}:/rootfs:ro" -v "$1:/out" "${image}" \
-                rpm-ostree compose build-chunked-oci --bootc --format-version=2 --max-layers=96 \
-                  --rootfs /rootfs "${@:2}" \
-                  -l org.opencontainers.image.title=ArkadeOS \
-                  -l "org.opencontainers.image.description=Fast, gaming-first Linux built on Fedora Atomic" \
-                  -l org.opencontainers.image.source=https://github.com/${{ github.repository }} \
-                  -l org.opencontainers.image.licenses=Apache-2.0 \
-                  -l org.opencontainers.image.version=${{ steps.ver.outputs.version }} \
-                  -l org.opencontainers.image.revision=${{ github.sha }} \
-                  -l org.arkadeos.base=${{ steps.ver.outputs.base }} \
-                  -l org.arkadeos.proton-ge=${{ steps.ver.outputs.proton_ge }} \
-                  --output oci:/out:${IMAGE}
-            ' _ "${out}" "$@"
-          }
-          if [ "${REUSE_PLAN:-0}" = 1 ] && skopeo inspect --raw "docker://${REGISTRY}/${IMAGE}:testing" >/dev/null 2>&1 &&
-            rechunk --previous-build "docker://${REGISTRY}/${IMAGE}:testing"; then
-            echo "layer plan: the previous build's" >> "$GITHUB_STEP_SUMMARY"
-          else
-            rechunk
-            echo "layer plan: new" >> "$GITHUB_STEP_SUMMARY"
-          fi
-          echo "layers: $(jq '.layers | length' "${out}/blobs/sha256/$(jq -r '.manifests[0].digest' "${out}/index.json" | cut -d: -f2)")" >> "$GITHUB_STEP_SUMMARY"
+          # The image goes out with the layers the Containerfile gives it
+          # (T076). A machine downloads the packages layer again only when it
+          # was built again, so the stages it and the layers above it come
+          # from stay in the build server's cache under a name: the clean-up
+          # below removes only what no name points at. Each of these builds
+          # finds every step in the cache.
+          for stage in solid packages proton initramfs; do
+            podman build -q "${args[@]}" --target "${stage}" -t "localhost/${IMAGE}-cache:${stage}" -f Containerfile .
+          done
+          echo "layers: $(podman image inspect --format '{{ len .RootFS.Layers }}' localhost/${IMAGE}:build)" >> "$GITHUB_STEP_SUMMARY"
 
       - name: Push
         id: push
@@ -155,9 +122,17 @@ jobs:
           else
             first=branch-${GITHUB_SHA} more=
           fi
-          skopeo copy --retry-times 3 --digestfile digest \
-            "oci:${RUNNER_TEMP}/chunked-${IMAGE}:${IMAGE}" docker://${dest}:${first}
+          podman push --retry 3 --digestfile digest localhost/${IMAGE}:build docker://${dest}:${first}
           digest=$(cat digest)
+          # What a machine on the testing build downloads for this one: the
+          # layers it does not have yet (T076).
+          skopeo inspect --raw "docker://${dest}@${digest}" > new.json
+          skopeo inspect --raw "docker://${dest}:testing" > old.json 2>/dev/null || echo '{}' > old.json
+          jq -rn --slurpfile new new.json --slurpfile old old.json '
+            ($old[0].layers // [] | map(.digest)) as $have
+            | [$new[0].layers[] | select(.digest as $d | $have | index($d) | not)] as $fresh
+            | "update from the testing build: \($fresh | length) of \($new[0].layers | length) layers, "
+              + "\(($fresh | map(.size) | add // 0) / 1048576 | round) MB to download"' >> "$GITHUB_STEP_SUMMARY"
           for tag in ${more}; do
             # A new GHCR package can take a few seconds to serve its first manifest.
             skopeo copy --retry-times 5 --retry-delay 10s --preserve-digests docker://${dest}@${digest} docker://${dest}:${tag}
@@ -193,8 +168,8 @@ jobs:
         run: |
           podman logout ghcr.io || true
           podman rmi -f localhost/${IMAGE}:build || true
-          rm -rf "${RUNNER_TEMP}/chunked-${IMAGE}"
-          # Keeps recent build layers as cache for the next build.
+          # The stages kept under a name (Build) stay as the next build's
+          # cache; the ones a newer build replaced go after three days.
           podman image prune -f --filter until=72h
 
   # A branch build (base-update) is VM-tested here; main builds start the VM

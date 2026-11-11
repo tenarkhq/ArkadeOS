@@ -39,7 +39,7 @@ A clean KDE Plasma desktop, one image for NVIDIA, AMD and Intel graphics, Steam 
 | 🧩 | ArkadeOS Portal: pick apps at first login, add or remove anything later | in testing |
 | 🤖 | Optional AI tools: Claude and Codex, desktop apps and command line | in testing |
 | 🔄 | Atomic image updates with rollback, builds of the last 90 days, factory reset that keeps your files | in testing |
-| 📦 | Small updates: the image is split into about 100 layers, so an update downloads only what changed | in testing |
+| 📦 | Small updates: ArkadeOS's own files, Proton-GE and the boot image are layers of their own, so an update downloads only the part that changed | in testing |
 | 💿 | Installer next to Windows, with Windows in the boot menu; shows the download's progress and time left | in testing |
 | 🔒 | Encrypted disk unlocked by the TPM, firewall on, telemetry off, nothing running in the background unless you turn it on | in testing |
 

@@ -15,23 +15,9 @@ jq --arg name "${IMAGE_NAME}" --arg vendor "${IMAGE_VENDOR}" --arg ref "${ref}" 
 mv "${info}.new" "${info}"
 cat "${info}"
 
-# ArkadeOS name and logo (T009) in os-release: About page, boot menu entries,
-# hostname. ID stays bazzite, the inherited update helpers check it. The
-# version is ArkadeOS 44.<build date>: the Fedora it is built on, then the day.
-sed -i -e 's|^NAME=.*|NAME="ArkadeOS"|' \
-    -e 's|^PRETTY_NAME=.*|PRETTY_NAME="ArkadeOS"|' \
-    -e "s|^VERSION=.*|VERSION=\"${IMAGE_VERSION}\"|" \
-    -e 's|^LOGO=.*|LOGO=arkadeos-logo|' \
-    -e 's|^ANSI_COLOR=.*|ANSI_COLOR="0;38;2;244;63;94"|' \
-    -e 's|^DEFAULT_HOSTNAME=.*|DEFAULT_HOSTNAME="arkadeos"|' \
-    -e 's|^HOME_URL=.*|HOME_URL="https://github.com/tenarkhq/ArkadeOS"|' \
-    -e 's|^DOCUMENTATION_URL=.*|DOCUMENTATION_URL="https://github.com/tenarkhq/ArkadeOS"|' \
-    -e 's|^SUPPORT_URL=.*|SUPPORT_URL="https://github.com/tenarkhq/ArkadeOS/issues"|' \
-    -e 's|^BUG_REPORT_URL=.*|BUG_REPORT_URL="https://github.com/tenarkhq/ArkadeOS/issues"|' \
-    -e "s|^BOOTLOADER_NAME=.*|BOOTLOADER_NAME=\"ArkadeOS ${IMAGE_VERSION}\"|" \
-    /usr/lib/os-release
-grep -qx 'PRETTY_NAME="ArkadeOS"' /usr/lib/os-release
-grep -qx "VERSION=\"${IMAGE_VERSION}\"" /usr/lib/os-release
+# ArkadeOS name and logo in os-release (T009), with this build's version:
+# ArkadeOS 44.<build date>, the Fedora it is built on, then the day.
+"$(dirname "$0")/os-release.sh" "${IMAGE_VERSION}"
 
 # The firmware's boot menu entry is named from the system-release file
 # (bootupd, at install): ArkadeOS, not the base's "Bazzite release 44 (Kinoite)".
