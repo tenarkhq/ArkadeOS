@@ -866,6 +866,20 @@ reboot_vm() {
 check "daily updates on (system and apps)" 'systemctl is-enabled -q uupd.timer && systemctl is-active -q uupd.timer'
 check "home snapshots" 'snapper -c home list | grep -q "ArkadeOS: first snapshot" &&
     btrfs subvolume show /home/arkade/Games'
+# One snapshot a day, and the user's cache out of them: a subvolume of its
+# own with the files it had. The service does it at boot; here it runs for
+# the folder the first login made, and the old folder goes in the background.
+check "one home snapshot a day" 'systemctl show snapper-timeline.timer -p TimersCalendar | grep -q "OnCalendar=\*-\*-\* 00:00:00" &&
+    ! systemctl show snapper-timeline.timer -p TimersCalendar | grep -q "OnCalendar=\*-\*-\* \*:00:00"'
+ssh_vm 'ls -A /home/arkade/.cache | wc -l > /tmp/cache-files; stat -c %U:%G:%a /home/arkade/.cache > /tmp/cache-owner;
+    systemctl start arkadeos-home-cache.service;
+    for i in $(seq 30); do test -e /home/arkade/.cache.arkadeos-old || break; sleep 1; done'
+check "cache folder out of the home snapshots" 'btrfs subvolume show /home/arkade/.cache >/dev/null &&
+    test "$(stat -c %i /home/arkade/.cache)" = 256 && test "$(stat -c %U:%G:%a /home/arkade/.cache)" = "$(cat /tmp/cache-owner)" &&
+    test "$(ls -A /home/arkade/.cache | wc -l)" -ge "$(cat /tmp/cache-files)" && test "$(cat /tmp/cache-files)" -gt 0 &&
+    ! stat -c %C /home/arkade/.cache | grep -q unlabeled_t && ! test -e /home/arkade/.cache.arkadeos-old &&
+    ! test -e /home/arkade/.cache.arkadeos-new && systemctl is-enabled -q arkadeos-home-cache.service'
+ssh_vm 'journalctl -b -u arkadeos-home-cache --no-pager; btrfs subvolume list /var/home' > "${out}/home-cache.txt" 2>&1 || true
 # T050: what can wait does not run while a game runs: updates, snapshot
 # cleanup, disk trim and the firmware list (fetched once a day).
 check "background jobs wait for a running game" 'for u in uupd snapper-cleanup fstrim fwupd-refresh; do

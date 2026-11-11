@@ -1,0 +1,47 @@
+#!/usr/bin/bash
+# Each user's ~/.cache as a btrfs subvolume of its own (T025), so the daily
+# home snapshots leave it out: the shader caches in it are gigabytes that
+# change with every game and can be made again, and a snapshot keeps every
+# old version of them on the disk. Runs at boot before anyone logs in (a
+# running session keeps files open in its cache); a cache that already is a
+# subvolume takes one look. The new folder's files share their data with the
+# old ones (reflinks), so the move takes seconds and no cache is lost.
+set -euo pipefail
+
+for home in /var/home/*; do
+    cache=${home}/.cache new=${home}/.cache.arkadeos-new old=${home}/.cache.arkadeos-old
+    [[ -d "${home}" && ! -L "${home}" ]] || continue
+    [[ "$(stat -f -c %T "${home}")" == btrfs ]] || continue
+
+    # A run that was cut short. The cache itself was whole at every step:
+    # either the old folder still in place, or the finished copy.
+    if [[ -d "${new}" ]]; then
+        if [[ -d "${cache}" ]]; then
+            btrfs subvolume delete "${new}" >/dev/null
+        else
+            mv "${new}" "${cache}"
+        fi
+    fi
+    if [[ -d "${old}" && -d "${cache}" ]]; then
+        rm -rf "${old}"
+    fi
+
+    [[ -d "${cache}" && ! -L "${cache}" ]] || continue
+    # A subvolume's own folder always has inode number 256.
+    [[ "$(stat -c %i "${cache}")" == 256 ]] && continue
+
+    btrfs subvolume create "${new}" >/dev/null
+    chown --reference="${cache}" "${new}"
+    chmod --reference="${cache}" "${new}"
+    # A new subvolume comes without a SELinux label.
+    chcon --reference="${cache}" "${new}" 2>/dev/null || restorecon "${new}" || true
+    # (auto: a file that cannot share its data, one set not to be copied on
+    # write, is copied whole)
+    cp -a --reflink=auto "${cache}/." "${new}/"
+    mv "${cache}" "${old}"
+    mv "${new}" "${cache}"
+    echo "home-cache: ${cache} is a subvolume now, out of the home snapshots"
+    # The old folder goes in the background; the login screen does not wait.
+    systemd-run --quiet --no-block --collect -p IOSchedulingClass=idle -p CPUSchedulingPolicy=idle \
+        rm -rf "${old}" || rm -rf "${old}"
+done
