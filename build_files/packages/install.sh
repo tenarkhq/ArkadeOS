@@ -22,7 +22,7 @@ rm -f /etc/yum.repos.d/_copr:copr.fedorainfracloud.org:lukenukem:asus-linux.repo
 
 # T046, T047: Lenovo Legion and MSI; their driver is signed with the
 # ArkadeOS module key (its certificate, also in system_files).
-install -Dm0644 "${here}/arkadeos-mok.der" /etc/pki/arkadeos/arkadeos-mok.der
+install -Dm0644 "$(dirname "${here}")/arkadeos-mok.der" /etc/pki/arkadeos/arkadeos-mok.der
 bash "${here}/legion-msi.sh"
 
 # T042-T045, T052 (64-peripherals.sh): RGB, mice, AIO coolers, fan curves.

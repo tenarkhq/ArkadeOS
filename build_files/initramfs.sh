@@ -4,7 +4,7 @@
 # layer of its own. Only the packages layer and the boot screen's files reach
 # this stage, so the 240 MB file comes out the same bytes until one of them
 # changes, and an update does not bring it again (T076). A file that has to
-# be in the initramfs goes into this stage (ctx-boot in the Containerfile).
+# be in the initramfs is mounted into this stage (Containerfile).
 # Usage: initramfs.sh <OUT>
 set -euo pipefail
 umask 022
@@ -12,8 +12,10 @@ source "$(dirname "$0")/stage.sh"
 
 out=$1
 # The boot screen's files, its theme chosen and the system's name as the
-# image has them (45-system-files.sh, 80-boot.sh, 30-image-info.sh).
-cp -a "$(dirname "$0")/system_files/." /
+# image has them (45-system-files.sh, 80-boot.sh, 30-image-info.sh). The
+# files' modes are this stage's own (umask), not the checkout's: a build
+# machine that checks files out group-writable made another initramfs.
+cp -a --no-preserve=mode,ownership "$(dirname "$0")/system_files/." /
 "$(dirname "$0")/os-release.sh"
 theme=/usr/share/plymouth/themes/arkadeos
 cp /usr/share/plymouth/themes/spinner/{bullet,entry,lock}.png "${theme}/"
