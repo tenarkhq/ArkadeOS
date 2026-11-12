@@ -40,12 +40,19 @@ from pathlib import Path
 import dbus
 
 FLAGS = {"max": "/run/arkadeos/power-max", "wow": "/run/arkadeos/power-wow"}
-# Windows programs that are not games: Wine's own, and the stores' launchers
-# with their helpers (Battle.net, EA app, Ubisoft Connect, Steam for Windows).
+# Wine's own programs (its services, tools and helpers) run from its Windows
+# folder, and a game never does. Wine 11 has lsass.exe running there for as
+# long as any program of the prefix runs, which made a launcher alone a game:
+# Gaming, and no update, with only Battle.net open (Roland, 2026-11-12).
+WINE_OWN = re.compile(r"(?:\\\\\?\\|\\\?\?\\)?c:[\\/]+windows[\\/]", re.IGNORECASE)
+# Windows programs that are not games by their name: Wine's own where they
+# are started without their folder, Proton's helper beside every desktop
+# program (xalia.exe), and the stores' launchers with their helpers
+# (Battle.net, EA app, Ubisoft Connect, Steam for Windows).
 NOT_GAMES = {
     "services.exe", "winedevice.exe", "plugplay.exe", "svchost.exe", "rpcss.exe", "explorer.exe",
     "conhost.exe", "tabtip.exe", "wineboot.exe", "start.exe", "rundll32.exe", "winemenubuilder.exe",
-    "mscorsvw.exe", "cmd.exe", "steam.exe", "steamwebhelper.exe", "crashpad_handler.exe",
+    "mscorsvw.exe", "cmd.exe", "xalia.exe", "steam.exe", "steamwebhelper.exe", "crashpad_handler.exe",
     "battle.net.exe", "battle.net launcher.exe", "battle.net helper.exe", "agent.exe", "blizzarderror.exe",
     "blizzard update agent.exe", "eadesktop.exe", "eabackgroundservice.exe", "ealocalhostsvc.exe",
     "eaconnect_microsoft.exe", "qtwebengineprocess.exe", "upc.exe", "ubisoftconnect.exe",
@@ -65,7 +72,7 @@ MAX_GAP = 32
 def facts(pid):
     """What one process says about a running game, or None for nothing: its
     Steam AppId, whether it is a wineserver, the Windows programs on its
-    command line, and the profile in its environment."""
+    command line (without Wine's own), and the profile in its environment."""
     try:
         if os.stat(f"/proc/{pid}").st_uid != UID:
             return None
@@ -80,7 +87,8 @@ def facts(pid):
     appid = re.search(r"SteamLaunch AppId=(\d+)", " ".join(cmd))
     appid = int(appid.group(1)) if appid else None
     wineserver = os.path.basename(cmd[0]) == "wineserver"
-    exes = tuple(re.split(r"[\\/]", c)[-1].lower() for c in cmd if c.lower().endswith(".exe"))
+    exes = tuple(re.split(r"[\\/]", c)[-1].lower() for c in cmd
+                 if c.lower().endswith(".exe") and not WINE_OWN.match(c))
     profile = env.group(1).decode(errors="replace") if env else None
     if profile not in PROFILES:
         profile = None

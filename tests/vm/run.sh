@@ -513,6 +513,21 @@ ssh_vm "cd /home/arkade && ${session} DISPLAY=:0 ARKADEOS_PROFILE=battery GAMEID
 check "per-game profile: Akku game on Akku" 'grep -q arkadeos-battery /tmp/profiles.log'
 sleep 20
 check "Balanced after the Akku game" 'tuned-adm active | grep -q arkadeos-balanced'
+# T050: what Wine and Proton run by themselves is no game. A third run has
+# only Wine's own programs, for 15 s; beside them run Wine's services
+# (lsass.exe in Wine 11) and Proton's helper (xalia.exe), as they do beside
+# an open Battle.net. Those two counted as a game with this Proton: Gaming,
+# and "a game is running" for the update, with no game on (Roland's report,
+# 2026-11-12). Noted every 3 s: the profile, whether Wine is up, and the
+# game mark if there is one.
+ssh_vm "echo $(base64 -w0 "${here}/wine-own-test.bat") | base64 -d > /home/arkade/wine-own-test.bat && chown arkade: /home/arkade/wine-own-test.bat"
+ssh_vm "nohup sh -c 'for i in \$(seq 15); do tuned-adm active; pgrep -x wineserver >/dev/null && echo wine=up;
+    sed s/^/mark=/ /run/user/${uid}/arkadeos-game 2>/dev/null; sleep 3; done' > /tmp/wine-own.log 2>&1 &"
+ssh_vm "cd /home/arkade && ${session} DISPLAY=:0 GAMEID=umu-default PROTONPATH=${proton} WINEPREFIX=/home/arkade/proton-test \
+    timeout 600 umu-run /home/arkade/wine-own-test.bat" >> "${out}/proton.log" 2>&1 || true
+ssh_vm 'cat /tmp/wine-own.log' > "${out}/wine-own.txt" 2>&1 || true
+check "Wine's own programs ran for a while" 'grep -q ArkadeOS /home/arkade/proton-test/drive_c/wine-own-ok.txt && test "$(grep -c "^wine=up" /tmp/wine-own.log)" -ge 3'
+check "Wine's own programs are no game" 'grep -q arkadeos-balanced /tmp/wine-own.log && ! grep -q arkadeos-gaming /tmp/wine-own.log && ! grep -q "^mark=" /tmp/wine-own.log'
 # T084: where the processor has several groups of cores, a game on WoW runs
 # on one of them. A stand-in processor for the game watcher: two groups of
 # two cores, the second rated faster.
@@ -527,15 +542,22 @@ check "core group switched off and on" "${session} arkadeos-power ccd off && tes
 ssh_vm "${session} systemctl --user set-environment ARKADEOS_CPU=/run/cpu-test ARKADEOS_CCD_MIN_CORES=2 &&
     ${session} systemctl --user restart arkadeos-game-profile.service" || true
 # T055: World of Warcraft (Wow.exe under Wine) switches WoW on by itself,
-# then Balanced comes back. Stand-ins for its wineserver, Battle.net.exe
-# (Gaming first, as on a real machine) and Wow.exe 12 s later; 20 s on, the
-# CPUs Wow.exe may run on are noted.
+# then Balanced comes back. Stand-ins for what runs with Battle.net open: its
+# wineserver, Battle.net.exe, Wine's service lsass.exe and Proton's helper
+# xalia.exe, under the names they have on a real machine. Wow.exe comes 12 s
+# later and stays 30 s; 20 s on, the CPUs it may run on are noted. Battle.net
+# stays 18 s more, as it does in the tray.
 ssh_vm "nohup sh -c 'for i in \$(seq 20); do tuned-adm active; ${session} busctl --user get-property org.freedesktop.Notifications \
     /org/freedesktop/Notifications org.freedesktop.Notifications Inhibited; sleep 3; done' > /tmp/wow.log 2>&1 &"
-ssh_vm "${session} bash -c '(exec -a wineserver sleep 45) & (exec -a Battle.net.exe sleep 45) & sleep 12; (exec -a Wow.exe sleep 30) &
+ssh_vm "${session} bash -c '(exec -a wineserver sleep 60) & (exec -a Battle.net.exe sleep 60) & (exec -a C:\\\\windows\\\\system32\\\\lsass.exe sleep 60) &
+    (exec -a xalia.exe sleep 60) & sleep 12; (exec -a Wow.exe sleep 30) &
     sleep 20; grep Cpus_allowed_list /proc/\$!/status > /tmp/wow-cpus.txt; cat /run/user/\$(id -u)/arkadeos-game > /tmp/wow-mark.txt 2>&1;
     /usr/libexec/arkadeos/no-game-running > /tmp/wow-jobs.txt; echo \$? >> /tmp/wow-jobs.txt; wait'" || true
 check "World of Warcraft on WoW" 'grep -q arkadeos-wow /tmp/wow.log'
+# Battle.net alone is no game, before the game and after it: Roland's profile
+# went to Gaming when he left WoW, and the update said a game was running
+# with no game on (2026-11-12).
+check "a launcher left open is no game" '! grep -q arkadeos-gaming /tmp/wow.log && test "$(grep -c arkadeos-balanced /tmp/wow.log)" -ge 3'
 check "World of Warcraft on one core group" 'grep -q "Cpus_allowed_list:[[:space:]]*2-3\$" /tmp/wow-cpus.txt'
 check "background jobs told to wait while the game runs" 'tail -1 /tmp/wow-jobs.txt | grep -qx 1'
 # What counts as the game is written down, for the Portal and the update's
@@ -599,8 +621,9 @@ for _ in $(seq 40); do
     ssh_vm 'test -f /home/arkade/.local/share/applications/notepad.exe.desktop' && break
 done
 shot battlenet-window
-ssh_vm "echo '== notepad log'; cat /tmp/notepad.log; echo '== programs'; ps -u arkade -o pid,etime,stat,args | grep -i -E 'wine|notepad|umu|pressure|proton|steam|bwrap' | grep -v grep | cut -c1-260;
+ssh_vm "echo '== notepad log'; cat /tmp/notepad.log; echo '== programs'; ps -u arkade -o pid,etime,stat,args | grep -i -E 'wine|notepad|umu|pressure|proton|steam|bwrap|\.exe' | grep -v grep | cut -c1-260;
     echo '== memory (MiB)'; free -m; echo '== profile'; tuned-adm active; cat /sys/kernel/mm/transparent_hugepage/enabled;
+    echo '== game mark'; cat /run/user/${uid}/arkadeos-game;
     echo '== game watcher'; ${session} journalctl --user -b -u arkadeos-game-profile --no-pager | tail -15;
     echo '== screen kept on'; cat /tmp/keep-screen-on.log; pgrep -u arkade -af kde-inhibit" > "${out}/battlenet-window.txt" 2>&1 || true
 check "Battle.net game window gets a dock entry" 'f=/home/arkade/.local/share/applications/notepad.exe.desktop;
