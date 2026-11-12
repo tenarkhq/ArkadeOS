@@ -10,10 +10,13 @@
 #   arkadeos-update versions   the builds of the last 90 days of this channel (T036)
 #   arkadeos-update version TAG   start that build at the next reboot; it stays
 #                              until "channel" brings the newest again
-#   arkadeos-update latest     whether the channel has a newer version than the
-#                              running one (and the one waiting for the reboot)
-#   arkadeos-update notify     tells the user once when a new version waits
+#   arkadeos-update latest     the newest version on the channel, and whether it
+#                              runs, waits for the reboot or is still to come
+#                              (exit status 10: a newer one is out)
+#   arkadeos-update notify     tells the user once about each build that waits
 #                              for the reboot (arkadeos-update-notify.timer)
+# A version is <Fedora>.<day>, and <Fedora>.<day>.<n> for the day's further
+# builds: 45.20261112, 45.20261112.1, 45.20261112.2 (build.yml).
 set -euo pipefail
 
 hu() { [[ "${LANG:-}" == hu* || "${LANGUAGE:-}" == hu* ]]; }
@@ -35,6 +38,13 @@ rest = [d for d in ds if not d.get("booted") and not d.get("staged")]
 d = {"booted": booted, "staged": staged, "rollback": rest}[want]
 if d:
     print(d[0].get("version") or d[0].get("checksum", "")[:12])' "$1"
+}
+
+# The image digest of the booted or staged deployment: what tells two builds
+# apart for certain.
+digest_of() {
+    deployments | jq -r --arg w "$1" '.deployments[]? | select(if $w == "booted" then .booted else .staged end)
+        | ."container-image-reference-digest" // empty' | head -1
 }
 
 # The image this machine follows (the staged one after a switch), e.g.
@@ -73,27 +83,25 @@ case "${1:-status}" in
         version staged
         ;;
     latest)
-        # Roland, 2026-11-04: the channel's newest build against the running
-        # and the staged one, by image digest (two builds of a day share the
-        # version number).
+        # Roland, 2026-11-04 and 11-12: the channel's newest build against the
+        # running and the staged one, by image digest. One line in the form of
+        # the status lines; the Portal shows it under them when it opens.
         ref=$(image_ref)
         [[ -n "${ref}" ]] || { say "No ArkadeOS image found." "Nem található ArkadeOS image."; exit 1; }
-        remote=$(skopeo inspect --no-tags "docker://${ref}" 2>/dev/null) ||
-            { say "The channel could not be reached." "A csatorna nem érhető el."; exit 1; }
+        remote=$(timeout 30 skopeo inspect --no-tags "docker://${ref}" 2>/dev/null) ||
+            { say "Newest available: the channel could not be reached" \
+                "Legfrissebb elérhető: a csatorna most nem érhető el"; exit 1; }
         digest=$(jq -r .Digest <<< "${remote}")
         newest=$(jq -r '.Labels["org.opencontainers.image.version"] // empty' <<< "${remote}")
-        have() {
-            deployments | jq -r --arg w "$1" '.deployments[]? | select(if $w == "booted" then .booted else .staged end)
-                | ."container-image-reference-digest" // empty' | head -1
-        }
-        if [[ "${digest}" == "$(have booted)" ]]; then
-            say "This is the newest version (${newest})." "Ez a legfrissebb verzió (${newest})."
-        elif [[ "${digest}" == "$(have staged)" ]]; then
-            say "The newest version (${newest}) is downloaded; it starts at the next reboot." \
-                "A legfrissebb verzió (${newest}) már letöltve, a következő újraindításkor indul."
+        if [[ "${digest}" == "$(digest_of booted)" ]]; then
+            say "Newest available: ${newest} (this one is running)" "Legfrissebb elérhető: ${newest} (ez fut)"
+        elif [[ "${digest}" == "$(digest_of staged)" ]]; then
+            say "Newest available: ${newest} (downloaded, starts at the next reboot)" \
+                "Legfrissebb elérhető: ${newest} (letöltve, a következő újraindításkor indul)"
         else
-            say "A newer version is out: ${newest}. Update now brings it." \
-                "Újabb verzió érhető el: ${newest}. A Frissítés most gombbal jön le."
+            say "Newest available: ${newest}, newer than the running one; Update now brings it" \
+                "Legfrissebb elérhető: ${newest}, újabb a futónál; a Frissítés most gombbal jön le"
+            exit 10
         fi
         ;;
     now)
@@ -123,10 +131,15 @@ case "${1:-status}" in
         ;;
     notify)
         staged=$(version staged)
+        [[ -n "${staged}" ]] || exit 0
+        # Once per build, not per version number (Roland, 2026-11-12): the
+        # second build of a day is told as well.
+        build=$(digest_of staged)
+        build=${build:-${staged}}
         seen="${XDG_STATE_HOME:-${HOME}/.local/state}/arkadeos/update-notified"
-        [[ -n "${staged}" && "$(cat "${seen}" 2>/dev/null)" != "${staged}" ]] || exit 0
+        [[ "$(cat "${seen}" 2>/dev/null)" != "${build}" ]] || exit 0
         mkdir -p "$(dirname "${seen}")"
-        echo "${staged}" > "${seen}"
+        echo "${build}" > "${seen}"
         action=$(notify-send -a ArkadeOS -i system-software-update \
             -A restart="$(say "Restart now" "Újraindítás most")" \
             "$(say "Update ready" "Frissítés kész")" \
@@ -160,7 +173,7 @@ for build in sorted(builds, reverse=True):
         switch_to "${ref%:*}:${tag}" "${3:-}"
         ;;
     *)
-        sed -n '2,16p' "$0" | sed 's/^# \{0,1\}//'
+        sed -n '2,19p' "$0" | sed 's/^# \{0,1\}//'
         exit 2
         ;;
 esac

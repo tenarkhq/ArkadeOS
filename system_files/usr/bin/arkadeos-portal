@@ -254,9 +254,9 @@ class AppsTab(QWidget):
 
 
 # The update (uupd.service, "Update now" or the daily 04:00 run) and how far it
-# is: uupd writes each step to the journal as JSON (--json), the system step
-# with its own percentage. Members of wheel read the system journal; without
-# it the bar only shows that the update runs.
+# is: uupd writes each step to the journal as JSON (--json), and for the system
+# step every progress line of bootc with the bytes fetched. Members of wheel
+# read the system journal; without it the bar only shows that the update runs.
 UPDATE_STEPS = [
     ("System", "", tr("System", "Rendszer")),
     ("Brew", "", "Homebrew"),
@@ -264,11 +264,20 @@ UPDATE_STEPS = [
     ("Flatpak", "Apps for User", tr("Own apps", "Saját appok")),
     ("Distrobox", "", tr("Containers", "Konténerek")),
 ]
+# The system step's stages, by uupd's name for them. "Bootc" is the step's
+# first line, before bootc reports anything: it asks the channel then.
 SYSTEM_STAGES = {
-    "Downloading": tr("download", "letöltés"),
-    "Importing": tr("unpack", "beépítés"),
-    "Deploying": tr("install", "telepítés"),
+    "Bootc": ("check", tr("looking for a new version", "új verzió keresése")),
+    "Downloading": ("download", tr("download", "letöltés")),
+    "Importing": ("import", tr("unpack", "beépítés")),
+    "Deploying": ("deploy", tr("install", "telepítés")),
 }
+OTHER_STAGE = ("prepare", tr("preparing", "előkészítés"))
+# The download's bytes at the head of a bootc progress line (canonical JSON,
+# keys in ABC order) inside uupd's line. Read from the head only: the line
+# also lists every layer fetched so far, tens of kilobytes near the end, and
+# the journal cuts a line at 48K.
+DOWNLOAD_BYTES = re.compile(r'"output":"\{\\"bytes\\":(\d+),\\"bytesCached\\":\d+,\\"bytesTotal\\":(\d+),')
 STEP_DOING = [
     tr("Updating Homebrew", "Homebrew frissítése"),
     tr("Updating the machine's apps", "A gép appjainak frissítése"),
@@ -286,12 +295,30 @@ def update_step(title, description):
     return None
 
 
-def parse_update_log(lines):
-    """The last step uupd reported, its text, the whole percentage and the
-    steps that failed, from its journal lines."""
-    step, text, overall, failed = None, "", None, []
+def new_progress():
+    """What the update's log told so far: the step (UPDATE_STEPS), the system
+    step's stage, the text for it, the download's bytes and the failed steps."""
+    return {"step": None, "stage": "", "text": "", "bytes": None, "total": None, "failed": []}
+
+
+def parse_update_log(lines, seen=None):
+    """Adds uupd's journal lines to what was seen so far (new_progress).
+
+    The download's size and how much of it is here come from bootc's own
+    progress lines. uupd's "overall" percentage is not used: it gives each of
+    its steps the same share, so a system download of gigabytes moved the bar
+    from 0 to 20%, and the three app steps took the rest in seconds (Roland,
+    2026-11-12)."""
+    seen = new_progress() if seen is None else seen
     for line in lines:
         if not line.startswith("{"):
+            continue
+        if '"msg":"Command output"' in line[:80]:
+            m = DOWNLOAD_BYTES.search(line[:400])
+            if m:
+                seen["bytes"], seen["total"] = int(m.group(1)), int(m.group(2))
+            continue
+        if '"msg":"Updating"' not in line and '"msg":"module_fail"' not in line:
             continue
         try:
             e = json.loads(line)
@@ -301,23 +328,60 @@ def parse_update_log(lines):
             i = update_step(e.get("title", ""), e.get("description", ""))
             if i is None:
                 continue
-            step, overall = i, e.get("overall")
+            seen["step"] = i
             if i == 0:
-                # The stage only: the one percentage shown is the whole update's
-                # (11-04: the step's own 2% beside the whole 0% read as a fault).
-                stage = SYSTEM_STAGES.get(e.get("description", ""), e.get("description", ""))
-                text = f"{UPDATE_STEPS[0][2]}: {stage}"
+                seen["stage"], stage = SYSTEM_STAGES.get(e.get("description", ""), OTHER_STAGE)
+                seen["text"] = f"{UPDATE_STEPS[0][2]}: {stage}"
             else:
-                text = STEP_DOING[i - 1]
+                seen["stage"], seen["text"] = "", STEP_DOING[i - 1]
         elif e.get("msg") == "module_fail":
-            name = (e.get("module") or "").split(" ")[0]
-            failed.append({"System": UPDATE_STEPS[0][2], "Brew": "Homebrew", "Flatpak": tr("Apps", "Appok"),
-                           "Distrobox": UPDATE_STEPS[4][2]}.get(name, name))
-    return step, text, overall, failed
+            name = (e.get("module") or "").split(" ")[0].capitalize()
+            seen["failed"].append({"System": UPDATE_STEPS[0][2], "Brew": "Homebrew", "Flatpak": tr("Apps", "Appok"),
+                                   "Distrobox": UPDATE_STEPS[4][2]}.get(name, name))
+    return seen
 
 
-def update_state():
-    """running / done / failed / skipped / idle, with what the screen shows."""
+class UpdateLog:
+    """uupd's journal lines of the running or last update, read a piece at a
+    time: a full system download leaves tens of megabytes of them, and the
+    page asks every two seconds."""
+
+    def __init__(self):
+        self.started, self.cursor, self.seen = None, "", new_progress()
+
+    def read(self, started):
+        if not started:
+            return new_progress()
+        if started != self.started:
+            self.started, self.cursor, self.seen = started, "", new_progress()
+        where = ["--after-cursor", self.cursor] if self.cursor else ["--since", f"@{started}"]
+        result = subprocess.run(["journalctl", "-u", "uupd.service", "-o", "cat", "--no-pager", "--show-cursor", *where],
+                                capture_output=True, text=True, errors="replace")
+        if result.returncode:
+            # The place is gone (the journal was rotated): from the start again.
+            self.started = None
+            return self.seen
+        lines = result.stdout.splitlines()
+        for line in reversed(lines):
+            if line.startswith("-- cursor: "):
+                self.cursor = line[len("-- cursor: "):].strip()
+                break
+        return parse_update_log(lines, self.seen)
+
+
+def running_game():
+    """What the game watcher takes for the running game (a program's name,
+    Steam with the AppId, GameMode), "" when it gave no name, None when no
+    game runs. The mark is the one the update waits on (no-game-running)."""
+    try:
+        return (Path(f"/run/user/{os.getuid()}/arkadeos-game").read_text().splitlines() or [""])[0].strip()
+    except OSError:
+        return None
+
+
+def update_state(log):
+    """running / done / failed / skipped / idle, with what the screen shows;
+    log is the page's UpdateLog."""
     props = dict(line.split("=", 1) for line in run(
         "systemctl", "show", "uupd.service", "--timestamp=unix", "-p", "ActiveState", "-p", "Result",
         "-p", "ExecMainStartTimestamp", "-p", "InactiveEnterTimestamp").splitlines() if "=" in line)
@@ -326,14 +390,15 @@ def update_state():
     running = props.get("ActiveState") in ("activating", "active", "reloading")
     # What waits for the reboot matters only once the update is over.
     state = {"started": started, "ended": ended, "staged": "" if running else run("arkadeos-update", "staged")}
-    log = []
-    if started:
-        log = run("journalctl", "-u", "uupd.service", "-o", "cat", "--no-pager", "--since", f"@{started}").splitlines()
-    state["step"], state["text"], state["overall"], state["failed"] = parse_update_log(log)
+    state.update(log.read(started))
     if running:
         state["kind"] = "running"
     elif props.get("Result") == "exec-condition":
-        state["kind"] = "skipped"
+        # The update did not start because a game ran. Said only while one
+        # still runs (Roland, 2026-11-12): the unit keeps this result until
+        # its next start, hours after the game.
+        state["game"] = running_game()
+        state["kind"] = "idle" if state["game"] is None else "skipped"
     elif not ended or (time.time() - ended > SHOW_DONE and not state["staged"]):
         state["kind"] = "idle"
     elif props.get("Result") not in ("success", None) or state["failed"]:
@@ -347,11 +412,22 @@ def clock(stamp):
     return time.strftime("%H:%M", time.localtime(stamp))
 
 
+def amount(got, total):
+    """'1.2 / 5.6 GB', or in MB for a small download."""
+    unit, name, digits = (1e9, "GB", 1) if total >= 1e9 else (1e6, "MB", 0)
+    text = f"{got / unit:.{digits}f} / {total / unit:.{digits}f} {name}"
+    return text.replace(".", ",") if HU else text
+
+
 class UpdateProgress(QFrame):
-    """The update's step, percentage and outcome under the version lines."""
+    """The update's step and outcome under the version lines. The bar and the
+    percentage are the system download's: how much of it is here, with the
+    time left. The other stages and steps report no progress of their own, so
+    the bar only shows that they run."""
 
     def __init__(self):
         super().__init__()
+        self.samples = []
         self.setFrameShape(QFrame.StyledPanel)
         box = QVBoxLayout(self)
         top = QHBoxLayout()
@@ -379,21 +455,44 @@ class UpdateProgress(QFrame):
         self.note.setForegroundRole(QPalette.PlaceholderText)
         box.addWidget(self.note)
 
-    def show_state(self, s):
+    def time_left(self, got, total, now):
+        """Seconds until the download is done at the speed of the last half
+        minute; None until two readings a few seconds apart are here."""
+        if self.samples and got < self.samples[-1][1]:
+            self.samples = []
+        self.samples = [x for x in self.samples if now - x[0] <= 30] + [(now, got)]
+        then, before = self.samples[0]
+        if now - then < 4 or got <= before:
+            return None
+        return (total - got) / ((got - before) / (now - then))
+
+    def show_state(self, s, now=None):
         self.setVisible(s["kind"] != "idle")
         running = s["kind"] == "running"
         for label in self.steps:
             label.setVisible(running)
         self.bar.setVisible(running or s["kind"] == "done")
-        self.percent.setVisible(running and s["overall"] is not None)
+        downloading = running and s["stage"] == "download" and bool(s["total"])
+        self.percent.setVisible(downloading)
+        if not downloading:
+            self.samples = []
         if running:
-            self.title.setText(s["text"] or tr("Updating…", "Frissítés fut…"))
-            if s["overall"] is None:
-                self.bar.setRange(0, 0)
-            else:
+            text = s["text"] or tr("Updating…", "Frissítés fut…")
+            if downloading:
+                got = min(s["bytes"], s["total"])
+                text += " · " + amount(got, s["total"])
+                left = self.time_left(got, s["total"], time.monotonic() if now is None else now)
+                if left is not None and got < s["total"]:
+                    minutes = round(left / 60)
+                    text += " · " + (tr("less than a minute left", "kevesebb mint 1 perc van hátra") if minutes < 1
+                                     else tr(f"about {minutes} min left", f"kb. {minutes} perc van hátra"))
+                percent = int(got * 100 // s["total"])
                 self.bar.setRange(0, 100)
-                self.bar.setValue(int(s["overall"]))
-                self.percent.setText(f"{int(s['overall'])}%")
+                self.bar.setValue(percent)
+                self.percent.setText(f"{percent}%")
+            else:
+                self.bar.setRange(0, 0)
+            self.title.setText(text)
             for i, label in enumerate(self.steps):
                 name = UPDATE_STEPS[i][2]
                 if s["step"] is not None and i < s["step"]:
@@ -424,22 +523,47 @@ class UpdateProgress(QFrame):
             self.note.setText(tr("Try again with Update now; the details are in: journalctl -u uupd",
                                  "Próbáld újra a Frissítés most gombbal; a részletek itt: journalctl -u uupd"))
         elif s["kind"] == "skipped":
-            self.title.setText(tr("The update did not start: a game is running.",
-                                  "A frissítés nem indult el, mert játék fut."))
+            game = f" ({s['game']})" if s.get("game") else ""
+            self.title.setText(tr(f"The update did not start: a game is running{game}.",
+                                  f"A frissítés nem indult el, mert játék fut{game}."))
             self.note.setText(tr("Start it again after the game, or it runs by itself tomorrow at 04:00.",
                                  "Indítsd újra a játék után, vagy holnap 04:00-kor magától lefut."))
         if s["kind"] != "failed":
             self.title.setStyleSheet("")
 
 
+def version_table(lines, strong=""):
+    """'Label: value' lines as a two-column table for a label; the line equal
+    to strong is bold."""
+    rows = []
+    for line in lines:
+        label, colon, value = line.partition(":")
+        if not colon or not value.strip():
+            label, colon, value = "", "", line
+        label, value = html.escape(label.strip() + colon), html.escape(value.strip())
+        if strong and line == strong:
+            label, value = f"<b>{label}</b>", f"<b>{value}</b>"
+        rows.append(f"<tr><td>{label}&nbsp;&nbsp;</td><td>{value}</td></tr>")
+    return f"<table cellspacing='0' cellpadding='1'>{''.join(rows)}</table>"
+
+
 class SystemTab(QWidget):
+    # A newer version is out on the channel (the tab's name says so too).
+    newer = Signal(bool)
+
     def __init__(self):
         super().__init__()
         layout = QVBoxLayout(self)
 
         updates = QGroupBox(tr("Updates", "Frissítések"))
         u = QVBoxLayout(updates)
+        # Running, waiting for the reboot, previous, and the newest one the
+        # channel has (Roland, 2026-11-12: looked up when the Portal opens).
         self.version = QLabel()
+        self.version.setTextFormat(Qt.RichText)
+        self.status_lines, self.latest_line, self.latest_newer = [], "", False
+        self.looking, self.again, self.looked = False, False, 0.0
+        self.log = UpdateLog()
         u.addWidget(self.version)
         self.progress = UpdateProgress()
         u.addWidget(self.progress)
@@ -450,11 +574,6 @@ class SystemTab(QWidget):
             "rendszerverzió a következő újraindításkor indul."))
         daily.setWordWrap(True)
         u.addWidget(daily)
-        # Roland, 2026-11-04: whether a newer version is out on the channel.
-        self.latest = QLabel()
-        self.latest.setWordWrap(True)
-        self.latest.setVisible(False)
-        u.addWidget(self.latest)
         row = QHBoxLayout()
         self.restart = QPushButton(QIcon.fromTheme("system-reboot"), tr("Restart now", "Újraindítás most"))
         self.restart.clicked.connect(lambda: subprocess.Popen(
@@ -469,9 +588,10 @@ class SystemTab(QWidget):
         row.addWidget(self.rollback)
         u.addLayout(row)
         self.check = QPushButton(QIcon.fromTheme("view-refresh"), tr("Look for a newer version", "Újabb verzió keresése"))
-        self.check.clicked.connect(self.look_for_newer)
         self.checker = QProcess(self)
         self.checker.finished.connect(self.newer_found)
+        self.checker.errorOccurred.connect(lambda _error: self.newer_found(1))
+        self.check.clicked.connect(self.look_for_newer)
         u.addWidget(self.check)
         row = QHBoxLayout()
         row.addWidget(QLabel(tr("Channel:", "Csatorna:")))
@@ -524,7 +644,7 @@ class SystemTab(QWidget):
     def poll(self):
         if not self.isVisible() and not self.running:
             return
-        s = update_state()
+        s = update_state(self.log)
         self.progress.show_state(s)
         running = s["kind"] == "running"
         self.update_now.setEnabled(not running)
@@ -539,18 +659,42 @@ class SystemTab(QWidget):
     def showEvent(self, event):
         super().showEvent(event)
         self.poll()
+        # The Portal may stay open for hours: asked again after ten minutes.
+        if time.monotonic() - self.looked > 600:
+            self.look_for_newer()
 
     def look_for_newer(self):
+        """Asks the channel for its newest version, in the background."""
+        if self.looking:
+            # What it compares with changed meanwhile: asked once more after it.
+            self.again = True
+            return
+        self.looking, self.looked = True, time.monotonic()
         self.check.setEnabled(False)
-        self.latest.setText(tr("Looking…", "Keresés…"))
-        self.latest.setVisible(True)
+        self.latest_line = tr("Newest available: looking…", "Legfrissebb elérhető: keresés…")
+        self.show_versions()
         self.checker.start("arkadeos-update", ["latest"])
 
-    def newer_found(self):
-        out = bytes(self.checker.readAllStandardOutput()).decode().strip()
-        err = bytes(self.checker.readAllStandardError()).decode().strip()
-        self.latest.setText(out or err or tr("The channel could not be reached.", "A csatorna nem érhető el."))
+    def newer_found(self, code=1, status=QProcess.CrashExit):
+        if not self.looking:
+            return
+        self.looking = False
+        out = bytes(self.checker.readAllStandardOutput()).decode(errors="replace").strip()
+        self.latest_line = out.splitlines()[-1] if out else tr(
+            "Newest available: the channel could not be reached",
+            "Legfrissebb elérhető: a csatorna most nem érhető el")
+        # arkadeos-update latest: exit status 10 when a newer one is out.
+        self.latest_newer = status == QProcess.NormalExit and code == 10
         self.check.setEnabled(True)
+        self.show_versions()
+        self.newer.emit(self.latest_newer)
+        if self.again:
+            self.again = False
+            self.look_for_newer()
+
+    def show_versions(self):
+        lines = self.status_lines + ([self.latest_line] if self.latest_line else [])
+        self.version.setText(version_table(lines, self.latest_line if self.latest_newer else ""))
 
     def button(self, icon, text, command):
         b = QPushButton(QIcon.fromTheme(icon), text)
@@ -566,10 +710,14 @@ class SystemTab(QWidget):
         self.poll()
 
     def refresh(self):
-        self.version.setText(run("arkadeos-update", "status"))
+        """The version lines again: at the start, after an update and after
+        every change made here (channel, going back, an earlier build)."""
+        self.status_lines = run("arkadeos-update", "status").splitlines()
+        self.show_versions()
         index = self.channel.findData(run("arkadeos-update", "channel"))
         if index >= 0:
             self.channel.setCurrentIndex(index)
+        self.look_for_newer()
 
     def reset_system(self):
         if QMessageBox.question(self, "ArkadeOS", tr(
@@ -850,7 +998,12 @@ def main():
     window.setWindowIcon(QIcon.fromTheme("arkadeos-portal", QIcon.fromTheme("preferences-system")))
     window.addTab(AppsTab(first_run), QIcon.fromTheme("applications-all"), tr("Apps", "Appok"))
     if not first_run:
-        window.addTab(SystemTab(), QIcon.fromTheme("preferences-system"), tr("System", "Rendszer"))
+        system = SystemTab()
+        tab = window.addTab(system, QIcon.fromTheme("preferences-system"), tr("System", "Rendszer"))
+        # The Portal opens on Apps: a newer version shows on the tab's name.
+        system.newer.connect(lambda on: (
+            window.setTabText(tab, tr("System · new version", "Rendszer · új verzió") if on else tr("System", "Rendszer")),
+            window.setTabIcon(tab, QIcon.fromTheme("system-software-update" if on else "preferences-system"))))
         window.addTab(GamesTab(), QIcon.fromTheme("applications-games"), tr("Games", "Játékok"))
     window.resize(760, 640)
     LookLog(window)

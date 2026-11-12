@@ -776,9 +776,10 @@ check "Portal Games tab" "${session} env HOME=/tmp/pg-home python3 /tmp/portal-g
 # journal lines; the pictures show each state.
 ssh_vm "echo $(base64 -w0 "${here}/portal-update.py") | base64 -d > /tmp/portal-update.py && install -d -o arkade /tmp/pu"
 check "Portal update progress" "${session} LANG=hu_HU.UTF-8 python3 /tmp/portal-update.py /tmp/pu | grep -qx 'portal update ok'"
-for state in running apps done-restart failed; do
+for state in check running deploy apps done-restart failed skipped; do
     ssh_vm "cat /tmp/pu/portal-update-${state}.png" > "${out}/portal-update-${state}.png" 2>/dev/null || true
 done
+ssh_vm "cat /tmp/pu/portal-system.png" > "${out}/portal-system.png" 2>/dev/null || true
 # Flatpak lets the desktop session's admin users install without a password;
 # this shell is not that session, so root installs here.
 check "Portal: Flatpak app in and out" "/usr/libexec/arkadeos/portal-item vesktop install &&
@@ -944,10 +945,18 @@ check "game folders carry a SELinux label" '! stat -c %C /home/arkade/Games /hom
 if [[ -n "${UPDATE_PUSH:-}" ]]; then
     before=$(ssh_vm "bootc status --json | jq -r .status.booted.image.imageDigest")
     ssh_vm 'echo keep > /home/arkade/keep.txt'
+    # The newest version on the channel, as the Portal shows it when it opens
+    # (Roland, 2026-11-12): the running one, then a newer one, then the one
+    # that waits for the reboot.
+    check "newest available: the running one" "${session} LANG=C arkadeos-update latest | grep -qE '^Newest available: [0-9.]+ \(this one is running\)\$'"
     eval "${UPDATE_PUSH}"
+    check "newest available: a newer one is out" "${session} LANG=C arkadeos-update latest > /tmp/latest.txt; test \$? = 10 &&
+        grep -qE '^Newest available: [0-9.]+, newer than the running one' /tmp/latest.txt"
     ssh_vm 'bootc upgrade' > "${out}/update.txt" 2>&1 || true
     ssh_vm 'rpm-ostree status' >> "${out}/update.txt" 2>&1 || true
     check "update waits for the reboot" 'test "$(bootc status --json | jq -r .status.staged.image.imageDigest)" != null'
+    check "newest available: downloaded, waits for the reboot" "${session} LANG=C arkadeos-update latest | grep -qE '^Newest available: [0-9.]+ \(downloaded, starts at the next reboot\)\$'"
+    ssh_vm "cat /tmp/latest.txt; ${session} LANG=C arkadeos-update latest" >> "${out}/update.txt" 2>&1 || true
     # The Portal asks as the user, without root: running and waiting versions.
     check "update status answers the user (Portal)" "${session} LANG=C arkadeos-update status 2>&1 |
         grep -qx 'Running:  [0-9.]*' && ${session} LANG=C arkadeos-update status 2>&1 | grep -q '^At reboot: [0-9]'"
@@ -955,6 +964,16 @@ if [[ -n "${UPDATE_PUSH:-}" ]]; then
     ssh_vm "timeout 15 ${session} arkadeos-update notify" || true
     shot update-ready
     check "update ready message" 'test -s /home/arkade/.local/state/arkadeos/update-notified'
+    # Once per build, not per version number (Roland, 2026-11-12): the next
+    # look stays silent, and a build the note does not name is told again
+    # (the note held the version number before, which the builds of a day shared).
+    ssh_vm "mkdir -p /tmp/told && printf '#!/bin/sh\necho told >> /tmp/told/log\n' > /tmp/told/notify-send &&
+        chmod 755 /tmp/told/notify-send && chown -R arkade /tmp/told"
+    ssh_vm "${session} PATH=/tmp/told:/usr/bin arkadeos-update notify" || true
+    check "update ready message: once for a build" 'test ! -e /tmp/told/log && grep -q "^sha256:" /home/arkade/.local/state/arkadeos/update-notified'
+    ssh_vm "echo 45.20261112 > /home/arkade/.local/state/arkadeos/update-notified; ${session} PATH=/tmp/told:/usr/bin arkadeos-update notify;
+        ${session} PATH=/tmp/told:/usr/bin arkadeos-update notify" || true
+    check "update ready message: another build is told too" 'test "$(wc -l < /tmp/told/log)" = 1'
     ssh_vm 'rpm-ostree status' >> "${out}/update.txt" 2>&1 || true
     reboot_vm
     ssh_vm 'arkadeos-update status; journalctl -b -1 --no-pager -u ostree-finalize-staged -u bazzite-hardware-setup -u rpm-ostreed | tail -60' >> "${out}/update.txt" 2>&1 || true
