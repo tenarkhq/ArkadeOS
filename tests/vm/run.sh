@@ -575,18 +575,24 @@ check "Chrome opens web links" 'grep -qx x-scheme-handler/https=com.google.Chrom
 # T071: no on-screen keyboard on its own.
 check "no on-screen keyboard" "test -z \"\$(${session} kreadconfig6 --file kwinrc --group Wayland --key InputMethod)\" && ! pgrep -u arkade -x plasma-keyboard"
 check "dock names script in KWin" "${session} busctl --user call org.kde.KWin /Scripting org.kde.kwin.Scripting isScriptLoaded s arkadeos-dock-names | grep -qx 'b true'"
-# The stand-in gets the desktop's X display with its authority file, as a
-# program started from the desktop has. Without the file Wine could not reach
-# the X server ("Authorization required", 25 times in every run's log) and
-# drew through Wayland, where its window came only while the screen was on:
-# the check failed in the runs where the screen was off (2026-11-11 23:22,
-# 2026-11-12 18:57). The screen has turned itself off by now, ten minutes
-# after the last key, so a key wakes it first, as a user's would.
+# The stand-in has no authority file for the desktop's X display, so Wine
+# cannot reach the X server ("Authorization required" in its log) and draws
+# through Wayland: its window then carries the program's own name
+# (notepad.exe), which is what this check is about. Through Wayland the
+# window comes only while the screen is on, and the screen turns itself off
+# about now, ten minutes after the last key: the check failed in the runs
+# where it was off (2026-11-11 23:22, 2026-11-12 18:57). So the screen is
+# woken and kept on while the window is waited for.
+# With the authority file Wine draws through X, and every program started
+# this way has one window name, steam_app_default (2026-11-12 19:44): that
+# is another case than this check's.
 key shift
 sleep 2
 ssh_vm "loginctl unlock-sessions; ${session} kscreen-doctor --dpms on" >/dev/null 2>&1 || true
+ssh_vm "nohup ${session} kde-inhibit --power --screenSaver sleep 600 > /tmp/keep-screen-on.log 2>&1 &"
 sleep 3
-ssh_vm "cd /home/arkade && nohup ${session} DISPLAY=:0 XAUTHORITY=\$(ls /run/user/${uid}/xauth_* | head -1) GAMEID=umu-default PROTONPATH=${proton} WINEPREFIX=/home/arkade/Games/battlenet \
+shot battlenet-screen
+ssh_vm "cd /home/arkade && nohup ${session} DISPLAY=:0 GAMEID=umu-default PROTONPATH=${proton} WINEPREFIX=/home/arkade/Games/battlenet \
     timeout 300 umu-run notepad > /tmp/notepad.log 2>&1 &"
 for _ in $(seq 40); do
     sleep 5
@@ -595,7 +601,8 @@ done
 shot battlenet-window
 ssh_vm "echo '== notepad log'; cat /tmp/notepad.log; echo '== programs'; ps -u arkade -o pid,etime,stat,args | grep -i -E 'wine|notepad|umu|pressure|proton|steam|bwrap' | grep -v grep | cut -c1-260;
     echo '== memory (MiB)'; free -m; echo '== profile'; tuned-adm active; cat /sys/kernel/mm/transparent_hugepage/enabled;
-    echo '== game watcher'; ${session} journalctl --user -b -u arkadeos-game-profile --no-pager | tail -15" > "${out}/battlenet-window.txt" 2>&1 || true
+    echo '== game watcher'; ${session} journalctl --user -b -u arkadeos-game-profile --no-pager | tail -15;
+    echo '== screen kept on'; cat /tmp/keep-screen-on.log; pgrep -u arkade -af kde-inhibit" > "${out}/battlenet-window.txt" 2>&1 || true
 check "Battle.net game window gets a dock entry" 'f=/home/arkade/.local/share/applications/notepad.exe.desktop;
     grep -qx Exec=arkadeos-battlenet $f && grep -qx StartupWMClass=notepad.exe $f && grep -qx NoDisplay=true $f &&
     grep -qE "^Icon=(/var)?/home/arkade/.local/share/icons/hicolor/256x256/apps/notepad.exe.png" $f'
