@@ -6,4 +6,5 @@ Comment[hu]=World of Warcraft addon-kezelő
 Exec=arkadeos-wowup %U
 Icon=arkadeos-wowup
 Categories=Game;
-MimeType=x-scheme-handler/wowup;
+StartupWMClass=wowupcf
+MimeType=x-scheme-handler/wowup;x-scheme-handler/curseforge;

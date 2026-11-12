@@ -631,15 +631,25 @@ check "Ubisoft Connect launcher on GE-Proton" "${session} arkadeos-ubisoft --che
 check "Ubisoft Connect installer reachable" "curl -fsSL -o /dev/null -r 0-0 \"\$(grep -o 'https://static3.cdn.ubi.com[^\"]*' /usr/bin/arkadeos-store)\""
 ssh_vm "systemctl --user -M arkade@ start arkadeos-session-setup.service" || true
 check "Battle.net on the dock" "grep -q 'org.arkadeos.BattleNet.desktop' ${home}/plasma-org.kde.plasma.desktop-appletsrc"
-# T015: WowUp downloads itself and starts, pointed at the Battle.net folder.
+# T015: WowUp (the edition with CurseForge) downloads itself and starts,
+# pointed at the Battle.net folder. A file under the name of the edition this
+# launcher started before is there first: it does not stay.
+ssh_vm "runuser -u arkade -- sh -c 'mkdir -p /home/arkade/.local/share/arkadeos && touch /home/arkade/.local/share/arkadeos/WowUp.AppImage'"
 ssh_vm "nohup ${session} arkadeos-wowup > /tmp/wowup.log 2>&1 &"
 for _ in $(seq 24); do
     sleep 5
-    ssh_vm 'pgrep -u arkade -f WowUp.AppImage' >/dev/null && break
+    ssh_vm 'pgrep -u arkade -f WowUp-CF.AppImage' >/dev/null && break
 done
 sleep 20
 shot wowup
-check "WowUp running" 'pgrep -u arkade -f WowUp.AppImage'
+check "WowUp running" 'pgrep -u arkade -f WowUp-CF.AppImage'
+check "WowUp: the edition before is gone" 'test ! -e /home/arkade/.local/share/arkadeos/WowUp.AppImage'
+# The window goes under WowUp's menu entry, with its icon: the dock's helper
+# saw the window's name (wowupcf) and found the entry, so it wrote none of
+# its own. CurseForge's install links are WowUp's too.
+check "WowUp's window is under its menu entry" "grep -qi '\"wowupcf\": true' /home/arkade/.local/state/arkadeos/dock-names.json &&
+    test ! -e /home/arkade/.local/share/applications/wowupcf.desktop"
+check "CurseForge install links open in WowUp" "${session} xdg-mime query default x-scheme-handler/curseforge | grep -qx org.arkadeos.WowUp.desktop"
 check "WowUp finds the Battle.net folder" "grep -q 'game_path: /home/arkade/Games' ${home}/lutris/system.yml"
 # T016-T017: Flathub apps installed at first boot.
 for _ in $(seq 90); do

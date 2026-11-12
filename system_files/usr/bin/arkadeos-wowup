@@ -1,12 +1,14 @@
 #!/usr/bin/bash
-# WowUp addon manager (T015). The first start downloads the WowUp AppImage
-# from its GitHub releases; WowUp then updates itself. WowUp finds WoW
+# WowUp addon manager (T015), the edition with CurseForge (Roland,
+# 2026-11-12). WowUp comes as two programs: this one has CurseForge and no
+# Wago, the other one the reverse. The first start downloads the AppImage
+# from WowUp's GitHub releases; WowUp then updates itself. WowUp finds WoW
 # through Lutris's game folder, so ~/Games (where Battle.net installs, T014)
 # is set as that folder when Lutris has none yet.
 set -euo pipefail
 
 dir="${XDG_DATA_HOME:-${HOME}/.local/share}/arkadeos"
-app="${dir}/WowUp.AppImage"
+app="${dir}/WowUp-CF.AppImage"
 
 lutris="${XDG_CONFIG_HOME:-${HOME}/.config}/lutris/system.yml"
 if ! grep -qs '^ *game_path:' "${lutris}"; then
@@ -20,12 +22,12 @@ fi
 
 # The first download is a known release, checked against its checksum (T081);
 # from then on WowUp updates itself.
-version=2.24.1
-sha256=664de03af1cf4255586a4b5420c805923c81d5d51ff956d886ea824297cd525f
+version=2.25.5
+sha256=387792c43c1359ddc35e6781000a06ff0fc38fb55785dc029a7d97f4f13a4839
 if [[ ! -x "${app}" ]]; then
     mkdir -p "${dir}"
     curl -fL --retry 3 -o "${app}.part" \
-        "https://github.com/WowUp/WowUp/releases/download/v${version}/WowUp-${version}.AppImage"
+        "https://github.com/WowUp/WowUp.CF/releases/download/v${version}/WowUp-CF-${version}.AppImage"
     if ! echo "${sha256}  ${app}.part" | sha256sum -c --quiet -; then
         rm -f "${app}.part"
         echo "WowUp download damaged or changed: not started" >&2
@@ -34,4 +36,7 @@ if [[ ! -x "${app}" ]]; then
     chmod +x "${app}.part"
     mv "${app}.part" "${app}"
 fi
+# The edition with Wago, which this launcher started until 2026-11-12, does
+# not stay beside this one.
+rm -f "${dir}/WowUp.AppImage"
 exec "${app}" "$@"
