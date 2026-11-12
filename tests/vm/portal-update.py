@@ -3,11 +3,15 @@ run on the ASUS laptop, 2026-11-02) and shows the running, finished and
 failed states. Runs as the user, offscreen; saves each state as a picture
 into the folder given as the first argument."""
 import importlib.machinery
+import importlib.util
 import os
 import sys
 
 os.environ["QT_QPA_PLATFORM"] = "offscreen"
-portal = importlib.machinery.SourceFileLoader("portal", "/usr/bin/arkadeos-portal").load_module()
+# The Portal has no .py name: loaded from its file as a module.
+loader = importlib.machinery.SourceFileLoader("portal", "/usr/bin/arkadeos-portal")
+portal = importlib.util.module_from_spec(importlib.util.spec_from_loader("portal", loader))
+loader.exec_module(portal)
 from PySide6.QtWidgets import QApplication  # noqa: E402
 
 LOG = [

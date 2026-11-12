@@ -1,6 +1,7 @@
 """Portal Games tab check (T055): lists the factory, own and Steam games,
 writes a choice, adds and removes a program. Runs as the user, offscreen."""
 import importlib.machinery
+import importlib.util
 import os
 import sys
 from pathlib import Path
@@ -12,7 +13,10 @@ steam.mkdir(parents=True, exist_ok=True)
 (steam / "appmanifest_1091500.acf").write_text('"AppState"\n{\n\t"appid"\t\t"1091500"\n\t"name"\t\t"Cyberpunk 2077"\n}\n')
 (steam / "appmanifest_1493710.acf").write_text('"AppState"\n{\n\t"appid"\t\t"1493710"\n\t"name"\t\t"Proton Experimental"\n}\n')
 
-portal = importlib.machinery.SourceFileLoader("portal", "/usr/bin/arkadeos-portal").load_module()
+# The Portal has no .py name: loaded from its file as a module.
+loader = importlib.machinery.SourceFileLoader("portal", "/usr/bin/arkadeos-portal")
+portal = importlib.util.module_from_spec(importlib.util.spec_from_loader("portal", loader))
+loader.exec_module(portal)
 from PySide6.QtWidgets import QApplication  # noqa: E402
 
 app = QApplication(sys.argv)
