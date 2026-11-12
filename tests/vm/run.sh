@@ -116,10 +116,14 @@ else
     echo "FAILED Portal choice screen on the first login" >> "${out}/apps.txt"
 fi
 # The colours when the choice screen closes: the look must have been final
-# when it opened (checked below).
-ssh_vm "cat /home/arkade/.config/kdeglobals /home/arkade/.config/kdedefaults/kdeglobals 2>/dev/null |
-    sed -n 's/^ColorScheme=//p' | head -1 > /tmp/portal-closed-colours" || true
+# when it opened (checked below). Read before and after it is closed: the
+# automatic light/dark switch can fall between the two (2026-11-12, 20:10:
+# the look changed a second after the first reading, and the check failed).
+colours="cat /home/arkade/.config/kdeglobals /home/arkade/.config/kdedefaults/kdeglobals 2>/dev/null |
+    sed -n 's/^ColorScheme=//p' | head -1"
+ssh_vm "${colours} > /tmp/portal-closed-colours" || true
 ssh_vm 'pkill -u arkade -f "arkadeos-portal --first-run"' || true
+ssh_vm "${colours} >> /tmp/portal-closed-colours" || true
 sleep 3
 shot desktop
 
@@ -170,10 +174,10 @@ check() {
 }
 
 # The Portal choice screen follows the automatic light/dark look: the last
-# colours it showed are the desktop's when it closed.
-check "Portal choice screen shows the desktop's look" "${session} journalctl --user -b --no-pager |
-    grep -oE 'arkadeos-portal: shows the colours .*' | tail -1 |
-    grep -qx \"arkadeos-portal: shows the colours \$(cat /tmp/portal-closed-colours)\""
+# colours it showed are the desktop's when it closed (either reading).
+check "Portal choice screen shows the desktop's look" "last=\$(${session} journalctl --user -b --no-pager |
+    grep -oE 'arkadeos-portal: shows the colours .*' | tail -1) &&
+    sed 's/^/arkadeos-portal: shows the colours /' /tmp/portal-closed-colours | grep -qxF \"\${last}\""
 # One image for every graphics card (T080): without an NVIDIA card (the VM)
 # the NVIDIA services and the settings loader at login are masked, none failed.
 check "no NVIDIA service without an NVIDIA card" "! systemctl --failed --no-legend --plain | grep -qi nvidia &&
