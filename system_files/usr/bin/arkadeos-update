@@ -143,16 +143,20 @@ case "${1:-status}" in
         skopeo list-tags "docker://${ref%:*}" | python3 -c '
 import json, re, sys
 channel, since = sys.argv[1], sys.argv[2]
-for tag in sorted(json.load(sys.stdin)["Tags"], reverse=True):
-    m = re.fullmatch(re.escape(channel) + r"-\d+\.(\d{8})", tag)
-    if m and m.group(1) >= since:
-        print(tag)' "${channel}" "${since}"
+builds = []
+for tag in json.load(sys.stdin)["Tags"]:
+    m = re.fullmatch(re.escape(channel) + r"-(\d+)\.(\d{8})(?:\.(\d+))?", tag)
+    if m and m.group(2) >= since:
+        builds.append((int(m.group(1)), m.group(2), int(m.group(3) or 0), tag))
+# Newest first: the Fedora it is built on, the day, then the build of the day.
+for build in sorted(builds, reverse=True):
+    print(build[3])' "${channel}" "${since}"
         ;;
     version)
         ref=$(image_ref)
         [[ -n "${ref}" ]] || { say "No ArkadeOS image found." "Nem található ArkadeOS image."; exit 1; }
         tag=${2:?tag}
-        [[ "${tag}" =~ ^(stable|testing)-[0-9]+\.[0-9]{8}$ ]] || { echo "version: a tag from 'arkadeos-update versions'" >&2; exit 2; }
+        [[ "${tag}" =~ ^(stable|testing)-[0-9]+\.[0-9]{8}(\.[0-9]+)?$ ]] || { echo "version: a tag from 'arkadeos-update versions'" >&2; exit 2; }
         switch_to "${ref%:*}:${tag}" "${3:-}"
         ;;
     *)

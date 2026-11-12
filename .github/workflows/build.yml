@@ -52,7 +52,15 @@ jobs:
           podman pull -q "$base" >/dev/null
           base_version=$(podman image inspect --format '{{ index .Config.Labels "org.opencontainers.image.version" }}' "$base")
           fedora=${base_version%%.*}
-          version="${fedora}.$(date -u +%Y%m%d)"
+          # <Fedora>.<day> for the day's first build, then .1, .2 … for the
+          # next ones (Roland, 2026-11-12: three builds of a day carried one
+          # number), as Bazzite numbers its own. Counted from the
+          # testing-<version> tags: every main build pushes one.
+          day="${fedora}.$(date -u +%Y%m%d)"
+          tags=$(skopeo list-tags --retry-times 5 "docker://${REGISTRY}/${IMAGE}")
+          last=$(jq -r --arg day "${day}" '[.Tags[] | capture("^testing-(?<day>[0-9]+\\.[0-9]{8})(\\.(?<n>[0-9]+))?$")
+            | select(.day == $day) | (.n // "0" | tonumber)] | max // -1' <<< "${tags}")
+          if [ "${last}" -lt 0 ]; then version="${day}"; else version="${day}.$((last + 1))"; fi
           echo "base=${base}" >> "$GITHUB_OUTPUT"
           proton_ge=$(curl -fsSL -H "Authorization: Bearer ${{ github.token }}" \
             https://api.github.com/repos/GloriousEggroll/proton-ge-custom/releases/latest | jq -r .tag_name)

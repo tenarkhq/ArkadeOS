@@ -33,7 +33,8 @@ jobs:
           src=docker://ghcr.io/tenarkhq/arkadeos
           stable=$(skopeo inspect --format '{{ .Digest }}' "${src}:stable" 2>/dev/null || true)
           limit=$(date -u -d '3 days ago' +%s)
-          for tag in $(skopeo list-tags "${src}" | jq -r '.Tags[] | select(test("^testing-[0-9]+\\.[0-9]{8}$"))' | sort -r); do
+          # Newest first; a day's further builds end in .1, .2 … (build.yml).
+          for tag in $(skopeo list-tags "${src}" | jq -r '.Tags[] | select(test("^testing-[0-9]+\\.[0-9]{8}(\\.[0-9]+)?$"))' | sort -rV); do
             info=$(skopeo inspect "${src}:${tag}")
             created=$(date -u -d "$(jq -r .Created <<< "${info}")" +%s)
             [ "${created}" -le "${limit}" ] || continue
