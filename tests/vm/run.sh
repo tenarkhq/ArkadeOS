@@ -458,6 +458,10 @@ check "back to Balanced after WoW" 'tuned-adm active | grep -q arkadeos-balanced
 check "power switch on the taskbar" "grep -qx plugin=org.arkadeos.power ${home}/plasma-org.kde.plasma.desktop-appletsrc &&
     ${session} arkadeos-power status | grep -qx profile=balanced"
 check "game watcher running" 'systemctl --user -M arkade@ is-active arkadeos-game-profile.service'
+# On the charger the machine never goes to sleep by itself (Roland,
+# 2026-11-12); on battery Plasma's own idle sleep stays.
+check "no sleep by itself on the charger" "${session} kreadconfig6 --file powerdevilrc --group AC --group SuspendAndShutdown --key AutoSuspendAction | grep -qx 0 &&
+    test -z \"\$(${session} kreadconfig6 --file powerdevilrc --group Battery --group SuspendAndShutdown --key AutoSuspendAction)\""
 # T050: the switch reads the profile when it changes, not every three seconds.
 # A stand-in in front of arkadeos-power notes who asks for the status; the
 # test's own questions come from runuser.

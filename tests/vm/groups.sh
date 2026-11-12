@@ -63,6 +63,8 @@ while read -r f; do
         system_files/usr/libexec/arkadeos/power-* | system_files/usr/libexec/arkadeos/gpu-cap | \
         system_files/usr/libexec/arkadeos/no-power-save | system_files/usr/libexec/arkadeos/vendor-* | \
         system_files/usr/libexec/arkadeos/asus-defaults | system_files/usr/libexec/arkadeos/x3d-vcache) add power games apps ;;
+        # When the machine sleeps by itself.
+        system_files/etc/xdg/powerdevilrc) add power ;;
         # Games: Proton, the game watcher and its profiles.
         build_files/60-gaming.sh | build_files/proton-ge.sh | \
         system_files/usr/libexec/arkadeos/game-profile | system_files/usr/libexec/arkadeos/no-game-running) add games power ;;

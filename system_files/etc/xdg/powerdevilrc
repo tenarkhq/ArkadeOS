@@ -1,0 +1,7 @@
+# ArkadeOS: on the charger the machine never goes to sleep by itself (Roland,
+# 2026-11-12). Plasma's own default puts it to sleep after a while without
+# input, on the charger too. On battery that default stays; the lid and the
+# power button are untouched. System Settings > Power Management changes it
+# for a user.
+[AC][SuspendAndShutdown]
+AutoSuspendAction=0
