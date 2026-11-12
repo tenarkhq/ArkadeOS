@@ -134,7 +134,14 @@ ssh_vm 'echo "== memory (MiB)"; free -m; echo "== load"; cat /proc/loadavg; echo
     echo "== top memory"; ps -eo rss,comm --sort=-rss | head -15' > "${out}/idle.txt" 2>&1 || true
 fi
 uid=$(ssh_vm 'id -u arkade')
-session="runuser -u arkade -- env HOME=/home/arkade USER=arkade XDG_RUNTIME_DIR=/run/user/${uid} WAYLAND_DISPLAY=wayland-0 QT_QPA_PLATFORM=wayland XDG_CURRENT_DESKTOP=KDE KDE_FULL_SESSION=true KDE_SESSION_VERSION=6 XDG_SESSION_TYPE=wayland DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/${uid}/bus"
+# The session's own Wayland socket: its name is the compositor's choice, read
+# from the desktop's environment. What the session has goes to the results.
+wayland=$(ssh_vm "grep -z ^WAYLAND_DISPLAY= /proc/\$(pgrep -u arkade -x plasmashell | head -1)/environ | tr -d '\\0' | cut -d= -f2" || true)
+ssh_vm "echo '== runtime folder'; ls -la /run/user/${uid}/; echo '== listening sockets'; ss -xlpn | grep -E 'wayland|X11|kwin' ;
+    echo '== desktop environment'; tr '\\0' '\\n' < /proc/\$(pgrep -u arkade -x plasmashell | head -1)/environ | grep -E '^(WAYLAND|DISPLAY|XAUTH|XDG_|QT_|KDE_|DESKTOP)' | sort;
+    echo '== compositors'; ps -eo user:12,pid,lstart,args | grep -E '[k]win_wayland|[X]wayland|[p]lasmalogin|[s]tartplasma' | cut -c1-220;
+    echo '== sessions'; loginctl list-sessions --no-legend" > "${out}/session-env.txt" 2>&1 || true
+session="runuser -u arkade -- env HOME=/home/arkade USER=arkade XDG_RUNTIME_DIR=/run/user/${uid} WAYLAND_DISPLAY=${wayland:-wayland-0} QT_QPA_PLATFORM=wayland XDG_CURRENT_DESKTOP=KDE KDE_FULL_SESSION=true KDE_SESSION_VERSION=6 XDG_SESSION_TYPE=wayland DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/${uid}/bus"
 failed=0
 while read -r app; do
     [[ -z "${app}" || "${app}" == \#* ]] && continue
@@ -146,7 +153,8 @@ while read -r app; do
         echo "ok ${app}" >> "${out}/apps.txt"
     else
         shot "app-${app%% *}-failed"
-        ssh_vm "cat /tmp/${app%% *}.log" > "${out}/app-${app%% *}.log" || true
+        ssh_vm "cat /tmp/${app%% *}.log; echo '== journal'; journalctl -b --no-pager -n 30 _COMM=${app%% *};
+            echo '== core dump'; coredumpctl --no-pager info ${app%% *} 2>&1 | head -70" > "${out}/app-${app%% *}.log" 2>&1 || true
         echo "FAILED ${app}" >> "${out}/apps.txt"
         failed=1
     fi
@@ -561,6 +569,10 @@ for _ in $(seq 40); do
     sleep 5
     ssh_vm 'test -f /home/arkade/.local/share/applications/notepad.exe.desktop' && break
 done
+shot battlenet-window
+ssh_vm "echo '== notepad log'; cat /tmp/notepad.log; echo '== programs'; ps -u arkade -o pid,etime,stat,args | grep -i -E 'wine|notepad|umu|pressure|proton|steam|bwrap' | grep -v grep | cut -c1-260;
+    echo '== memory (MiB)'; free -m; echo '== profile'; tuned-adm active; cat /sys/kernel/mm/transparent_hugepage/enabled;
+    echo '== game watcher'; ${session} journalctl --user -b -u arkadeos-game-profile --no-pager | tail -15" > "${out}/battlenet-window.txt" 2>&1 || true
 check "Battle.net game window gets a dock entry" 'f=/home/arkade/.local/share/applications/notepad.exe.desktop;
     grep -qx Exec=arkadeos-battlenet $f && grep -qx StartupWMClass=notepad.exe $f && grep -qx NoDisplay=true $f &&
     grep -qE "^Icon=(/var)?/home/arkade/.local/share/icons/hicolor/256x256/apps/notepad.exe.png" $f'

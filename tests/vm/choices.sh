@@ -87,7 +87,9 @@ uid=$(ssh_vm 'id -u arkade')
 # inline instead of in a terminal window. It starts in the user's home, as
 # the Portal does.
 user="runuser -u arkade -- env -C /home/arkade HOME=/home/arkade USER=arkade XDG_RUNTIME_DIR=/run/user/${uid} DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/${uid}/bus PATH=/home/arkade/.local/bin:/home/linuxbrew/.linuxbrew/bin:/usr/local/bin:/usr/bin"
-gui="runuser -u arkade -- env -C /home/arkade HOME=/home/arkade USER=arkade XDG_RUNTIME_DIR=/run/user/${uid} WAYLAND_DISPLAY=wayland-0 QT_QPA_PLATFORM=wayland XDG_CURRENT_DESKTOP=KDE XDG_SESSION_TYPE=wayland DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/${uid}/bus"
+# The session's own Wayland socket: its name is the compositor's choice.
+wayland=$(ssh_vm "grep -z ^WAYLAND_DISPLAY= /proc/\$(pgrep -u arkade -x plasmashell | head -1)/environ | tr -d '\\0' | cut -d= -f2" || true)
+gui="runuser -u arkade -- env -C /home/arkade HOME=/home/arkade USER=arkade XDG_RUNTIME_DIR=/run/user/${uid} WAYLAND_DISPLAY=${wayland:-wayland-0} QT_QPA_PLATFORM=wayland XDG_CURRENT_DESKTOP=KDE XDG_SESSION_TYPE=wayland DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/${uid}/bus"
 portal="${user} /usr/libexec/arkadeos/portal-item"
 # Long installs outlast the idle lock and the screen turning off; dialogs
 # are then hidden. Wake the desktop first.
