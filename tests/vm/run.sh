@@ -563,13 +563,18 @@ check "Chrome opens web links" 'grep -qx x-scheme-handler/https=com.google.Chrom
 # T071: no on-screen keyboard on its own.
 check "no on-screen keyboard" "test -z \"\$(${session} kreadconfig6 --file kwinrc --group Wayland --key InputMethod)\" && ! pgrep -u arkade -x plasma-keyboard"
 check "dock names script in KWin" "${session} busctl --user call org.kde.KWin /Scripting org.kde.kwin.Scripting isScriptLoaded s arkadeos-dock-names | grep -qx 'b true'"
-# The screen has turned itself off by now, ten minutes after the last key.
-# With it off the stand-in's window came in some runs only, and the program
-# was gone seconds later (2026-11-12): the screen is woken first, as it is
-# for the full-screen window below.
+# The stand-in gets the desktop's X display with its authority file, as a
+# program started from the desktop has. Without the file Wine could not reach
+# the X server ("Authorization required", 25 times in every run's log) and
+# drew through Wayland, where its window came only while the screen was on:
+# the check failed in the runs where the screen was off (2026-11-11 23:22,
+# 2026-11-12 18:57). The screen has turned itself off by now, ten minutes
+# after the last key, so a key wakes it first, as a user's would.
+key shift
+sleep 2
 ssh_vm "loginctl unlock-sessions; ${session} kscreen-doctor --dpms on" >/dev/null 2>&1 || true
 sleep 3
-ssh_vm "cd /home/arkade && nohup ${session} DISPLAY=:0 GAMEID=umu-default PROTONPATH=${proton} WINEPREFIX=/home/arkade/Games/battlenet \
+ssh_vm "cd /home/arkade && nohup ${session} DISPLAY=:0 XAUTHORITY=\$(ls /run/user/${uid}/xauth_* | head -1) GAMEID=umu-default PROTONPATH=${proton} WINEPREFIX=/home/arkade/Games/battlenet \
     timeout 300 umu-run notepad > /tmp/notepad.log 2>&1 &"
 for _ in $(seq 40); do
     sleep 5
