@@ -129,7 +129,7 @@ class Games:
         self.said = {}     # pid: facts, of the processes that say something
         self.stamp = None  # the per-game lists' dates and sizes when they were read
         self.names = {}
-        self.found = (False, "gaming", ())
+        self.found = (False, "gaming", (), "")
 
     def scan(self):
         """True when a process that says something came, went or changed."""
@@ -182,22 +182,26 @@ class Games:
         return True
 
     def running(self):
-        """(profile, programs): the profile the running game wants, None when
-        no game runs, and the pids of the Windows game programs."""
+        """(profile, programs, what): the profile the running game wants, None
+        when no game runs, the pids of the Windows game programs, and what
+        counts as the game (for the mark the Portal and the update read)."""
         # Both run at every look: each keeps its own state up to date.
         changed = [self.scan(), self.table()]
         if any(changed):
             self.found = self.judge()
-        game, profile, programs = self.found
-        if not game and not gamemode_active():
-            return None, ()
-        return profile, programs
+        game, profile, programs, what = self.found
+        if not game:
+            if not gamemode_active():
+                return None, (), ""
+            what = "GameMode"
+        return profile, programs, what
 
     def judge(self):
-        """(a game runs, the profile it wants, its Windows programs), as the
-        processes say; GameMode can still say that a game runs."""
+        """(a game runs, the profile it wants, its Windows programs, what
+        counts as the game), as the processes say; GameMode can still say
+        that a game runs."""
         game = windows = False  # Steam launched a game; Wine or a Steam shortcut runs
-        env_profile, keys, programs = None, [], []
+        env_profile, keys, programs, steam, names = None, [], [], [], []
         for pid in sorted(self.said):
             appid, wineserver, exes, profile = self.said[pid]
             if appid is not None:
@@ -206,6 +210,7 @@ class Games:
                 # Wine does.
                 if appid < 2**31:
                     game = True
+                    steam.append(f"Steam {appid}")
                 else:
                     windows = True
                 keys.append(str(appid))
@@ -213,12 +218,15 @@ class Games:
             keys.extend(exes)
             if any(exe not in NOT_GAMES for exe in exes):
                 programs.append(pid)
+                names.extend(exe for exe in exes if exe not in NOT_GAMES)
             env_profile = profile or env_profile
         # Wine stays up while only a store's launcher runs (Battle.net after
         # the game closed): that is not a game.
-        game = game or (windows and bool(programs))
+        if not windows:
+            names = []
+        game = game or bool(names)
         profile = env_profile or next((self.names[k] for k in keys if k in self.names), "gaming")
-        return game, profile, tuple(programs)
+        return game, profile, tuple(programs), ", ".join(dict.fromkeys(steam + names))
 
 
 def cpu_list(text):
@@ -440,14 +448,16 @@ def main():
                                      stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         except dbus.exceptions.DBusException:
             pass
-        want, programs = games.running()
+        want, programs, what = games.running()
         # The mark the background jobs wait on (no-game-running): a game
-        # runs, also on a profile set by hand.
-        if (want is not None) != state.get("game"):
-            state["game"] = want is not None
+        # runs, also on a profile set by hand. It holds what counts as the
+        # game (a program's name, Steam with the AppId, GameMode), so the
+        # Portal and the update's log can say it (Roland, 2026-11-12).
+        if (want is not None, what) != state.get("game"):
+            state["game"] = (want is not None, what)
             mark = Path(f"/run/user/{UID}/arkadeos-game")
-            if state["game"]:
-                mark.touch()
+            if want is not None:
+                mark.write_text(f"{what}\n")
             else:
                 mark.unlink(missing_ok=True)
         if want == "max":

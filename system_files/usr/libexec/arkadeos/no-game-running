@@ -3,9 +3,11 @@
 # can wait run it first (updates, snapshot cleanup, disk trim, the firmware
 # list). The game watcher (game-profile) keeps the mark arkadeos-game in the
 # user's /run/user folder for as long as a game runs, whatever profile the
-# game is on.
-if compgen -G '/run/user/*/arkadeos-game' >/dev/null; then
-    echo "a game is running: not now"
+# game is on; the mark holds what counts as the game.
+for mark in /run/user/*/arkadeos-game; do
+    [[ -e "${mark}" ]] || continue
+    what=$(head -n 1 "${mark}" 2>/dev/null || true)
+    echo "a game is running${what:+ (${what})}: not now"
     exit 1
-fi
+done
 exit 0

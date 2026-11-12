@@ -529,11 +529,15 @@ ssh_vm "${session} systemctl --user set-environment ARKADEOS_CPU=/run/cpu-test A
 ssh_vm "nohup sh -c 'for i in \$(seq 20); do tuned-adm active; ${session} busctl --user get-property org.freedesktop.Notifications \
     /org/freedesktop/Notifications org.freedesktop.Notifications Inhibited; sleep 3; done' > /tmp/wow.log 2>&1 &"
 ssh_vm "${session} bash -c '(exec -a wineserver sleep 45) & (exec -a Battle.net.exe sleep 45) & sleep 12; (exec -a Wow.exe sleep 30) &
-    sleep 20; grep Cpus_allowed_list /proc/\$!/status > /tmp/wow-cpus.txt;
+    sleep 20; grep Cpus_allowed_list /proc/\$!/status > /tmp/wow-cpus.txt; cat /run/user/\$(id -u)/arkadeos-game > /tmp/wow-mark.txt 2>&1;
     /usr/libexec/arkadeos/no-game-running > /tmp/wow-jobs.txt; echo \$? >> /tmp/wow-jobs.txt; wait'" || true
 check "World of Warcraft on WoW" 'grep -q arkadeos-wow /tmp/wow.log'
 check "World of Warcraft on one core group" 'grep -q "Cpus_allowed_list:[[:space:]]*2-3\$" /tmp/wow-cpus.txt'
 check "background jobs told to wait while the game runs" 'tail -1 /tmp/wow-jobs.txt | grep -qx 1'
+# What counts as the game is written down, for the Portal and the update's
+# log (Roland, 2026-11-12: "a game is running" with no game to be seen).
+check "the game's name is on the mark and in the answer" 'grep -qx wow.exe /tmp/wow-mark.txt &&
+    grep -qx "a game is running (wow.exe): not now" /tmp/wow-jobs.txt'
 # The released Gaming hold must not put Balanced back under WoW (2026-11-01).
 check "WoW stays on while the game runs" 'test "$(grep -c arkadeos-wow /tmp/wow.log)" -ge 6'
 # T062: notifications wait while a game runs, and come again after.
