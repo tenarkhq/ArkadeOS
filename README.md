@@ -3,7 +3,7 @@
 **Fast, gaming-first Linux built on Fedora Atomic.**
 A clean KDE Plasma desktop, one image for NVIDIA, AMD and Intel graphics, Steam and Proton, Battle.net, smart power profiles, and atomic updates you can roll back.
 
-> **Status: early development, testing builds only (November 2026).** Not ready for daily use yet. "In testing" means the feature is in the image and checked automatically in a virtual machine on every build; "tested on hardware" means it was also tried on a real gaming laptop. See [Project status](#project-status).
+> **Status: early development (November 2026).** Not ready for daily use yet. "Implemented" means the feature is in the image; "under development" means it is still being built. See [Project status](#project-status).
 
 ![ArkadeOS desktop, dark look](art/screenshots/desktop-dark.png)
 
@@ -20,39 +20,40 @@ A clean KDE Plasma desktop, one image for NVIDIA, AMD and Intel graphics, Steam 
 
 | | Feature | Status |
 |---|---|---|
-| 🎮 | Steam, Proton-GE, Proton Experimental, Gamescope, MangoHud (set up in MangoJuice), GameMode, Protontricks | in testing |
-| ⚔️ | One-click Battle.net with World of Warcraft, WowUp for addons | **tested on hardware** |
-| 🛒 | EA app, Ubisoft Connect, Heroic (Epic, GOG, Amazon), Lutris | in testing |
-| 🪟 | Borderless windowed games run full screen, above the taskbar | in testing |
-| 🎞️ | Frame generation (lsfg-vk) per game, instant replay (GPU Screen Recorder) | in testing |
-| 💬 | Discord preinstalled, Vesktop optional for Wayland screen sharing with audio | in testing |
-| 🧲 | qBittorrent: free, open-source torrent client without ads (ticked by default, can be left out) | in testing |
-| 🎙️ | Microphone noise filter and low-latency audio | in testing |
-| ⚡ | Gaming kernel, sched_ext scheduler, NTSYNC | in testing |
-| 🔋 | Power profiles: Battery, Balanced, Gaming, Max, WoW, switching automatically, per game | **tested on hardware** |
-| 💻 | ASUS gaming laptops (asusctl): the power profile also sets the firmware mode | **tested on hardware** |
-| 💻 | MSI (msi-ec, MControlCenter), Lenovo Legion (LenovoLegionLinux); battery care at 80% | in testing |
-| 🌈 | RGB that follows the power profile (OpenRGB, ASUS Aura) | **tested on hardware** |
-| 🖱️ | Logitech and Razer mice, ASUS ROG keyboards, monitor control, LACT for the graphics card | in testing |
-| 🖥️ | KDE Plasma 6 with Breeze, light and dark switching by the time of day, one taskbar | in testing |
-| 📌 | Anything pinned on the taskbar stays there: Steam games, Windows programs, Chrome web apps | in testing |
-| 🧩 | ArkadeOS Portal: pick apps at first login, add or remove anything later | in testing |
-| 🤖 | Optional AI tools: Claude and Codex, desktop apps and command line | in testing |
-| 🔄 | Atomic image updates with rollback, builds of the last 90 days, factory reset that keeps your files | in testing |
-| 📦 | Small updates: ArkadeOS's own files, Proton-GE and the boot image are layers of their own, so an update downloads only the part that changed | in testing |
-| 💿 | Installer next to Windows, with Windows in the boot menu; shows the download's progress and time left | in testing |
-| 🔒 | Encrypted disk unlocked by the TPM, firewall on, telemetry off, nothing running in the background unless you turn it on | in testing |
+| 🎮 | Steam, Proton-GE, Proton Experimental, Gamescope, MangoHud (set up in MangoJuice), GameMode, Protontricks | implemented |
+| ⚔️ | One-click Battle.net with World of Warcraft | implemented |
+| 🧰 | WowUp addon manager with CurseForge, finds the WoW folder by itself | implemented |
+| 🛒 | EA app, Ubisoft Connect, Heroic (Epic, GOG, Amazon), Lutris | implemented |
+| 🪟 | Borderless windowed games run full screen, above the taskbar | implemented |
+| 🎞️ | Frame generation (lsfg-vk) per game, instant replay (GPU Screen Recorder) | implemented |
+| 💬 | Discord preinstalled, Vesktop optional for Wayland screen sharing with audio | implemented |
+| 🧲 | qBittorrent: free, open-source torrent client without ads (ticked by default, can be left out) | implemented |
+| 🎙️ | Microphone noise filter and low-latency audio | implemented |
+| ⚡ | Gaming kernel, sched_ext scheduler, NTSYNC | implemented |
+| 🔋 | Power profiles: Battery, Balanced, Gaming, Max, WoW, switching automatically, per game | implemented |
+| 💻 | ASUS gaming laptops (asusctl): the power profile also sets the firmware mode | implemented |
+| 💻 | MSI (msi-ec, MControlCenter), Lenovo Legion (LenovoLegionLinux); battery care at 80% | implemented |
+| 🌈 | RGB that follows the power profile (OpenRGB, ASUS Aura) | implemented |
+| 🖱️ | Logitech and Razer mice, ASUS ROG keyboards, monitor control, LACT for the graphics card | implemented |
+| 🖥️ | KDE Plasma 6 with Breeze, light and dark switching by the time of day, one taskbar | implemented |
+| 📌 | Anything pinned on the taskbar stays there: Steam games, Windows programs, Chrome web apps | implemented |
+| 🧩 | ArkadeOS Portal: pick apps at first login, add or remove anything later | implemented |
+| 🤖 | Optional AI tools: Claude and Codex, desktop apps and command line | implemented |
+| 🔄 | Atomic image updates with rollback, builds of the last 90 days, factory reset that keeps your files | implemented |
+| 📦 | Small updates: ArkadeOS's own files, Proton-GE and the boot image are layers of their own, so an update downloads only the part that changed | implemented |
+| 💿 | Installer next to Windows, with Windows in the boot menu; shows the download's progress and time left | implemented |
+| 🔒 | Encrypted disk unlocked by the TPM, firewall on, telemetry off, nothing running in the background unless you turn it on | implemented |
 
 ## Screenshots
 
 | | |
 |---|---|
-| ![Light look with the Finder-style file manager](art/screenshots/desktop-light.png) | ![Quick Settings: ArkadeOS Light, Dark or Automatic](art/screenshots/settings.png) |
-| Light look, Finder-style file manager | Quick Settings: light, dark or automatic |
-| ![ArkadeOS Portal: tick to install, untick to remove](art/screenshots/portal.png) | ![Login screen](art/screenshots/login.png) |
-| ArkadeOS Portal: tick to install, untick to remove | Login screen |
+| ![Light look](art/screenshots/desktop-light.png) | ![Quick Settings: ArkadeOS Light, Dark or Automatic](art/screenshots/settings.png) |
+| Light look | Quick Settings: light, dark or automatic |
+| ![ArkadeOS Portal at the first login: tick what you want](art/screenshots/portal.png) | ![Login screen](art/screenshots/login.png) |
+| ArkadeOS Portal at the first login: tick what you want, change it any time | Login screen |
 
-Taken by the automatic VM test of the 2 November 2026 testing build (1280×800 virtual screen).
+Taken automatically from the 12 November 2026 build in a virtual machine (1280×800 screen).
 
 ## Supported graphics cards
 
@@ -70,10 +71,10 @@ One image, `arkadeos`, serves every supported card. Machines installed from the 
 
 **ISO:** a public download comes with the beta. Today's installer ISOs are test builds. They download the newest system image while installing, so the system you get is always up to date.
 
-**Already on Fedora Atomic, Bazzite or another bootc system?** Switch to ArkadeOS. Until the first stable release only the testing channel exists:
+**Already on Fedora Atomic, Bazzite or another bootc system?** Switch to ArkadeOS:
 
 ```bash
-sudo bootc switch ghcr.io/tenarkhq/arkadeos:testing
+sudo bootc switch ghcr.io/tenarkhq/arkadeos:stable
 ```
 
 Reboot to finish. The same image works with NVIDIA, AMD and Intel graphics.
@@ -84,7 +85,7 @@ Reboot to finish. The same image works with NVIDIA, AMD and Intel graphics.
 arkadeos-update rollback
 ```
 
-The ArkadeOS Portal does the same from a window, and also switches the channel (stable or testing) and goes back to any build of the last 90 days.
+The ArkadeOS Portal does the same from a window, and also switches the channel (stable, or testing for each build three days earlier) and goes back to any build of the last 90 days.
 
 ## Power profiles
 
@@ -98,23 +99,25 @@ The ArkadeOS Portal does the same from a window, and also switches the channel (
 
 ## Project status
 
-*Updated 2 November 2026.*
+*Updated 12 November 2026.*
 
-**Every build is tested automatically.** Each change to `main` builds the image and boots it in a virtual machine that logs in, opens the apps, switches the looks and profiles, starts a Windows program under Proton, updates and rolls back. A separate test installs ArkadeOS from the ISO onto an encrypted disk and boots the installed system. Latest results:
+**Built on Fedora 45 since 12 November 2026:** Bazzite's Fedora 45 base with kernel 7.3, KDE Plasma 6.8, Mesa 26.2 and NVIDIA driver 620. The stable channel gets it three days later. An update that changes only ArkadeOS's own files downloads about 7 MB of the 6 GB image.
+
+**Every build is tested automatically.** Each change to `main` builds the image and boots it in a virtual machine that logs in, opens the apps, switches the looks and profiles, starts a Windows program under Proton, updates and rolls back. A separate test installs ArkadeOS from the ISO onto an encrypted disk and boots the installed system. Latest results (12 November 2026):
 
 | Test | Checks | Result |
 |---|---|---|
-| `arkadeos` image in a VM | 159 | ✅ all pass |
-| Optional apps from the Portal | 40 | ✅ all pass |
-| Update from the previous build | 9 | ✅ all pass |
-| Install from the ISO (encryption, TPM unlock, Intel RST, download progress) | 60 | ✅ all pass |
+| `arkadeos` image in a VM | 191 | ✅ all pass |
+| Optional apps from the Portal | 18 | ✅ all pass |
+| Update from the previous build | 12 | ✅ all pass |
+| Install from the ISO (encryption, TPM unlock, Intel RST, download progress) | 42 | ✅ all pass (9 November) |
 
 **First tests on real hardware** (1 November 2026, ASUS gaming laptop with an NVIDIA RTX 5070 Laptop GPU):
 
 | What | Result |
 |---|---|
 | Battle.net installs, World of Warcraft starts and runs | ✅ |
-| WowUp finds the WoW folder, installs and updates addons | ✅ |
+| WowUp finds the WoW folder, installs and updates addons (the edition with Wago; the CurseForge edition took its place on 12 November) | ✅ |
 | Unplugging the charger switches to Battery, starting WoW switches to the WoW profile | ✅ |
 | The power profile also sets ASUS's firmware mode (Quiet, Balanced, Performance) | ✅ |
 | The keyboard lighting follows the power profile | ✅ |
@@ -149,12 +152,14 @@ Measured the same way on both systems: the same World of Warcraft folder copied 
 ```bash
 git clone https://github.com/tenarkhq/ArkadeOS.git
 cd ArkadeOS
-podman build -t arkadeos -f Containerfile .
+podman build -t arkadeos --build-arg PROTON_GE_VERSION=GE-Proton11-12 -f Containerfile .
 ```
+
+`PROTON_GE_VERSION` is the GE-Proton release that goes into the image: the newest name on [its releases page](https://github.com/GloriousEggroll/proton-ge-custom/releases). The build starts from Bazzite's newest base; `--build-arg BASE_IMAGE=…` with the image named in `bases.txt` gives the base this commit was tested on.
 
 ## Built on
 
-- [Fedora Atomic](https://fedoraproject.org/atomic-desktops/)
+- [Fedora Atomic](https://fedoraproject.org/atomic-desktops/) 45
 - [Bazzite](https://bazzite.gg) and [Universal Blue](https://universal-blue.org)
 - [KDE Plasma](https://kde.org/plasma-desktop/)
 
