@@ -2,4 +2,4 @@
 # own tested change: tools/bump-bases.sh rewrites this file. One image for
 # every graphics card (T080): Bazzite's NVIDIA (open driver) base, whose
 # NVIDIA parts only run where an NVIDIA card is.
-arkadeos ghcr.io/ublue-os/bazzite-nvidia-open:stable@sha256:e55093691d95cd42f6e8115dc681ce95b07cbc935fb2393f58e4446cf1878585
+arkadeos ghcr.io/ublue-os/bazzite-nvidia-open:stable@sha256:da914ab19940bf2959fba9bcba0c7359982dbb390e4759aa07b64cc58262e441
