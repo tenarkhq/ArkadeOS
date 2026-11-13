@@ -40,10 +40,12 @@ panel.addWidget("org.kde.plasma.panelspacer")
 
 panel.addWidget("org.arkadeos.power")
 panel.addWidget("org.kde.plasma.systemtray")
-// The clock as in the design: time and date on one line, at the size of
-// the tray's text, not filling the bar.
+// The clock at the size of the tray's text, not filling the bar, the time
+// alone (Roland, 2026-11-13): the date is on top of the calendar a click
+// opens, and in the clock's tooltip; turned on, it stands beside the time.
 var clock = panel.addWidget("org.kde.plasma.digitalclock")
 clock.currentConfigGroup = ["Appearance"]
+clock.writeConfig("showDate", false)
 clock.writeConfig("dateDisplayFormat", 1)
 clock.writeConfig("autoFontAndSize", false)
 clock.writeConfig("fontSize", 10)

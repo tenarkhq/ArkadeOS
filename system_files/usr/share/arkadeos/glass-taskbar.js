@@ -55,6 +55,7 @@ panels().forEach(function (panel) {
     bar.addWidget("org.kde.plasma.systemtray")
     var clock = bar.addWidget("org.kde.plasma.digitalclock")
     clock.currentConfigGroup = ["Appearance"]
+    clock.writeConfig("showDate", false)
     clock.writeConfig("dateDisplayFormat", 1)
     clock.writeConfig("autoFontAndSize", false)
     clock.writeConfig("fontSize", 10)
