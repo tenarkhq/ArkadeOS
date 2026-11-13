@@ -257,6 +257,13 @@ for name in ("audio-headset-battery", "audio-headphones-battery"):
     icons[name + "-symbolic"] = svg(moved("translate(-1.5 -1.5) scale(0.85)", *HEADSET), MINI)
 icons["phone-battery-symbolic"] = svg(moved("translate(-1.5 0)", line(PHONE)), MINI)
 
+# Easy Effects (the microphone filter, in the tray from the first login; the
+# VM's tray list, 2026-11-13): three sliders, as an equaliser.
+icons["com.github.wwmm.easyeffects-symbolic"] = svg(
+    line("M5 4.5 V17.5 M11 4.5 V17.5 M17 4.5 V17.5", a=DIM),
+    line("M5 11 V17.5 M11 7 V17.5 M17 13 V17.5"),
+    dot(5, 11, 2.3), dot(11, 7, 2.3), dot(17, 13, 2.3))
+
 # Solaar, the Logitech receiver's app: its own icon a mouse, red when the
 # receiver needs attention; the battery levels are the set above (it asks
 # for the symbolic ones, arkadeos-solaar.service), "charged" when full on
