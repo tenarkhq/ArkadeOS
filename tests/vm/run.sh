@@ -237,6 +237,12 @@ check "the tray icons are ArkadeOS Glass's own, the power switch's too" 'for t i
         brightness-high-symbolic network-bluetooth-symbolic notification-inactive-symbolic user-desktop-symbolic \
         $(grep -oE "\"[a-z0-9-]+-symbolic\"" /usr/share/plasma/plasmoids/org.arkadeos.power/contents/ui/main.qml | tr -d "\"" | sort -u); do
         test -f /usr/share/icons/${t}/status/22/${n}.svg || { echo "missing ${t} ${n}"; exit 1; }; done; done'
+# Its app icons (Roland, 2026-11-13, family A): the file manager, terminal
+# and System Settings over Breeze's in both themes, the Portal's in hicolor.
+check "the ArkadeOS Glass app icons" 'for t in arkadeos-glass arkadeos-glass-dark; do
+    for n in org.kde.dolphin system-file-manager utilities-terminal org.kde.konsole preferences-system systemsettings; do
+        test -f /usr/share/icons/${t}/apps/scalable/${n}.svg || { echo "missing ${t} ${n}"; exit 1; }; done; done &&
+    grep -q "url(#well)" /usr/share/icons/hicolor/scalable/apps/arkadeos-portal.svg'
 # T009: ArkadeOS name, boot screen, wallpaper, launcher logo, lock screen.
 check "ArkadeOS name" "grep -qx 'PRETTY_NAME=\"ArkadeOS\"' /usr/lib/os-release"
 check "ArkadeOS version: the Fedora it is built on, then the build" '. /usr/lib/os-release; [[ "${VERSION}" =~ ^${VERSION_ID}\.[0-9]{8}(\.[0-9]+)?$ ]]'
@@ -293,6 +299,15 @@ ssh_vm "${session} busctl --user call org.kde.plasmashell /PlasmaShell org.kde.P
 sleep 4
 shot glass-light-launcher
 key esc
+# System Settings in both looks (Roland, 2026-11-13: "a beállítások ablakot
+# is rendbe rakhatnád"): its first page shows the global themes' previews.
+for variant in dark light; do
+    ssh_vm "${session} plasma-apply-lookandfeel -a org.arkadeos.${variant}.desktop; pkill -u arkade -x systemsettings; sleep 3;
+        nohup ${session} systemsettings >/dev/null 2>&1 &" || true
+    sleep 12
+    shot "glass-${variant}-settings"
+done
+ssh_vm "pkill -u arkade -x systemsettings" || true
 # Which apps sit in the tray and with which icon, beside the pictures.
 ssh_vm "for i in \$(${session} busctl --user get-property org.kde.StatusNotifierWatcher /StatusNotifierWatcher org.kde.StatusNotifierWatcher RegisteredStatusNotifierItems | grep -oE '\"[^\"]+\"' | tr -d '\"'); do
         echo \"== \${i}\"; ${session} busctl --user get-property \"\${i%%/*}\" \"/\${i#*/}\" org.kde.StatusNotifierItem Id Title IconName Status; done;

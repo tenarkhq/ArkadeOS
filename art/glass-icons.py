@@ -6,7 +6,7 @@ thin round strokes, 1.5 px on a 22 px grid. Volume, Wi-Fi and wired network,
 battery, power profile, brightness and night light, Bluetooth, notifications
 and the show-desktop button.
 
-They go into two icon themes, ArkadeOS Glass (on Breeze) and ArkadeOS Glass
+They go into two icon themes (with the app icons of glass-app-icons.py), ArkadeOS Glass (on Breeze) and ArkadeOS Glass
 Dark (on Breeze Dark), which the ArkadeOS global themes pick; every other
 icon is Breeze's. The names are the ones the Plasma 6.8 tray widgets ask for
 (plasma-pa, plasma-nm, powerdevil, bluedevil, plasma-workspace), every
@@ -268,12 +268,12 @@ icons["battery-100-charged-symbolic"] = svg(line(BODY), solid(NUB), solid(
 
 THEME = """[Icon Theme]
 Name={name}
-Comment=ArkadeOS: {base_name} with the glass taskbar's own tray icons
+Comment=ArkadeOS: {base_name} with the glass taskbar's own tray icons and app icons
 Inherits={base},hicolor
 Example=audio-volume-high-symbolic
 FollowsColorScheme=true
 DisplayDepth=32
-Directories=status/22,status/22@2x,status/22@3x
+Directories=status/22,status/22@2x,status/22@3x,apps/scalable,apps/scalable@2x,apps/scalable@3x
 
 [status/22]
 Size=22
@@ -297,6 +297,29 @@ Context=Status
 Type=Scalable
 MinSize=8
 MaxSize=256
+
+[apps/scalable]
+Size=96
+Context=Applications
+Type=Scalable
+MinSize=8
+MaxSize=512
+
+[apps/scalable@2x]
+Size=96
+Scale=2
+Context=Applications
+Type=Scalable
+MinSize=8
+MaxSize=512
+
+[apps/scalable@3x]
+Size=96
+Scale=3
+Context=Applications
+Type=Scalable
+MinSize=8
+MaxSize=512
 """
 
 out = sys.argv[1]
@@ -315,7 +338,8 @@ for scale in ("22@2x", "22@3x"):
 open(os.path.join(light, "index.theme"), "w").write(THEME.format(name="ArkadeOS Glass", base="breeze", base_name="Breeze"))
 dark = os.path.join(out, "arkadeos-glass-dark")
 os.makedirs(dark, exist_ok=True)
-if not os.path.islink(os.path.join(dark, "status")):
-    os.symlink("../arkadeos-glass/status", os.path.join(dark, "status"))
+for sub in ("status", "apps"):
+    if not os.path.islink(os.path.join(dark, sub)):
+        os.symlink(f"../arkadeos-glass/{sub}", os.path.join(dark, sub))
 open(os.path.join(dark, "index.theme"), "w").write(THEME.format(name="ArkadeOS Glass Dark", base="breeze-dark", base_name="Breeze Dark"))
 print(len(icons), "icons")
