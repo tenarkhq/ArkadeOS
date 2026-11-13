@@ -225,7 +225,7 @@ jobs:
           echo "free after it: $(df -h --output=avail / | tail -1) on /, $(df -h --output=avail /mnt | tail -1) on /mnt" >> "$GITHUB_STEP_SUMMARY"
 
       - name: Boot, desktop, apps
-        if: matrix.suite == 'run'
+        if: matrix.suite == 'run' && env.NEEDED == 'true'
         run: |
           start=$(date +%s)
           UPDATE_PUSH="sudo podman push -q --tls-verify=false localhost/vm-test-update 127.0.0.1:5000/arkadeos:test" \
