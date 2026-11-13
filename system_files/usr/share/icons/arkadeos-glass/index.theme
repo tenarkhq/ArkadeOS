@@ -1,0 +1,31 @@
+[Icon Theme]
+Name=ArkadeOS Glass
+Comment=ArkadeOS: Breeze with the glass taskbar's own tray icons
+Inherits=breeze,hicolor
+Example=audio-volume-high-symbolic
+FollowsColorScheme=true
+DisplayDepth=32
+Directories=status/22,status/22@2x,status/22@3x
+
+[status/22]
+Size=22
+Context=Status
+Type=Scalable
+MinSize=8
+MaxSize=256
+
+[status/22@2x]
+Size=22
+Scale=2
+Context=Status
+Type=Scalable
+MinSize=8
+MaxSize=256
+
+[status/22@3x]
+Size=22
+Scale=3
+Context=Status
+Type=Scalable
+MinSize=8
+MaxSize=256

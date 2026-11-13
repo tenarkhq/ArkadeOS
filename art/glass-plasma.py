@@ -1,8 +1,9 @@
 """ArkadeOS Glass Plasma style pieces (T086): the taskbar "C" Roland picked on
 2026-11-13 (https://claude.ai/artifact/A9QNLgyxWb3rFxzpJJBJs8): a thin glass bar
 whose top edge is lit in the glass colour, with a soft glow above it, and the
-running apps marked by a lit line under their icon (longer and brighter
-under the active one).
+running apps marked by a short lit line under their icon; the active one
+stands on a rounded tile of lighter glass, its line longer and brighter. The
+app icons sit close together (Roland, 2026-11-13: "húzzuk már összeébb").
 
 Writes panel-background.svg and tasks.svg per look; the build gzips them into
 the ArkadeOS Glass Plasma styles (build_files/70-theme.sh), which are Breeze's
@@ -68,45 +69,84 @@ def panel(look):
     return f'<svg xmlns="http://www.w3.org/2000/svg" width="100" height="40" viewBox="0 0 100 40">{grad}{"".join(out)}</svg>\n'
 
 
-def frame9(prefix, x0, y0, side, edge, body_center, line=None, fill=None):
-    """A nine-piece frame for one task state. 'line' = (length share, height,
-    opacity): a lit line along the bottom, centred, as wide as the middle
-    piece (the corners are 'side' wide and stay empty)."""
+def path(d, c, a):
+    return f'<path d="{d}" fill="{hexc(c)}" fill-opacity="{a:g}"/>'
+
+
+# A task's tile: INSET px inside its slot on every side, corners rounded by
+# RADIUS, as the design's tiles (rounded 6 px, apart from their neighbours).
+INSET, RADIUS = 2, 6
+
+
+def frame9(prefix, x0, y0, side, edge, line=None, fill=None):
+    """A nine-piece frame for one task state, 'side' x 'edge' corners.
+    'fill' = (colour, opacity): the rounded tile. 'line' = (height, opacity,
+    glow, reach): a lit line along the bottom inside the tile, as wide as the
+    middle piece plus 'reach' px into each bottom corner, its ends round."""
     out = []
-    S, H = side, edge
-    cells = {"topleft": (0, 0, S, H), "top": (S + 2, 0, 1, H), "topright": (S + 5, 0, S, H),
-             "left": (0, H + 2, S, 1), "center": (S + 2, H + 2, 1, 1), "right": (S + 5, H + 2, S, 1),
-             "bottomleft": (0, H + 5, S, H), "bottom": (S + 2, H + 5, 1, H), "bottomright": (S + 5, H + 5, S, H)}
+    C, H, I, R = side, edge, INSET, RADIUS
+    cells = {"topleft": (0, 0, C, H), "top": (C + 2, 0, 1, H), "topright": (C + 5, 0, C, H),
+             "left": (0, H + 2, C, 1), "center": (C + 2, H + 2, 1, 1), "right": (C + 5, H + 2, C, 1),
+             "bottomleft": (0, H + 5, C, H), "bottom": (C + 2, H + 5, 1, H), "bottomright": (C + 5, H + 5, C, H)}
     for name, (x, y, w, h) in cells.items():
         x, y = x0 + x, y0 + y
         body = ""
         if fill:
-            body += rect(x, y, w, h, fill[0], fill[1])
-        if line and name == "bottom":
-            lh, la, glow = line
-            body += rect(x, y + h - lh, w, lh, T, la)
-            body += rect(x, y + h - lh - 2, w, 2, T, glow)
+            col, a = fill
+            # The tile's share of each piece; its corners are quarter arcs.
+            tile = {
+                "topleft": f"M{x + I} {y + H} L{x + I} {y + I + R} A{R} {R} 0 0 1 {x + I + R} {y + I} L{x + C} {y + I} L{x + C} {y + H} Z",
+                "topright": f"M{x} {y + I} L{x + C - I - R} {y + I} A{R} {R} 0 0 1 {x + C - I} {y + I + R} L{x + C - I} {y + H} L{x} {y + H} Z",
+                "bottomleft": f"M{x + C} {y} L{x + C} {y + H - I} L{x + I + R} {y + H - I} A{R} {R} 0 0 1 {x + I} {y + H - I - R} L{x + I} {y} Z",
+                "bottomright": f"M{x} {y} L{x + C - I} {y} L{x + C - I} {y + H - I - R} A{R} {R} 0 0 1 {x + C - I - R} {y + H - I} L{x} {y + H - I} Z",
+            }
+            if name in tile:
+                body += path(tile[name], col, a)
+            else:
+                rx, ry, rw, rh = {"top": (x, y + I, w, H - I), "bottom": (x, y, w, H - I),
+                                  "left": (x + I, y, C - I, h), "right": (x, y, C - I, h)}.get(name, (x, y, w, h))
+                body += rect(rx, ry, rw, rh, col, a)
+        if line and name in ("bottomleft", "bottom", "bottomright"):
+            lh, la, glow, reach = line
+            top = y + H - I - 1 - lh
+            r = lh / 2
+            # The glow: a 1 px halo above the line, as long as the line.
+            if name == "bottom":
+                body += rect(x, top, w, lh, T, la) + rect(x, top - 1, w, 1, T, glow)
+            elif name == "bottomleft":
+                body += path(f"M{x + C} {top} L{x + C - reach + r} {top} A{r} {r} 0 0 0 {x + C - reach + r} {top + lh} "
+                             f"L{x + C} {top + lh} Z", T, la)
+                body += rect(x + C - reach + r, top - 1, reach - r, 1, T, glow) if reach > r else ""
+            else:
+                body += path(f"M{x} {top} L{x + reach - r} {top} A{r} {r} 0 0 1 {x + reach - r} {top + lh} "
+                             f"L{x} {top + lh} Z", T, la)
+                body += rect(x, top - 1, reach - r, 1, T, glow) if reach > r else ""
         out.append(piece(f"{prefix}-{name}", x, y, w, h, body))
     return "".join(out)
 
 
 def tasks(look):
-    white = (255, 255, 255)
-    parts = []
-    # side = width of the empty ends of the line: a running app's line is the
-    # icon's width less 2 x 12 px, the active one's less 2 x 6 px.
-    parts.append(frame9("normal", 0, 0, 12, 4, "", line=(3, 0.7, 0.12)))
-    parts.append(frame9("focus", 40, 0, 6, 4, "", line=(3, 1.0, 0.25), fill=(white, 0.12)))
-    parts.append(frame9("hover", 80, 0, 6, 4, "", fill=(white, 0.08)))
-    parts.append(frame9("attention", 120, 0, 6, 4, "", line=(3, 1.0, 0.3), fill=((232, 150, 44), 0.25)))
-    parts.append(frame9("minimized", 160, 0, 12, 4, "", line=(2, 0.4, 0.0)))
-    parts.append(frame9("progress", 200, 0, 2, 4, "", fill=(T, 0.35)))
-    # Margins round the icon, as in the design (26 px icons on a 42 px bar,
-    # 46 px a slot): 7 px above and below, 9 px at the sides.
-    hints = "".join(f'<rect id="normal-hint-{s}-margin" x="{240 + i * 12}" y="0" width="{9 if s in ("left", "right") else 1}" '
-                    f'height="{7 if s in ("top", "bottom") else 1}" fill="none"/>'
-                    for i, s in enumerate(("top", "bottom", "left", "right")))
-    return f'<svg xmlns="http://www.w3.org/2000/svg" width="300" height="20" viewBox="0 0 300 20">{"".join(parts)}{hints}</svg>\n'
+    white, amber = (255, 255, 255), (232, 150, 44)
+    # A running app: a short line under its icon; the active one: the tile
+    # and a longer, brighter line (on a 37 px slot: 18 and 27 px). Hovering
+    # lights the tile and keeps the state's line.
+    run, act = (3, 0.7, 0.12, 1.5), (3, 1.0, 0.25, 3)
+    states = [("normal", 11, run, None), ("normal-hover", 11, run, (white, 0.08)),
+              ("focus", 8, act, (white, 0.12)), ("focus-hover", 8, act, (white, 0.16)),
+              ("minimized", 11, (2, 0.4, 0.0, 1), None), ("minimized-hover", 11, (2, 0.4, 0.0, 1), (white, 0.08)),
+              ("attention", 8, act, (amber, 0.25)), ("attention-hover", 8, act, (amber, 0.32)),
+              ("hover", 8, None, (white, 0.08)), ("launcher-hover", 8, None, (white, 0.08)),
+              ("progress", 8, None, (T, 0.35))]
+    parts = [frame9(p, i * 40, 0, side, 8, line=ln, fill=fl) for i, (p, side, ln, fl) in enumerate(states)]
+    # Round the icon (Small spacing between icons: a slot is as wide as the
+    # bar is tall, 37 px on a 40 px bar): 24 px icons, 5 px above them, 8 px
+    # below for the line, 6 and 7 px at the sides.
+    left = len(states) * 40
+    hints = "".join(f'<rect id="normal-hint-{s}-margin" x="{left + i * 12}" y="0" width="{m if s in ("left", "right") else 1}" '
+                    f'height="{m if s in ("top", "bottom") else 1}" fill="none"/>'
+                    for i, (s, m) in enumerate((("top", 5), ("bottom", 8), ("left", 6), ("right", 7))))
+    width = left + 60
+    return f'<svg xmlns="http://www.w3.org/2000/svg" width="{width}" height="30" viewBox="0 0 {width} 30">{"".join(parts)}{hints}</svg>\n'
 
 
 out = sys.argv[1]

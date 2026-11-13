@@ -1,7 +1,7 @@
 """Checks a user's Plasma layout file (Roland, 2026-11-04): one taskbar at the
 bottom and no other panel of ours: the ArkadeOS menu (kickoff, the lit Ark
 mark of ArkadeOS Glass, T086) first, the apps in the middle between two
-spacers, the power switch, tray, clock and show-desktop in the glass
+spacers and close together, the power switch, tray, clock and show-desktop in the glass
 capsule; flush with the screen's edge; no top bar (app menu), app grid or
 trash. Game Mode is not among the apps, the Portal is. Runs in the VM: python3 - <appletsrc> [plasmashellrc]."""
 import configparser
@@ -36,6 +36,9 @@ tasks = order[2]
 launchers = c.get(f"Containments][{bar}][Applets][{tasks}][Configuration][General", "launchers", fallback="")
 assert "org.arkadeos.GameMode.desktop" not in launchers, launchers
 assert "org.arkadeos.Portal.desktop" in launchers, launchers
+# The app icons close together (Small spacing; Roland, 2026-11-13).
+spacing = c.get(f"Containments][{bar}][Applets][{tasks}][Configuration][General", "iconSpacing", fallback="")
+assert spacing == "0", f"icon spacing: {spacing!r}"
 # The clock on one line at the tray's text size, as in the design (T086).
 clock = order[6]
 look = c[f"Containments][{bar}][Applets][{clock}][Configuration][Appearance"] if c.has_section(

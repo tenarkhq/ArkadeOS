@@ -2,7 +2,7 @@
 // PlasmaShell.evaluateScript (T086, Roland, 2026-11-13): the ArkadeOS taskbar
 // becomes the glass bar a new user gets (the layout of org.arkadeos.light):
 // flush with the screen's edge, the ArkadeOS mark lit as the menu, the apps
-// in the middle, the tray and clock in a glass capsule. Only a bar with
+// in the middle close together, the tray and clock in a glass capsule. Only a bar with
 // ArkadeOS's own widgets is rebuilt, keeping its app icons and their
 // settings; on one the user changed, only the edge and the menu's mark
 // change. The desktop's wallpaper becomes Égkék where it
@@ -20,6 +20,12 @@ panels().forEach(function (panel) {
         w.currentConfigGroup = ["General"]
         if (w.readConfig("icon", "") === "arkadeos-launcher" || w.readConfig("icon", "") === "")
             w.writeConfig("icon", "arkadeos-launcher-glow")
+    })
+    // The app icons close together (Small spacing), where still at Normal.
+    panel.widgets("org.kde.plasma.icontasks").forEach(function (w) {
+        w.currentConfigGroup = ["General"]
+        if (Number(w.readConfig("iconSpacing", 1)) === 1)
+            w.writeConfig("iconSpacing", 0)
     })
     if (!plain || panel.widgets("org.kde.plasma.panelspacer").length > 0)
         return

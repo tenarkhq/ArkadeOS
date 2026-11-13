@@ -33,6 +33,9 @@ tasks.writeConfig("launchers", [
     "applications:org.arkadeos.Portal.desktop",
     "applications:systemsettings.desktop"
 ])
+// The app icons close together, a slot as wide as the bar is tall (Small
+// spacing; Roland, 2026-11-13: "húzzuk már összeébb").
+tasks.writeConfig("iconSpacing", 0)
 panel.addWidget("org.kde.plasma.panelspacer")
 
 panel.addWidget("org.arkadeos.power")

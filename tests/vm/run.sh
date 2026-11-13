@@ -214,6 +214,7 @@ check "ArkadeOS Glass in the ArkadeOS global theme" "grep -qE '^org\.arkadeos\.(
     grep -qx widgetStyle=Breeze ${home}/kdedefaults/kdeglobals &&
     grep -qE '^theme=__aurorae__svg__ArkadeOS-Glass-(Light|Dark)$' ${home}/kdedefaults/kwinrc &&
     grep -qE '^name=arkadeos-glass-(light|dark)$' ${home}/kdedefaults/plasmarc &&
+    grep -qE '^Theme=arkadeos-glass(-dark)?$' ${home}/kdedefaults/kdeglobals &&
     ! ls -d /usr/share/icons/WhiteSur* /usr/share/themes/WhiteSur* /usr/share/plasma/desktoptheme/WhiteSur* 2>/dev/null"
 check "the glass blur runs (Better Blur DX for this KWin), KWin's own blur off" "${session} busctl --user call org.kde.KWin /Effects org.kde.kwin.Effects isEffectLoaded s better_blur_dx | grep -qx 'b true' &&
     ${session} busctl --user call org.kde.KWin /Effects org.kde.kwin.Effects isEffectLoaded s blur | grep -qx 'b false'"
@@ -227,10 +228,15 @@ taskbar=$(base64 -w0 "$(dirname "$0")/taskbar.py")
 check "one glass taskbar, the ArkadeOS mark first, the apps in the middle, Portal on it" "echo ${taskbar} | base64 -d | python3 - ${home}/plasma-org.kde.plasma.desktop-appletsrc ${home}/plasmashellrc"
 # T086: the tray and clock's glass capsule is drawn by our own widget.
 check "the glass capsule widget loads without errors" '! journalctl -b --no-pager | grep -q "org.arkadeos.capsule/contents/ui/"'
-# The power switch's icons are Breeze's own (T086: Adwaita's names showed a
-# blank page in the capsule).
-check "the power switch's icons are in Breeze" 'for n in $(grep -oE "\"[a-z0-9-]+-symbolic\"" /usr/share/plasma/plasmoids/org.arkadeos.power/contents/ui/main.qml | tr -d "\"" | sort -u); do
-    find /usr/share/icons/breeze -name "${n}.svg" | grep -q . || { echo "missing ${n}"; exit 1; }; done'
+# The tray's own icons (T086, Roland, 2026-11-13: "nem lehet újat rajzolni
+# azoknak?"): both ArkadeOS Glass icon themes have them on top of Breeze,
+# the power switch's among them (Adwaita's names showed a blank page).
+check "the tray icons are ArkadeOS Glass's own, the power switch's too" 'for t in arkadeos-glass arkadeos-glass-dark; do
+    grep -qx FollowsColorScheme=true /usr/share/icons/${t}/index.theme || exit 1
+    for n in audio-volume-high-symbolic network-wireless-80-symbolic network-wired-activated-symbolic battery-050-charging-symbolic \
+        brightness-high-symbolic network-bluetooth-symbolic notification-inactive-symbolic user-desktop-symbolic \
+        $(grep -oE "\"[a-z0-9-]+-symbolic\"" /usr/share/plasma/plasmoids/org.arkadeos.power/contents/ui/main.qml | tr -d "\"" | sort -u); do
+        test -f /usr/share/icons/${t}/status/22/${n}.svg || { echo "missing ${t} ${n}"; exit 1; }; done; done'
 # T009: ArkadeOS name, boot screen, wallpaper, launcher logo, lock screen.
 check "ArkadeOS name" "grep -qx 'PRETTY_NAME=\"ArkadeOS\"' /usr/lib/os-release"
 check "ArkadeOS version: the Fedora it is built on, then the build" '. /usr/lib/os-release; [[ "${VERSION}" =~ ^${VERSION_ID}\.[0-9]{8}(\.[0-9]+)?$ ]]'
@@ -287,6 +293,10 @@ ssh_vm "${session} busctl --user call org.kde.plasmashell /PlasmaShell org.kde.P
 sleep 4
 shot glass-light-launcher
 key esc
+# Which apps sit in the tray and with which icon, beside the pictures.
+ssh_vm "for i in \$(${session} busctl --user get-property org.kde.StatusNotifierWatcher /StatusNotifierWatcher org.kde.StatusNotifierWatcher RegisteredStatusNotifierItems | grep -oE '\"[^\"]+\"' | tr -d '\"'); do
+        echo \"== \${i}\"; ${session} busctl --user get-property \"\${i%%/*}\" \"/\${i#*/}\" org.kde.StatusNotifierItem Id Title IconName Status; done;
+    grep -E '^(plugin|extraItems|knownItems|shownItems|hiddenItems)=' ${home}/plasma-org.kde.plasma.desktop-appletsrc" > "${out}/tray-items.txt" 2>&1 || true
 ssh_vm "pkill -u arkade -x konsole; rm -f ${home}/kwinrulesrc; ${session} busctl --user call org.kde.KWin /KWin org.kde.KWin reconfigure;
     ${session} plasma-apply-lookandfeel -a org.arkadeos.dark.desktop" >/dev/null 2>&1 || true
 sleep 20

@@ -5,7 +5,7 @@ cursorTheme=breeze_cursors
 ColorScheme=ArkadeOSGlassLight
 
 [kdeglobals][Icons]
-Theme=breeze
+Theme=arkadeos-glass
 
 [kdeglobals][KDE]
 widgetStyle=Breeze

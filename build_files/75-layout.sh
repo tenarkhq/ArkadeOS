@@ -19,5 +19,7 @@ for f in /usr/share/applications/org.kde.plasma-systemmonitor.desktop /usr/share
 done
 
 # Ark logo on the launcher (T009): our icons in hicolor went in after the
-# cache was built.
-gtk-update-icon-cache -f -q /usr/share/icons/hicolor
+# cache was built; the ArkadeOS Glass tray icons (T086) have their own themes.
+for theme in hicolor arkadeos-glass arkadeos-glass-dark; do
+    gtk-update-icon-cache -f -q "/usr/share/icons/${theme}"
+done
