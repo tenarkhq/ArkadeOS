@@ -42,9 +42,10 @@ case "${1:-status}" in
             fi
         fi
         # A desktop has no battery: the Akku profile is called Quiet there (T052).
+        # A wireless mouse's or headset's battery (scope Device) is not the machine's.
         has_battery=false
-        for f in /sys/class/power_supply/*/type; do
-            [[ -r "${f}" && "$(<"${f}")" == Battery ]] && has_battery=true
+        for d in /sys/class/power_supply/*/; do
+            [[ "$(cat "${d}type" 2>/dev/null)" == Battery && "$(cat "${d}scope" 2>/dev/null)" != Device ]] && has_battery=true
         done
         # Battery care: on when charging stops below 100%.
         charge=none

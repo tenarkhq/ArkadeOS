@@ -1,7 +1,8 @@
 #!/usr/bin/bash
 # At boot (T052): a machine without a battery is a desktop; its fans and AIO
 # coolers get CoolerControl. Laptops leave fan control to the firmware.
-if grep -qsx Battery /sys/class/power_supply/*/type; then
-    exit 0
-fi
+# A wireless mouse's or headset's battery (scope Device) is not the machine's.
+for d in /sys/class/power_supply/*/; do
+    [[ "$(cat "${d}type" 2>/dev/null)" == Battery && "$(cat "${d}scope" 2>/dev/null)" != Device ]] && exit 0
+done
 systemctl start --no-block coolercontrold.service
