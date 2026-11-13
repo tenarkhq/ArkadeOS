@@ -238,11 +238,15 @@ check "the tray icons are ArkadeOS Glass's own, the power switch's too" 'for t i
         $(grep -oE "\"[a-z0-9-]+-symbolic\"" /usr/share/plasma/plasmoids/org.arkadeos.power/contents/ui/main.qml | tr -d "\"" | sort -u); do
         test -f /usr/share/icons/${t}/status/22/${n}.svg || { echo "missing ${t} ${n}"; exit 1; }; done; done'
 # Its app icons (Roland, 2026-11-13, family A): the file manager, terminal
-# and System Settings over Breeze's in both themes, the Portal's in hicolor.
+# and System Settings over Breeze's in both themes, the Portal's in hicolor,
+# and the icons of System Settings' pages.
 check "the ArkadeOS Glass app icons" 'for t in arkadeos-glass arkadeos-glass-dark; do
     for n in org.kde.dolphin system-file-manager utilities-terminal org.kde.konsole preferences-system systemsettings; do
         test -f /usr/share/icons/${t}/apps/scalable/${n}.svg || { echo "missing ${t} ${n}"; exit 1; }; done; done &&
-    grep -q "url(#well)" /usr/share/icons/hicolor/scalable/apps/arkadeos-portal.svg'
+    grep -q "url(#well)" /usr/share/icons/hicolor/scalable/apps/arkadeos-portal.svg &&
+    for n in preferences-desktop preferences-desktop-mouse preferences-desktop-keyboard preferences-desktop-sound \
+        preferences-desktop-display preferences-system-bluetooth preferences-system-network preferences-desktop-theme-global; do
+        test -f /usr/share/icons/arkadeos-glass/apps/scalable/${n}.svg || { echo "missing ${n}"; exit 1; }; done'
 # T009: ArkadeOS name, boot screen, wallpaper, launcher logo, lock screen.
 check "ArkadeOS name" "grep -qx 'PRETTY_NAME=\"ArkadeOS\"' /usr/lib/os-release"
 check "ArkadeOS version: the Fedora it is built on, then the build" '. /usr/lib/os-release; [[ "${VERSION}" =~ ^${VERSION_ID}\.[0-9]{8}(\.[0-9]+)?$ ]]'
