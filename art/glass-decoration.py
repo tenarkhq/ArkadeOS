@@ -10,9 +10,13 @@ colour with its own alpha, so the frame matches the design over the same
 background. KWin blurs what lies behind it (Better Blur DX).
 
 Usage: glass-decoration.py <themes folder>  (writes ArkadeOS-Glass-Dark and -Light)"""
+import base64
+import math
 import os
 import re
+import struct
 import sys
+import zlib
 
 T = (96, 170, 232)
 ALPHA, ACTIVE_FACTOR, INACTIVE_FACTOR = 0.35, 1.0, 0.72
@@ -33,7 +37,51 @@ LOOKS = {
               "text": "#10161f", "text_inactive": "#4a5260", "glyph": "#10161f", "glyph_inactive": "#4a5260"},
 }
 TOP, SIDE, BOTTOM, R_TOP, R_BOTTOM = 34, 7, 7, 7, 6
+# The window's shadow (the design's 0 16px 44px rgba(0,0,0,.45), made to fit
+# the frame engine): a box shadow of the frame grown by SPREAD, shifted down
+# by DY, blurred by SIGMA, drawn in the frame's padding, which KWin turns into
+# the window's shadow (outside the window, under nothing).
+SIGMA, SPREAD, DY = 12, 8, 12
+SHADOW_ACTIVE, SHADOW_INACTIVE = 0.42, 0.30
+PAD_SIDE = 3 * SIGMA + SPREAD
+PAD_TOP = PAD_SIDE - DY
+PAD_BOTTOM = PAD_SIDE + DY
 DARK_RIM, LIGHT_RIM, EDGE = "rgba(0,0,0,0.55)", "rgba(255,255,255,0.38)", "rgba(0,0,0,0.45)"
+
+
+def phi(x):
+    return 0.5 * (1 + math.erf(x / math.sqrt(2)))
+
+
+def png(w, h, alpha):
+    """A black image with the given alpha (a function of x, y in pixels), as a data URI."""
+    rows = []
+    for y in range(h):
+        row = bytearray(b"\x00")
+        for x in range(w):
+            a = max(0, min(255, round(255 * alpha(x + 0.5, y + 0.5))))
+            row += bytes((0, 0, 0, a))
+        rows.append(bytes(row))
+    def chunk(tag, data):
+        return struct.pack(">I", len(data)) + tag + data + struct.pack(">I", zlib.crc32(tag + data) & 0xFFFFFFFF)
+    data = (b"\x89PNG\r\n\x1a\n" + chunk(b"IHDR", struct.pack(">IIBBBBB", w, h, 8, 6, 0, 0, 0))
+            + chunk(b"IDAT", zlib.compress(b"".join(rows), 9)) + chunk(b"IEND", b""))
+    return "data:image/png;base64," + base64.b64encode(data).decode()
+
+
+def shadow_alpha(strength, u, v, kind):
+    """The shadow's alpha at a point u px outward from the frame's side edge
+    and v px outward from its top or bottom edge (negative: inside). kind is
+    'top' or 'bottom': the shadow sits DY lower than the frame."""
+    if u <= 0 and v <= 0:
+        return 0.0
+    fx = phi((SPREAD - u) / SIGMA)
+    fy = phi((SPREAD - DY - v) / SIGMA) if kind == "top" else phi((SPREAD + DY - v) / SIGMA)
+    return strength * fx * fy
+
+
+def image(x, y, w, h, alpha):
+    return f'<image x="{x}" y="{y}" width="{w}" height="{h}" xlink:href="{png(w, h, alpha)}"/>'
 
 
 def rgba(c, a):
@@ -64,10 +112,13 @@ def corner(x, y, w, h, r, top, right, inset0, inset1):
     return " ".join(d)
 
 
-def frame(prefix, glass, x0, y0):
-    """The nine pieces of one frame state, laid out from (x0, y0)."""
+def frame(prefix, glass, x0, y0, strength):
+    """The nine pieces of one frame state, laid out from (x0, y0): the frame,
+    and around it, in the padding, its shadow."""
     g = rgba(*glass)
     s, t, b = SIDE, TOP, BOTTOM
+    PL, PT, PB = PAD_SIDE, PAD_TOP, PAD_BOTTOM
+    INF = 10 ** 6
     out = []
 
     def piece(name, x, y, w, h, body):
@@ -78,36 +129,50 @@ def frame(prefix, glass, x0, y0):
                 f'<path d="{corner(x, y, w, h, r, top, right, 0, 1)}" fill="{DARK_RIM}"/>'
                 f'<path d="{corner(x, y, w, h, r, top, right, 1, 2)}" fill="{LIGHT_RIM}"/>')
 
-    # top corners: the content edge at their inner foot
-    piece("topleft", x0, y0, s, t, rounded(x0, y0, s, t, R_TOP, True, False)
-          + f'<rect x="{x0 + s - 1}" y="{y0 + t - 1}" width="1" height="1" fill="{EDGE}"/>')
-    x = x0 + s + 2
-    piece("top", x, y0, 1, t,
-          f'<rect x="{x}" y="{y0}" width="1" height="{t}" fill="{g}"/><rect x="{x}" y="{y0}" width="1" height="1" fill="{DARK_RIM}"/>'
-          f'<rect x="{x}" y="{y0 + 1}" width="1" height="1" fill="{LIGHT_RIM}"/><rect x="{x}" y="{y0 + t - 1}" width="1" height="1" fill="{EDGE}"/>')
-    x = x0 + s + 5
-    piece("topright", x, y0, s, t, rounded(x, y0, s, t, R_TOP, True, True)
-          + f'<rect x="{x}" y="{y0 + t - 1}" width="1" height="1" fill="{EDGE}"/>')
+    W1, H1 = PL + s, PT + t       # top corners
+    H3 = b + PB                   # bottom corners
+    # top row
+    piece("topleft", x0, y0, W1, H1,
+          image(x0, y0, W1, H1, lambda x, y: shadow_alpha(strength, PL - x, PT - y, "top"))
+          + rounded(x0 + PL, y0 + PT, s, t, R_TOP, True, False)
+          + f'<rect x="{x0 + PL + s - 1}" y="{y0 + PT + t - 1}" width="1" height="1" fill="{EDGE}"/>')
+    x = x0 + W1 + 2
+    piece("top", x, y0, 1, H1,
+          image(x, y0, 1, H1, lambda _x, y: shadow_alpha(strength, -INF, PT - y, "top"))
+          + f'<rect x="{x}" y="{y0 + PT}" width="1" height="{t}" fill="{g}"/><rect x="{x}" y="{y0 + PT}" width="1" height="1" fill="{DARK_RIM}"/>'
+          f'<rect x="{x}" y="{y0 + PT + 1}" width="1" height="1" fill="{LIGHT_RIM}"/><rect x="{x}" y="{y0 + PT + t - 1}" width="1" height="1" fill="{EDGE}"/>')
+    x = x0 + W1 + 5
+    piece("topright", x, y0, W1, H1,
+          image(x, y0, W1, H1, lambda xx, y: shadow_alpha(strength, xx - s, PT - y, "top"))
+          + rounded(x, y0 + PT, s, t, R_TOP, True, True)
+          + f'<rect x="{x}" y="{y0 + PT + t - 1}" width="1" height="1" fill="{EDGE}"/>')
     # the sides
-    y = y0 + t + 2
-    piece("left", x0, y, s, 1,
-          f'<rect x="{x0}" y="{y}" width="{s}" height="1" fill="{g}"/><rect x="{x0}" y="{y}" width="1" height="1" fill="{DARK_RIM}"/>'
-          f'<rect x="{x0 + 1}" y="{y}" width="1" height="1" fill="{LIGHT_RIM}"/><rect x="{x0 + s - 1}" y="{y}" width="1" height="1" fill="{EDGE}"/>')
-    piece("center", x0 + s + 2, y, 1, 1, "")
-    x = x0 + s + 5
-    piece("right", x, y, s, 1,
-          f'<rect x="{x}" y="{y}" width="{s}" height="1" fill="{g}"/><rect x="{x + s - 1}" y="{y}" width="1" height="1" fill="{DARK_RIM}"/>'
+    y = y0 + H1 + 2
+    piece("left", x0, y, W1, 1,
+          image(x0, y, W1, 1, lambda xx, _y: shadow_alpha(strength, PL - xx, -INF, "top"))
+          + f'<rect x="{x0 + PL}" y="{y}" width="{s}" height="1" fill="{g}"/><rect x="{x0 + PL}" y="{y}" width="1" height="1" fill="{DARK_RIM}"/>'
+          f'<rect x="{x0 + PL + 1}" y="{y}" width="1" height="1" fill="{LIGHT_RIM}"/><rect x="{x0 + PL + s - 1}" y="{y}" width="1" height="1" fill="{EDGE}"/>')
+    piece("center", x0 + W1 + 2, y, 1, 1, "")
+    x = x0 + W1 + 5
+    piece("right", x, y, W1, 1,
+          image(x, y, W1, 1, lambda xx, _y: shadow_alpha(strength, xx - s, -INF, "top"))
+          + f'<rect x="{x}" y="{y}" width="{s}" height="1" fill="{g}"/><rect x="{x + s - 1}" y="{y}" width="1" height="1" fill="{DARK_RIM}"/>'
           f'<rect x="{x + s - 2}" y="{y}" width="1" height="1" fill="{LIGHT_RIM}"/><rect x="{x}" y="{y}" width="1" height="1" fill="{EDGE}"/>')
     # the foot
-    y = y0 + t + 5
-    piece("bottomleft", x0, y, s, b, rounded(x0, y, s, b, R_BOTTOM, False, False)
-          + f'<rect x="{x0 + s - 1}" y="{y}" width="1" height="1" fill="{EDGE}"/>')
-    x = x0 + s + 2
-    piece("bottom", x, y, 1, b,
-          f'<rect x="{x}" y="{y}" width="1" height="{b}" fill="{g}"/><rect x="{x}" y="{y}" width="1" height="1" fill="{EDGE}"/>'
+    y = y0 + H1 + 5
+    piece("bottomleft", x0, y, W1, H3,
+          image(x0, y, W1, H3, lambda xx, yy: shadow_alpha(strength, PL - xx, yy - b, "bottom"))
+          + rounded(x0 + PL, y, s, b, R_BOTTOM, False, False)
+          + f'<rect x="{x0 + PL + s - 1}" y="{y}" width="1" height="1" fill="{EDGE}"/>')
+    x = x0 + W1 + 2
+    piece("bottom", x, y, 1, H3,
+          image(x, y, 1, H3, lambda _x, yy: shadow_alpha(strength, -INF, yy - b, "bottom"))
+          + f'<rect x="{x}" y="{y}" width="1" height="{b}" fill="{g}"/><rect x="{x}" y="{y}" width="1" height="1" fill="{EDGE}"/>'
           f'<rect x="{x}" y="{y + b - 2}" width="1" height="1" fill="{LIGHT_RIM}"/><rect x="{x}" y="{y + b - 1}" width="1" height="1" fill="{DARK_RIM}"/>')
-    x = x0 + s + 5
-    piece("bottomright", x, y, s, b, rounded(x, y, s, b, R_BOTTOM, False, True)
+    x = x0 + W1 + 5
+    piece("bottomright", x, y, W1, H3,
+          image(x, y, W1, H3, lambda xx, yy: shadow_alpha(strength, xx - s, yy - b, "bottom"))
+          + rounded(x, y, s, b, R_BOTTOM, False, True)
           + f'<rect x="{x}" y="{y}" width="1" height="1" fill="{EDGE}"/>')
     return out
 
@@ -121,9 +186,12 @@ def maximized(prefix, glass, x0, y0):
 
 def decoration_svg(look):
     act, ina = LOOKS[look]["active"], LOOKS[look]["inactive"]
-    parts = frame("decoration", act, 0, 0) + frame("decoration-inactive", ina, 30, 0) \
-        + maximized("decoration-maximized", act, 60, 0) + maximized("decoration-maximized-inactive", ina, 70, 0)
-    return f'<svg xmlns="http://www.w3.org/2000/svg" width="80" height="50" viewBox="0 0 80 50">{"".join(parts)}</svg>\n'
+    span = 2 * (PAD_SIDE + SIDE) + 10
+    parts = frame("decoration", act, 0, 0, SHADOW_ACTIVE) + frame("decoration-inactive", ina, span, 0, SHADOW_INACTIVE) \
+        + maximized("decoration-maximized", act, 2 * span, 0) + maximized("decoration-maximized-inactive", ina, 2 * span + 10, 0)
+    w, h = 2 * span + 20, PAD_TOP + TOP + PAD_BOTTOM + BOTTOM + 10
+    return (f'<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="{w}" height="{h}" '
+            f'viewBox="0 0 {w} {h}">{"".join(parts)}</svg>\n')
 
 
 BW, BH = 34, 22
@@ -220,10 +288,10 @@ ButtonSpacing=0
 ButtonMarginTop=0
 ButtonMarginTopMaximized=0
 ExplicitButtonSpacer=8
-PaddingTop=0
-PaddingBottom=0
-PaddingLeft=0
-PaddingRight=0
+PaddingTop={PAD_TOP}
+PaddingBottom={PAD_BOTTOM}
+PaddingLeft={PAD_SIDE}
+PaddingRight={PAD_SIDE}
 """
 
 

@@ -101,9 +101,12 @@ def tasks(look):
     parts.append(frame9("attention", 120, 0, 6, 4, "", line=(3, 1.0, 0.3), fill=((232, 150, 44), 0.25)))
     parts.append(frame9("minimized", 160, 0, 12, 4, "", line=(2, 0.4, 0.0)))
     parts.append(frame9("progress", 200, 0, 2, 4, "", fill=(T, 0.35)))
-    hints = "".join(f'<rect id="normal-hint-{s}-margin" x="{240 + i * 3}" y="0" width="2" height="2" fill="none"/>'
+    # Margins round the icon, as in the design (26 px icons on a 42 px bar,
+    # 46 px a slot): 7 px above and below, 9 px at the sides.
+    hints = "".join(f'<rect id="normal-hint-{s}-margin" x="{240 + i * 12}" y="0" width="{9 if s in ("left", "right") else 1}" '
+                    f'height="{7 if s in ("top", "bottom") else 1}" fill="none"/>'
                     for i, s in enumerate(("top", "bottom", "left", "right")))
-    return f'<svg xmlns="http://www.w3.org/2000/svg" width="260" height="20" viewBox="0 0 260 20">{"".join(parts)}{hints}</svg>\n'
+    return f'<svg xmlns="http://www.w3.org/2000/svg" width="300" height="20" viewBox="0 0 300 20">{"".join(parts)}{hints}</svg>\n'
 
 
 out = sys.argv[1]

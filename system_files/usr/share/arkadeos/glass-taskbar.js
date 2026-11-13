@@ -2,13 +2,14 @@
 // PlasmaShell.evaluateScript (T086, Roland, 2026-11-13): the ArkadeOS taskbar
 // becomes the glass bar a new user gets (the layout of org.arkadeos.light):
 // flush with the screen's edge, the ArkadeOS mark lit as the menu, the apps
-// in the middle. Only a bar with ArkadeOS's own widgets is rebuilt, keeping
-// its app icons and their settings; on one the user changed, only the edge
-// and the menu's mark change. The desktop's wallpaper becomes Égkék where it
+// in the middle, the tray and clock in a glass capsule. Only a bar with
+// ArkadeOS's own widgets is rebuilt, keeping its app icons and their
+// settings; on one the user changed, only the edge and the menu's mark
+// change. The desktop's wallpaper becomes Égkék where it
 // is still the earlier ArkadeOS default.
 var ours = ["org.kde.plasma.kickoff", "org.kde.plasma.icontasks", "org.kde.plasma.marginsseparator",
             "org.arkadeos.power", "org.kde.plasma.systemtray", "org.kde.plasma.digitalclock",
-            "org.kde.plasma.showdesktop", "org.kde.plasma.panelspacer"]
+            "org.kde.plasma.showdesktop", "org.kde.plasma.panelspacer", "org.arkadeos.capsule"]
 panels().forEach(function (panel) {
     if (panel.location !== "bottom" || panel.widgets("org.kde.plasma.icontasks").length === 0)
         return
@@ -47,6 +48,7 @@ panels().forEach(function (panel) {
     bar.addWidget("org.kde.plasma.systemtray")
     bar.addWidget("org.kde.plasma.digitalclock")
     bar.addWidget("org.kde.plasma.showdesktop")
+    bar.addWidget("org.arkadeos.capsule")
 })
 desktops().forEach(function (d) {
     d.currentConfigGroup = ["Wallpaper", "org.kde.image", "General"]

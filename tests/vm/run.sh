@@ -225,6 +225,8 @@ check "GTK Breeze" "test \"\$(${session} gsettings get org.gnome.desktop.interfa
 # 2026-11-04): the ArkadeOS menu first, the Portal among the apps.
 taskbar=$(base64 -w0 "$(dirname "$0")/taskbar.py")
 check "one glass taskbar, the ArkadeOS mark first, the apps in the middle, Portal on it" "echo ${taskbar} | base64 -d | python3 - ${home}/plasma-org.kde.plasma.desktop-appletsrc ${home}/plasmashellrc"
+# T086: the tray and clock's glass capsule is drawn by our own widget.
+check "the glass capsule widget loads without errors" '! journalctl -b --no-pager | grep -q "org.arkadeos.capsule/contents/ui/"'
 # T009: ArkadeOS name, boot screen, wallpaper, launcher logo, lock screen.
 check "ArkadeOS name" "grep -qx 'PRETTY_NAME=\"ArkadeOS\"' /usr/lib/os-release"
 check "ArkadeOS version: the Fedora it is built on, then the build" '. /usr/lib/os-release; [[ "${VERSION}" =~ ^${VERSION_ID}\.[0-9]{8}(\.[0-9]+)?$ ]]'

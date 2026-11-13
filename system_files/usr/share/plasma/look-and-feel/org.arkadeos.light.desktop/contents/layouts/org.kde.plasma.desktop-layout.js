@@ -6,7 +6,8 @@
 // since 2026-11-13 (T086): flush with the screen's edge, the ArkadeOS mark
 // alone and lit as the menu (Meta and Alt+F1 open it), the apps in the middle,
 // then the power profile switch (T012), tray, clock and the show-desktop
-// button. Stores installed later (Heroic) are added by session-setup (T018).
+// button in one glass capsule (org.arkadeos.capsule draws it). Stores
+// installed later (Heroic) are added by session-setup (T018).
 // /usr/share/arkadeos/glass-taskbar.js builds the same bar for a user who
 // had the earlier one.
 var panel = new Panel
@@ -38,6 +39,7 @@ panel.addWidget("org.arkadeos.power")
 panel.addWidget("org.kde.plasma.systemtray")
 panel.addWidget("org.kde.plasma.digitalclock")
 panel.addWidget("org.kde.plasma.showdesktop")
+panel.addWidget("org.arkadeos.capsule")
 
 // ArkadeOS wallpaper: Égkék (T086, before it the Ark of T009); Plasma picks
 // the dark images with a dark theme.
