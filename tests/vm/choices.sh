@@ -127,6 +127,9 @@ fi
 # Space to select, Enter). Steam lists the same folder in a game's
 # Compatibility settings.
 step "installing another Proton"
+# The first login's Portal may open only now (it waits for the look): its
+# window would take the keys meant for the Proton window.
+ssh_vm 'pkill -u arkade -f "arkadeos-portal --first-run"' || true
 # The release list is read here with the job's token: the VM's own unsigned
 # GitHub API requests share the runner's limit.
 image=$(ssh_vm 'basename /usr/share/steam/compatibilitytools.d/GE-Proton* -x86_64')

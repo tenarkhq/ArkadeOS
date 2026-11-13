@@ -28,7 +28,7 @@ from pathlib import Path
 from PySide6.QtCore import (
     QEvent, QLocale, QObject, QProcess, Qt, QThread, QTimer, Signal,
 )
-from PySide6.QtGui import QColor, QIcon, QPainter, QPalette
+from PySide6.QtGui import QColor, QIcon, QKeySequence, QPainter, QPalette, QShortcut
 from PySide6.QtWidgets import (
     QApplication, QButtonGroup, QCheckBox, QComboBox, QFrame, QGraphicsDropShadowEffect, QGridLayout,
     QHBoxLayout, QHeaderView, QLabel, QLineEdit, QMessageBox, QPlainTextEdit, QProgressBar, QPushButton,
@@ -171,6 +171,11 @@ class AppsTab(QWidget):
         self.search.setClearButtonEnabled(True)
         self.search.setFixedWidth(240)
         self.search.textChanged.connect(self.filter)
+        # The search takes the keys only when asked (a click, Ctrl+F): the
+        # Portal opens by itself at the first login, and what is typed then
+        # is not meant for it (the VM test's keys went into it, 2026-11-13).
+        self.search.setFocusPolicy(Qt.ClickFocus)
+        QShortcut(QKeySequence.Find, self, activated=self.search.setFocus)
         head, _ = page_head(tr("Apps", "Appok"), tr(
             "Welcome to ArkadeOS! What you chose during the installation is being set up; "
             "everything can be changed here later.",
