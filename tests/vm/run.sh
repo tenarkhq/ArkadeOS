@@ -239,6 +239,8 @@ shot draft-4-glass-dark-menu
 key esc
 draft look light; draft aero light 140; draft apps; awake; shot draft-5-glass-light
 draft aero light 140 120,170,225; draft apps; awake; shot draft-6-glass-light-aero-blue
+draft colours
+draft front; awake; shot draft-6b-glass-light-aero-blue-dolphin-active
 # The same glass on ArkadeOS's own wallpaper.
 draft look dark; draft aero dark 120; draft wall ArkadeOS; draft apps; awake; shot draft-7-glass-dark-arkadeos-wallpaper
 ssh_vm "${session} busctl --user call org.kde.KWin /KWin org.kde.KWin supportInformation" > "${out}/draft-kwin.txt" 2>&1 || true

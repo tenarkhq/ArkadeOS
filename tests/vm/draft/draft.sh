@@ -64,6 +64,17 @@ aero)
     python3 $D/plasma-glass.py 0.45 0.6
     plasma-apply-desktoptheme arkadeos-glass
     panel 2 ;;
+front)
+    printf '%s\n' 'for (const w of workspace.windowList()) { if (String(w.resourceClass).indexOf("dolphin") >= 0) { workspace.activeWindow = w; } }' > /tmp/draft/front.js
+    id=$(kwin /Scripting org.kde.kwin.Scripting loadScript ss /tmp/draft/front.js draft-front | cut -d' ' -f2)
+    kwin /Scripting org.kde.kwin.Scripting start
+    sleep 2
+    kwin /Scripting org.kde.kwin.Scripting unloadScript s draft-front > /dev/null ;;
+colours)
+    for g in "Colors:Header" "Colors:Window"; do
+        echo "   $g active: $(kreadconfig6 --file kdeglobals --group "$g" --key BackgroundNormal), inactive: $(kreadconfig6 --file kdeglobals --group "$g" --group Inactive --key BackgroundNormal)"
+    done
+    echo "   WM: $(kreadconfig6 --file kdeglobals --group WM --key activeBackground) / $(kreadconfig6 --file kdeglobals --group WM --key inactiveBackground)" ;;
 apps)
     pkill -x dolphin; pkill -x systemsettings; pkill -x konsole
     for _ in $(seq 30); do pgrep -u "$(id -u)" -x 'dolphin|systemsettings|konsole' > /dev/null || break; sleep 0.5; done
