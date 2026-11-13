@@ -1,0 +1,4 @@
+# ArkadeOS Glass (T086): menus a little see-through, so KWin's blur shows
+# the glass behind them (Better Blur DX blurs menus, kwinrc).
+[Style]
+MenuOpacity=82

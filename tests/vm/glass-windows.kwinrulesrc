@@ -1,0 +1,23 @@
+# Window places for the ArkadeOS Glass pictures of the VM test (T086), the
+# same scene as the design: the file manager in front, the terminal behind.
+[General]
+count=2
+rules=1,2
+
+[1]
+Description=glass picture: Dolphin
+wmclass=dolphin
+wmclassmatch=2
+position=90,50
+positionrule=3
+size=740,460
+sizerule=3
+
+[2]
+Description=glass picture: Konsole
+wmclass=konsole
+wmclassmatch=2
+position=520,300
+positionrule=3
+size=640,380
+sizerule=3

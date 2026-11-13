@@ -2,18 +2,23 @@
 // Plasma runs this once, when a user first logs in. ArkadeOS Dark falls back
 // to this package, so both global themes give the same layout.
 
-// One taskbar at the bottom, KDE's own arrangement (Roland, 2026-11-04): the
-// ArkadeOS menu (Ark logo; Meta and Alt+F1 open it), the apps, the power
-// profile switch (T012), tray, clock and the show-desktop button. Stores
-// installed later (Heroic) are added by session-setup (T018).
+// One taskbar at the bottom (Roland, 2026-11-04), the ArkadeOS Glass bar
+// since 2026-11-13 (T086): flush with the screen's edge, the ArkadeOS mark
+// alone and lit as the menu (Meta and Alt+F1 open it), the apps in the middle,
+// then the power profile switch (T012), tray, clock and the show-desktop
+// button. Stores installed later (Heroic) are added by session-setup (T018).
+// /usr/share/arkadeos/glass-taskbar.js builds the same bar for a user who
+// had the earlier one.
 var panel = new Panel
 panel.location = "bottom"
 panel.height = 2 * Math.floor(gridUnit * 2.5 / 2)
+panel.floating = false
 
 var launcher = panel.addWidget("org.kde.plasma.kickoff")
 launcher.currentConfigGroup = ["General"]
-launcher.writeConfig("icon", "arkadeos-launcher")
+launcher.writeConfig("icon", "arkadeos-launcher-glow")
 
+panel.addWidget("org.kde.plasma.panelspacer")
 var tasks = panel.addWidget("org.kde.plasma.icontasks")
 tasks.currentConfigGroup = ["General"]
 tasks.writeConfig("launchers", [
@@ -27,17 +32,18 @@ tasks.writeConfig("launchers", [
     "applications:org.arkadeos.Portal.desktop",
     "applications:systemsettings.desktop"
 ])
+panel.addWidget("org.kde.plasma.panelspacer")
 
-panel.addWidget("org.kde.plasma.marginsseparator")
 panel.addWidget("org.arkadeos.power")
 panel.addWidget("org.kde.plasma.systemtray")
 panel.addWidget("org.kde.plasma.digitalclock")
 panel.addWidget("org.kde.plasma.showdesktop")
 
-// ArkadeOS wallpaper (T009); Plasma picks the dark images with a dark theme.
+// ArkadeOS wallpaper: Égkék (T086, before it the Ark of T009); Plasma picks
+// the dark images with a dark theme.
 var desktopsArray = desktopsForActivity(currentActivity())
 for (var j = 0; j < desktopsArray.length; j++) {
     desktopsArray[j].wallpaperPlugin = "org.kde.image"
     desktopsArray[j].currentConfigGroup = ["Wallpaper", "org.kde.image", "General"]
-    desktopsArray[j].writeConfig("Image", "file:///usr/share/wallpapers/ArkadeOS/")
+    desktopsArray[j].writeConfig("Image", "file:///usr/share/wallpapers/ArkadeOS-Egkek/")
 }

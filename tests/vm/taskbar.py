@@ -1,8 +1,9 @@
 """Checks a user's Plasma layout file (Roland, 2026-11-04): one taskbar at the
-bottom and no other panel of ours: the ArkadeOS menu (kickoff, Ark logo)
-first, the apps, the power switch, tray, clock and show-desktop; no top bar
-(app menu), app grid or trash. Game Mode is not among the apps, the Portal
-is. Runs in the VM: python3 - <appletsrc>."""
+bottom and no other panel of ours: the ArkadeOS menu (kickoff, the lit Ark
+mark of ArkadeOS Glass, T086) first, the apps in the middle between two
+spacers, the power switch, tray, clock and show-desktop; flush with the
+screen's edge; no top bar (app menu), app grid or trash. Game Mode is not
+among the apps, the Portal is. Runs in the VM: python3 - <appletsrc> [plasmashellrc]."""
 import configparser
 import sys
 
@@ -24,15 +25,22 @@ ids = [k[1] for k in applets if k[0] == bar]
 order = [i for i in c.get(f"Containments][{bar}][General", "AppletOrder", fallback="").split(";") if i in ids]
 order = order or sorted(ids, key=int)
 plugins = [applets[(bar, i)] for i in order]
-want = ["org.kde.plasma.kickoff", "org.kde.plasma.icontasks", "org.kde.plasma.marginsseparator",
+want = ["org.kde.plasma.kickoff", "org.kde.plasma.panelspacer", "org.kde.plasma.icontasks", "org.kde.plasma.panelspacer",
         "org.arkadeos.power", "org.kde.plasma.systemtray", "org.kde.plasma.digitalclock",
         "org.kde.plasma.showdesktop"]
 assert plugins == want, f"taskbar: {plugins}"
 menu = order[0]
 icon = c.get(f"Containments][{bar}][Applets][{menu}][Configuration][General", "icon", fallback="")
-assert icon == "arkadeos-launcher", icon
-tasks = order[1]
+assert icon == "arkadeos-launcher-glow", icon
+tasks = order[2]
 launchers = c.get(f"Containments][{bar}][Applets][{tasks}][Configuration][General", "launchers", fallback="")
 assert "org.arkadeos.GameMode.desktop" not in launchers, launchers
 assert "org.arkadeos.Portal.desktop" in launchers, launchers
+if len(sys.argv) > 2:
+    # Flush with the edge: Plasma keeps a panel's float in plasmashellrc.
+    s = configparser.ConfigParser(strict=False, interpolation=None)
+    s.optionxform = str
+    s.read(sys.argv[2])
+    floating = s.get(f"PlasmaViews][Panel {bar}", "floating", fallback=None)
+    assert floating in (None, "0", "false"), f"taskbar floats: {floating}"
 print("ok")

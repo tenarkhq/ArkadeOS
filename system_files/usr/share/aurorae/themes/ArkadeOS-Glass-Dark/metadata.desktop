@@ -1,0 +1,11 @@
+[Desktop Entry]
+Name=ArkadeOS Glass Sötét
+Name[en]=ArkadeOS Glass Dark
+Comment=ArkadeOS: sky-blue glass frame with a button capsule
+X-KDE-PluginInfo-Author=ArkadeOS
+X-KDE-PluginInfo-Name=ArkadeOS-Glass-Dark
+X-KDE-PluginInfo-Version=1.0
+X-KDE-PluginInfo-License=GPL-2.0-or-later
+X-KDE-PluginInfo-Category=
+X-KDE-PluginInfo-Depends=
+X-KDE-PluginInfo-EnabledByDefault=true

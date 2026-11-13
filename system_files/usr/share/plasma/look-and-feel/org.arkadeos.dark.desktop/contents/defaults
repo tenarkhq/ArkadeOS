@@ -2,7 +2,7 @@
 cursorTheme=breeze_cursors
 
 [kdeglobals][General]
-ColorScheme=BreezeDark
+ColorScheme=ArkadeOSGlassDark
 
 [kdeglobals][Icons]
 Theme=breeze-dark
@@ -11,11 +11,11 @@ Theme=breeze-dark
 widgetStyle=Breeze
 
 [kwinrc][org.kde.kdecoration2]
-library=org.kde.breeze
-theme=Breeze
+library=org.kde.kwin.aurorae
+theme=__aurorae__svg__ArkadeOS-Glass-Dark
 
 [plasmarc][Theme]
-name=default
+name=arkadeos-glass-dark
 
 [ksplashrc][KSplash]
 Theme=org.arkadeos.light.desktop

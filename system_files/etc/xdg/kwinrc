@@ -7,6 +7,27 @@
 [Plugins]
 arkadeos-dock-namesEnabled=true
 arkadeos-borderless-fullscreenEnabled=true
+# ArkadeOS Glass (T086): Better Blur DX instead of KWin's own blur (the two
+# must not run together). It blurs behind every window, so the glass frame
+# and the see-through menu bar show the blurred desktop; a window's solid
+# contents cover the rest. A full-screen game goes straight to the screen,
+# where no effect runs.
+blurEnabled=false
+better_blur_dxEnabled=true
+
+[Effect-better-blur-dx]
+BlurStrength=5
+NoiseStrength=0
+Saturation=130
+Brightness=100
+Contrast=100
+CornerRadius=7
+WindowClasses=
+BlurMatching=false
+BlurNonMatching=true
+BlurDecorations=true
+BlurMenus=true
+BlurDocks=true
 
 # No on-screen keyboard: Plasma starts plasma-keyboard by default, and on a
 # laptop it pops up over games and apps (T071). A touch-screen user can pick

@@ -91,17 +91,19 @@ check "user file kept" 'test -f /home/arkade/keep.txt'
 check "update steps ran for the user" 'test -d /home/arkade/.local/state/arkadeos/migrations'
 # Breeze and one taskbar instead of WhiteSur, the top bar and the dock
 # (Roland, 2026-11-04): the dock's app icons move to the taskbar, Game Mode
-# leaves, the Portal joins; the step waits for the desktop, Plasma writes its
-# file a little later. Dolphin shows its menu bar.
+# leaves, the Portal joins. ArkadeOS Glass (T086, 2026-11-13): the taskbar
+# becomes the glass bar, the look the glass one. The last step waits for the
+# desktop, Plasma writes its file a little later. Dolphin shows its menu bar.
 for _ in $(seq 30); do
-    ssh_vm 'test -e /home/arkade/.local/state/arkadeos/migrations/004-breeze-taskbar.sh' && break
+    ssh_vm 'test -e /home/arkade/.local/state/arkadeos/migrations/004-breeze-taskbar.sh &&
+        test -e /home/arkade/.local/state/arkadeos/migrations/008-glass.sh' && break
     sleep 5
 done
 sleep 15
 shot new-taskbar
 taskbar=$(base64 -w0 "$(dirname "$0")/taskbar.py")
-check "top bar and dock became one taskbar, Portal on it" "echo ${taskbar} | base64 -d | python3 - /home/arkade/.config/plasma-org.kde.plasma.desktop-appletsrc"
-check "Breeze look after the update" 'f=/home/arkade/.config; cat $f/kdeglobals $f/kdedefaults/kdeglobals 2>/dev/null | grep -m1 ^ColorScheme= | grep -qE "^ColorScheme=Breeze(Light|Dark)$" &&
+check "top bar and dock became one glass taskbar, Portal on it" "echo ${taskbar} | base64 -d | python3 - /home/arkade/.config/plasma-org.kde.plasma.desktop-appletsrc /home/arkade/.config/plasmashellrc"
+check "ArkadeOS Glass look after the update" 'f=/home/arkade/.config; cat $f/kdeglobals $f/kdedefaults/kdeglobals 2>/dev/null | grep -m1 ^ColorScheme= | grep -qE "^ColorScheme=ArkadeOSGlass(Light|Dark)$" &&
     cat $f/kdeglobals $f/kdedefaults/kdeglobals 2>/dev/null | grep -m1 ^widgetStyle= | grep -qx widgetStyle=Breeze'
 # Dolphin drops MenuBar=Enabled when it closes with the menu bar shown.
 check "menu bar in Dolphin after the update" '! grep -qx MenuBar=Disabled /home/arkade/.config/dolphinrc &&

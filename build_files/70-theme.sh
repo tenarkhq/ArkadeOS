@@ -1,6 +1,7 @@
 #!/usr/bin/bash
-# Look (T006): Breeze, KDE's own theme, with the Inter font; this sets the
-# boot menu font, the GTK defaults and the wallpapers.
+# Look (T006): Breeze, KDE's own theme, with the Inter font, in ArkadeOS Glass
+# (T086); this sets the boot menu font, the GTK defaults, the glass colour
+# schemes and Plasma styles, and the wallpapers.
 set -euo pipefail
 
 # Inter comes from packages/install.sh.
@@ -29,7 +30,62 @@ rm -rf Default Fedora F[0-9]* \
     ColdRipple Grey Cluster Canopee Cascade VGUI2.jpg ublue.png bazzite-glass.png
 cd /
 rm -rf /usr/share/backgrounds/f[0-9]* /usr/share/backgrounds/fedora-workstation
-# The Breeze and Fedora global themes named two of them; they get the Ark.
+# The Breeze and Fedora global themes named two of them; they get ArkadeOS's.
 sed -i 's/^Image=\(Next\|Fedora\)$/Image=ArkadeOS/' /usr/share/plasma/look-and-feel/*/contents/defaults
 sed -i 's#wallpapers/Fedora/#wallpapers/ArkadeOS-Lock/#' /usr/share/kde-settings/kde-profile/default/xdg/kscreenlockerrc
-if grep -rqE '^Image=(Next|Fedora)$' /usr/share/plasma/look-and-feel/*/contents/defaults; then exit 1; fi
+
+# ArkadeOS Glass (T086, Roland, 2026-11-13): the sky-blue glass look. Its
+# colour schemes are Breeze's, with the title area (menu bar and toolbar,
+# under the glass frame) see-through in the frame's glass and the accent in
+# the glass colour; its Plasma styles are Breeze's own with the glass
+# taskbar and its lit task lines (art/glass-plasma.py).
+python3 - <<'PY'
+import re
+LOOKS = {"Dark": ("BreezeDark", "Sötét", "45,81,110,136", "30,53,72,133"),
+         "Light": ("BreezeLight", "Világos", "192,222,246,147", "215,234,249,146")}
+for look, (base, hu, active, inactive) in LOOKS.items():
+    text = open(f"/usr/share/color-schemes/{base}.colors").read().replace("61,174,233", "96,170,232")
+    out, group = [], None
+    for line in text.splitlines():
+        if line.startswith("["):
+            group = line.strip()
+        key = line.split("=", 1)[0]
+        if group == "[Colors:Header]" and key in ("BackgroundNormal", "BackgroundAlternate"):
+            line = f"{key}={active}"
+        elif group == "[Colors:Header][Inactive]" and key in ("BackgroundNormal", "BackgroundAlternate"):
+            line = f"{key}={inactive}"
+        elif group == "[WM]" and key == "activeBackground":
+            line = f"{key}={active}"
+        elif group == "[WM]" and key == "inactiveBackground":
+            line = f"{key}={inactive}"
+        elif group == "[General]" and key == "ColorScheme":
+            line = f"ColorScheme=ArkadeOSGlass{look}"
+        elif group == "[General]" and key == "Name":
+            line = f"Name=ArkadeOS Glass {look}\nName[hu]=ArkadeOS Glass {hu}"
+        elif re.match(r"Name\[", key) and group == "[General]":
+            continue
+        out.append(line)
+    open(f"/usr/share/color-schemes/ArkadeOSGlass{look}.colors", "w").write("\n".join(out) + "\n")
+PY
+grep -q '^BackgroundNormal=45,81,110,136$' /usr/share/color-schemes/ArkadeOSGlassDark.colors
+for look in dark light; do
+    d=/usr/share/plasma/desktoptheme/arkadeos-glass-${look}
+    cp -a /usr/share/plasma/desktoptheme/default "${d}"
+    python3 - "${d}/metadata.json" "${look}" <<'PY'
+import json, sys
+path, look = sys.argv[1:3]
+meta = json.load(open(path))
+plugin = {k: v for k, v in meta["KPlugin"].items() if not k.startswith(("Name[", "Description["))}
+plugin.update(Id=f"arkadeos-glass-{look}", Name=f"ArkadeOS Glass {'Dark' if look == 'dark' else 'Light'}",
+              Description="ArkadeOS: Breeze with the sky-blue glass taskbar")
+plugin[f"Name[hu]"] = f"ArkadeOS Glass {'Sötét' if look == 'dark' else 'Világos'}"
+meta["KPlugin"] = plugin
+json.dump(meta, open(path, "w"), indent=4, ensure_ascii=False)
+PY
+    gzip -9n -c "/usr/share/arkadeos/glass-plasma/${look}/panel-background.svg" > "${d}/widgets/panel-background.svgz"
+    cp "${d}/widgets/panel-background.svgz" "${d}/translucent/widgets/panel-background.svgz"
+    gzip -9n -c "/usr/share/arkadeos/glass-plasma/${look}/tasks.svg" > "${d}/widgets/tasks.svgz"
+done
+# The new default wallpaper (Égkék) for every global theme's defaults.
+sed -i 's/^Image=ArkadeOS$/Image=ArkadeOS-Egkek/' /usr/share/plasma/look-and-feel/*/contents/defaults
+if grep -rqE '^Image=(Next|Fedora|ArkadeOS)$' /usr/share/plasma/look-and-feel/*/contents/defaults; then exit 1; fi

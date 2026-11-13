@@ -206,12 +206,17 @@ ssh_vm "${session} kwriteconfig6 --file kscreenlockerrc --group Daemon --key Aut
 
 if want look; then
 step "look"
-# T006: the ArkadeOS global theme, Breeze inside (Roland, 2026-11-04), applied
-# at first login, day/night switch on; WhiteSur gone.
-check "Breeze in the ArkadeOS global theme" "grep -qE '^org\.arkadeos\.(light|dark)\.desktop' ${home}/kdedefaults/package &&
-    grep -qE '^ColorScheme=Breeze(Light|Dark)$' ${home}/kdedefaults/kdeglobals &&
+# T006: the ArkadeOS global theme, Breeze inside (Roland, 2026-11-04), in
+# ArkadeOS Glass (T086, 2026-11-13): the glass colours, window frame and
+# Plasma style; applied at first login, day/night switch on; WhiteSur gone.
+check "ArkadeOS Glass in the ArkadeOS global theme" "grep -qE '^org\.arkadeos\.(light|dark)\.desktop' ${home}/kdedefaults/package &&
+    grep -qE '^ColorScheme=ArkadeOSGlass(Light|Dark)$' ${home}/kdedefaults/kdeglobals &&
     grep -qx widgetStyle=Breeze ${home}/kdedefaults/kdeglobals &&
+    grep -qE '^theme=__aurorae__svg__ArkadeOS-Glass-(Light|Dark)$' ${home}/kdedefaults/kwinrc &&
+    grep -qE '^name=arkadeos-glass-(light|dark)$' ${home}/kdedefaults/plasmarc &&
     ! ls -d /usr/share/icons/WhiteSur* /usr/share/themes/WhiteSur* /usr/share/plasma/desktoptheme/WhiteSur* 2>/dev/null"
+check "the glass blur runs (Better Blur DX for this KWin), KWin's own blur off" "${session} busctl --user call org.kde.KWin /Effects org.kde.kwin.Effects isEffectLoaded s better_blur_dx | grep -qx 'b true' &&
+    ${session} busctl --user call org.kde.KWin /Effects org.kde.kwin.Effects isEffectLoaded s blur | grep -qx 'b false'"
 check "day/night switch on" "test \"\$(${session} kreadconfig6 --group KDE --key AutomaticLookAndFeel)\" = true"
 check "Inter font" "fc-list : family | grep -qx Inter"
 check "GTK Breeze" "test \"\$(${session} gsettings get org.gnome.desktop.interface gtk-theme)\" = \"'Breeze'\" &&
@@ -219,14 +224,15 @@ check "GTK Breeze" "test \"\$(${session} gsettings get org.gnome.desktop.interfa
 # T007: the first login built the taskbar from our layout (Roland,
 # 2026-11-04): the ArkadeOS menu first, the Portal among the apps.
 taskbar=$(base64 -w0 "$(dirname "$0")/taskbar.py")
-check "one taskbar, ArkadeOS menu first, Portal on it" "echo ${taskbar} | base64 -d | python3 - ${home}/plasma-org.kde.plasma.desktop-appletsrc"
+check "one glass taskbar, the ArkadeOS mark first, the apps in the middle, Portal on it" "echo ${taskbar} | base64 -d | python3 - ${home}/plasma-org.kde.plasma.desktop-appletsrc ${home}/plasmashellrc"
 # T009: ArkadeOS name, boot screen, wallpaper, launcher logo, lock screen.
 check "ArkadeOS name" "grep -qx 'PRETTY_NAME=\"ArkadeOS\"' /usr/lib/os-release"
 check "ArkadeOS version: the Fedora it is built on, then the build" '. /usr/lib/os-release; [[ "${VERSION}" =~ ^${VERSION_ID}\.[0-9]{8}(\.[0-9]+)?$ ]]'
 check "boot menu entry named ArkadeOS (system-release)" 'grep -qx "ArkadeOS release [0-9]*" /etc/system-release'
 check "ArkadeOS boot screen" "plymouth-set-default-theme | grep -qx arkadeos && grep -qw splash /proc/cmdline"
-check "Ark wallpaper and launcher logo" "f=${home}/plasma-org.kde.plasma.desktop-appletsrc &&
-    grep -qx 'Image=file:///usr/share/wallpapers/ArkadeOS/' \$f && grep -qx icon=arkadeos-launcher \$f"
+check "Égkék wallpaper and the lit launcher mark" "f=${home}/plasma-org.kde.plasma.desktop-appletsrc &&
+    grep -qx 'Image=file:///usr/share/wallpapers/ArkadeOS-Egkek/' \$f && grep -qx icon=arkadeos-launcher-glow \$f &&
+    for w in Egkek Szalagok Kereszt; do for d in images images_dark; do test -s /usr/share/wallpapers/ArkadeOS-\$w/contents/\$d/2560x1600.jxl || exit 1; done; done"
 check "dark lock screen" "${session} kreadconfig6 --file kscreenlockerrc --group Greeter --group Wallpaper --group org.kde.image --group General --key Image | grep -q ArkadeOS-Lock"
 # T010: Hungarian is complete, our own texts included.
 check "Hungarian language" "rpm -q hunspell-hu && test -f /usr/share/locale/hu/LC_MESSAGES/dolphin.mo &&
@@ -251,8 +257,32 @@ for variant in light dark; do
     shot "look-${variant}"
     ssh_vm "grep -A3 '^\\[Colors:Window\\]' ${home}/kdeglobals; cat ${home}/kdedefaults/kdeglobals" >> "${out}/look-${variant}.log" 2>&1 || true
 done
-check "dark theme applied" "grep -qx ColorScheme=BreezeDark ${home}/kdedefaults/kdeglobals &&
+check "dark theme applied" "grep -qx ColorScheme=ArkadeOSGlassDark ${home}/kdedefaults/kdeglobals &&
     grep -A3 '^\\[Colors:Window\\]' ${home}/kdeglobals | grep -qx BackgroundNormal=32,35,38"
+# ArkadeOS Glass (T086): the design's scene, for Roland to set beside it:
+# the file manager in front with its File menu open, the terminal behind, the
+# Égkék wallpaper; dark, then light, then the ArkadeOS menu open.
+ssh_vm "echo $(base64 -w0 "${here}/glass-windows.kwinrulesrc") | base64 -d > ${home}/kwinrulesrc && chown arkade: ${home}/kwinrulesrc &&
+    ${session} busctl --user call org.kde.KWin /KWin org.kde.KWin reconfigure" || true
+for variant in dark light; do
+    ssh_vm "${session} plasma-apply-lookandfeel -a org.arkadeos.${variant}.desktop; pkill -u arkade -x konsole; pkill -u arkade -x dolphin; sleep 3;
+        nohup ${session} konsole -e bash -c 'fastfetch; exec sleep 600' >/dev/null 2>&1 & sleep 6; nohup ${session} dolphin /home/arkade/Games >/dev/null 2>&1 &" || true
+    sleep 15
+    key shift
+    sleep 1
+    shot "glass-${variant}"
+    key alt f
+    sleep 3
+    shot "glass-${variant}-menu"
+    key esc
+    sleep 1
+done
+ssh_vm "${session} busctl --user call org.kde.plasmashell /PlasmaShell org.kde.PlasmaShell activateLauncherMenu" >/dev/null 2>&1 || true
+sleep 4
+shot glass-light-launcher
+key esc
+ssh_vm "pkill -u arkade -x konsole; rm -f ${home}/kwinrulesrc; ${session} busctl --user call org.kde.KWin /KWin org.kde.KWin reconfigure;
+    ${session} plasma-apply-lookandfeel -a org.arkadeos.dark.desktop" >/dev/null 2>&1 || true
 sleep 20
 check "Finder-like sidebar: Games in it, Remote and Recent hidden" "grep -qE 'href=\"file:///(var/)?home/arkade/Games\"' ${home%/.config}/.local/share/user-places.xbel &&
     grep -q '<GroupState-Remote-IsHidden>true' ${home%/.config}/.local/share/user-places.xbel &&

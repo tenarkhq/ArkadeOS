@@ -59,9 +59,19 @@ RUN --mount=type=bind,source=build_files/initramfs.sh,target=/ctx/initramfs.sh \
     --mount=type=tmpfs,dst=/tmp \
     /ctx/initramfs.sh /out
 
+# Better Blur DX (T086): built for the image's own KWin, so it comes after the
+# packages; only its two plugins leave the stage.
+FROM packages AS blur
+RUN --mount=type=bind,source=build_files/better-blur.sh,target=/ctx/better-blur.sh \
+    --mount=type=bind,source=build_files/stage.sh,target=/ctx/stage.sh \
+    --mount=type=cache,dst=/var/cache \
+    --mount=type=tmpfs,dst=/tmp \
+    /ctx/better-blur.sh /out
+
 FROM packages
 COPY --from=proton /out/ /
 COPY --from=initramfs /out/ /
+COPY --from=blur /out/ /
 
 ARG IMAGE_NAME=arkadeos
 ARG IMAGE_VENDOR=tenarkhq
