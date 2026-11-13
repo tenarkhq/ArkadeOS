@@ -142,6 +142,8 @@ sleep 8
 shot proton-choose
 key home; sleep 1; key spc; sleep 1; key ret
 sleep 3
+shot proton-chosen
+ssh_vm "${user} arkadeos-store ea --check; cat /tmp/choose.log" > "${out}/proton-chosen.txt" 2>&1 || true
 check "Proton picked for a store" "${user} arkadeos-store ea --check | grep -qx 'proton=/home/arkade/.local/share/Steam/compatibilitytools.d/${other}'"
 
 # T019: the AI tools.
