@@ -49,6 +49,10 @@ def f(v):
     return f"{v:.2f}".rstrip("0").rstrip(".")
 
 
+def moved(tf, *parts):
+    return f'<g transform="{tf}">' + "".join(parts) + "</g>"
+
+
 def cross(x, y, s=2, cls="Text"):
     return line(f"M{f(x - s)} {f(y - s)} L{f(x + s)} {f(y + s)} M{f(x + s)} {f(y - s)} L{f(x - s)} {f(y + s)}", cls)
 
@@ -180,6 +184,87 @@ icons["notifications-disabled-symbolic"] = svg(line(BELL, a=DIM), line(CLAPPER, 
 icons["user-desktop-symbolic"] = svg(line("M6 5.75 H16 A1.5 1.5 0 0 1 17.5 7.25 V13 A1.5 1.5 0 0 1 16 14.5 H6 "
                                           "A1.5 1.5 0 0 1 4.5 13 V7.25 A1.5 1.5 0 0 1 6 5.75 Z"),
                                      line("M11 14.5 V17.25 M8.25 17.25 H13.75"))
+
+# Icons that come and go after login (Roland, 2026-11-13: "vágólap és
+# értesítések ikonja pl", "meg a logitech egér akku állapota is").
+# Clipboard: a board and its clip.
+icons["klipper-symbolic"] = svg(line("M7.75 5.25 H6.25 A1.5 1.5 0 0 0 4.75 6.75 V17.25 A1.5 1.5 0 0 0 6.25 18.75 H15.75 "
+                                     "A1.5 1.5 0 0 0 17.25 17.25 V6.75 A1.5 1.5 0 0 0 15.75 5.25 H14.25"),
+                                line("M9 3.75 H13 A.75 .75 0 0 1 13.75 4.5 V6 A.75 .75 0 0 1 13 6.75 H9 A.75 .75 0 0 1 8.25 6 "
+                                     "V4.5 A.75 .75 0 0 1 9 3.75 Z"),
+                                line("M8 10.75 H14 M8 14 H12.5"))
+
+# Removable devices: the stick, the disk, the card, the disc; the widget's
+# own icon a disk with the eject mark.
+STICK = [line("M8.25 9.25 H13.75 A1 1 0 0 1 14.75 10.25 V17.75 A1.5 1.5 0 0 1 13.25 19.25 H8.75 A1.5 1.5 0 0 1 7.25 17.75 "
+              "V10.25 A1 1 0 0 1 8.25 9.25 Z"), line("M8.75 9.25 V3.75 H13.25 V9.25"), line("M10 6 V6.5 M12 6 V6.5")]
+DISK = [line("M5.25 6.25 H16.75 A1.5 1.5 0 0 1 18.25 7.75 V14.25 A1.5 1.5 0 0 1 16.75 15.75 H5.25 A1.5 1.5 0 0 1 3.75 14.25 "
+             "V7.75 A1.5 1.5 0 0 1 5.25 6.25 Z"), dot(14.75, 12.25, 1.1), line("M6.5 12.25 H10")]
+CARD = [line("M6.75 3.75 H12.25 L15.25 6.75 V17.25 A1.5 1.5 0 0 1 13.75 18.75 H6.75 A1.5 1.5 0 0 1 5.25 17.25 V5.25 "
+             "A1.5 1.5 0 0 1 6.75 3.75 Z"), line("M8.25 4.25 V6.75 M10.25 4.25 V6.75 M12.25 4.5 V6.75")]
+DISC = [line("M18 11 A7 7 0 1 1 4 11 A7 7 0 1 1 18 11 Z"), line("M13 11 A2 2 0 1 1 9 11 A2 2 0 1 1 13 11 Z")]
+for name in ("drive-removable-media-usb-pendrive", "drive-removable-media-usb", "drive-removable-media"):
+    icons[name + "-symbolic"] = svg(*STICK)
+for name in ("drive-harddisk", "drive-harddisk-usb", "drive-harddisk-solidstate"):
+    icons[name + "-symbolic"] = svg(*DISK)
+for name in ("media-flash", "media-flash-sd-mmc"):
+    icons[name + "-symbolic"] = svg(*CARD)
+icons["media-optical-symbolic"] = svg(*DISC)
+icons["device-notifier-symbolic"] = svg(line("M5.25 12.25 H16.75 A1.5 1.5 0 0 1 18.25 13.75 V16.25 A1.5 1.5 0 0 1 16.75 17.75 "
+                                             "H5.25 A1.5 1.5 0 0 1 3.75 16.25 V13.75 A1.5 1.5 0 0 1 5.25 12.25 Z"),
+                                        dot(15, 15, 1), line("M7.25 9 L11 4.75 L14.75 9 Z"))
+
+# Media playing: play, pause or stop.
+icons["media-playback-playing-symbolic"] = svg(line("M7.75 5.5 L16.5 11 L7.75 16.5 Z"))
+icons["media-playback-paused-symbolic"] = svg(line("M8.25 5.5 V16.5 M13.75 5.5 V16.5", w=2))
+icons["media-playback-stopped-symbolic"] = svg(line("M7.25 6.25 H14.75 A1 1 0 0 1 15.75 7.25 V14.75 A1 1 0 0 1 14.75 15.75 "
+                                                    "H7.25 A1 1 0 0 1 6.25 14.75 V7.25 A1 1 0 0 1 7.25 6.25 Z"))
+
+# Camera: in use adds a dot in the glass colour; off a stroke through it.
+CAM = ("M4.75 7.25 H13.25 A1.5 1.5 0 0 1 14.75 8.75 V13.25 A1.5 1.5 0 0 1 13.25 14.75 H4.75 A1.5 1.5 0 0 1 3.25 13.25 "
+       "V8.75 A1.5 1.5 0 0 1 4.75 7.25 Z", "M14.75 10 L18.75 7.75 V14.25 L14.75 12")
+icons["camera-ready-symbolic"] = svg(*[line(d) for d in CAM])
+icons["camera-on-symbolic"] = svg(*[line(d) for d in CAM], dot(17.75, 4.5, 2, "Highlight"))
+icons["camera-off-symbolic"] = svg(*[line(d, a=DIM) for d in CAM], line("M3.75 4.25 L18.25 17.75"))
+
+# KDE Connect: the phone and its link.
+PHONE = "M6.75 3.25 H11.75 A1.5 1.5 0 0 1 13.25 4.75 V17.25 A1.5 1.5 0 0 1 11.75 18.75 H6.75 A1.5 1.5 0 0 1 5.25 17.25 V4.75 A1.5 1.5 0 0 1 6.75 3.25 Z"
+icons["kdeconnect-tray-symbolic"] = svg(line(PHONE), line("M8.5 16 H10"), line("M15.75 8.5 A3.5 3.5 0 0 1 15.75 13.5"),
+                                        line("M17.75 6.5 A6.3 6.3 0 0 1 17.75 15.5"))
+# Displays: two screens.
+icons["preferences-desktop-display-randr-symbolic"] = svg(
+    line("M3.25 5.75 H12.25 A1 1 0 0 1 13.25 6.75 V8.25 M8.25 13.25 H4.25 A1 1 0 0 1 3.25 12.25 V6.75 A1 1 0 0 1 4.25 5.75"),
+    line("M9.75 9.25 H17.75 A1 1 0 0 1 18.75 10.25 V15.25 A1 1 0 0 1 17.75 16.25 H9.75 A1 1 0 0 1 8.75 15.25 V10.25 "
+         "A1 1 0 0 1 9.75 9.25 Z"), line("M12 18.75 H16.5"))
+
+# Batteries of other devices (Plasma's battery widget): the device and a
+# small battery beside it.
+MINI = line("M14.75 13.75 H18.75 A.75 .75 0 0 1 19.5 14.5 V17 A.75 .75 0 0 1 18.75 17.75 H14.75 A.75 .75 0 0 1 14 17 V14.5 "
+            "A.75 .75 0 0 1 14.75 13.75 Z", w=1.2) + solid("M20.25 14.9 H20.75 V16.6 H20.25 Z")
+MOUSE = [line("M8.5 3.75 A4.25 4.25 0 0 1 12.75 8 V13.75 A4.25 4.25 0 0 1 4.25 13.75 V8 A4.25 4.25 0 0 1 8.5 3.75 Z"),
+         line("M8.5 3.75 V8.25 M4.25 8.25 H12.75")]
+KEYBOARD = [line("M4.25 6.25 H12.75 A1.5 1.5 0 0 1 14.25 7.75 V11.75 A1.5 1.5 0 0 1 12.75 13.25 H4.25 A1.5 1.5 0 0 1 2.75 11.75 "
+                 "V7.75 A1.5 1.5 0 0 1 4.25 6.25 Z"), line("M5.5 8.75 H5.75 M8.375 8.75 H8.625 M11.25 8.75 H11.5 M6 10.9 H11", w=1.3)]
+PAD = [line("M7 6.75 H15 A4 4 0 0 1 18.9 11.7 L18.1 15 A2.3 2.3 0 0 1 14.3 16.1 L13 14.5 H9 L7.7 16.1 A2.3 2.3 0 0 1 3.9 15 "
+            "L3.1 11.7 A4 4 0 0 1 7 6.75 Z"), line("M6.5 10.75 H9.5 M8 9.25 V12.25", w=1.3), dot(14, 10, 0.9), dot(15.75, 11.75, 0.9)]
+HEADSET = [line("M4.25 13.25 V11 A6.75 6.75 0 0 1 17.75 11 V13.25"),
+           line("M4.25 12.5 H6 A1 1 0 0 1 7 13.5 V16.5 A1 1 0 0 1 6 17.5 H5.25 A1 1 0 0 1 4.25 16.5 Z"),
+           line("M17.75 12.5 H16 A1 1 0 0 0 15 13.5 V16.5 A1 1 0 0 0 16 17.5 H16.75 A1 1 0 0 0 17.75 16.5 Z")]
+icons["input-mouse-battery-symbolic"] = svg(*MOUSE, MINI)
+icons["input-keyboard-battery-symbolic"] = svg(*KEYBOARD, MINI)
+icons["input-gaming-battery-symbolic"] = svg(moved("translate(-1 -2.5)", *PAD), MINI)
+for name in ("audio-headset-battery", "audio-headphones-battery"):
+    icons[name + "-symbolic"] = svg(moved("translate(-1.5 -1.5) scale(0.85)", *HEADSET), MINI)
+icons["phone-battery-symbolic"] = svg(moved("translate(-1.5 0)", line(PHONE)), MINI)
+
+# Solaar, the Logitech receiver's app: its own icon a mouse, red when the
+# receiver needs attention; the battery levels are the set above (it asks
+# for the symbolic ones, arkadeos-solaar.service), "charged" when full on
+# the charger.
+icons["solaar-init"] = svg(moved("translate(2.5 0)", *MOUSE))
+icons["solaar-attention"] = svg(moved("translate(2.5 0)", *MOUSE), dot(17.25, 5, 2.2, "NegativeText"))
+icons["battery-100-charged-symbolic"] = svg(line(BODY), solid(NUB), solid(
+    "M4.5 9 H14.25 A.75 .75 0 0 1 15 9.75 V12.25 A.75 .75 0 0 1 14.25 13 H4.5 Z", "Highlight"))
 
 THEME = """[Icon Theme]
 Name={name}

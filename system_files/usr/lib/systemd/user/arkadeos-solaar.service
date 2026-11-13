@@ -4,6 +4,8 @@ After=graphical-session.target
 PartOf=graphical-session.target
 
 [Service]
-ExecStart=/usr/bin/solaar --window=hide
+# Its tray icon from the icon theme's symbolic battery set: the ArkadeOS
+# Glass tray icons (T086), not Breeze's coloured ones.
+ExecStart=/usr/bin/solaar --window=hide --battery-icons=symbolic
 Restart=on-failure
 RestartSec=10

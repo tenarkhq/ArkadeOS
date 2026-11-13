@@ -1,9 +1,11 @@
 """Checks a user's Plasma layout file (Roland, 2026-11-04): one taskbar at the
 bottom and no other panel of ours: the ArkadeOS menu (kickoff, the lit Ark
 mark of ArkadeOS Glass, T086) first, the apps in the middle between two
-spacers and close together, the power switch, tray, clock and show-desktop in the glass
-capsule; flush with the screen's edge; no top bar (app menu), app grid or
-trash. Game Mode is not among the apps, the Portal is. Runs in the VM: python3 - <appletsrc> [plasmashellrc]."""
+spacers and close together, the power switch, tray (its icons a little
+closer), clock and show-desktop in the glass capsule; flush with the
+screen's edge; no top bar (app menu), app grid or trash. Game Mode is not
+among the apps, the Portal is. Runs in the VM: python3 - <appletsrc>
+[plasmashellrc]."""
 import configparser
 import sys
 
@@ -39,6 +41,14 @@ assert "org.arkadeos.Portal.desktop" in launchers, launchers
 # The app icons close together (Small spacing; Roland, 2026-11-13).
 spacing = c.get(f"Containments][{bar}][Applets][{tasks}][Configuration][General", "iconSpacing", fallback="")
 assert spacing == "0", f"icon spacing: {spacing!r}"
+# The tray's icons a little closer (Small spacing) on its inner containment,
+# which the tray widget names (Roland, 2026-11-13).
+tray = order[5]
+inner = (c.get(f"Containments][{bar}][Applets][{tray}][Configuration", "SystrayContainmentId", fallback="")
+         or c.get(f"Containments][{bar}][Applets][{tray}", "SystrayContainmentId", fallback=""))
+assert inner, "the tray has no inner containment"
+tray_spacing = c.get(f"Containments][{inner}][General", "iconSpacing", fallback="")
+assert tray_spacing == "1", f"tray icon spacing: {tray_spacing!r}"
 # The clock on one line at the tray's text size, as in the design (T086).
 clock = order[6]
 look = c[f"Containments][{bar}][Applets][{clock}][Configuration][Appearance"] if c.has_section(
