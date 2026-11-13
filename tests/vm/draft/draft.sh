@@ -35,6 +35,7 @@ look)
     kwriteconfig6 --file kwinrc --group Plugins --key blurEnabled true
     kwin /Effects org.kde.kwin.Effects unloadEffect s better_blur_dx
     kwin /Effects org.kde.kwin.Effects loadEffect s blur
+    plasma-apply-desktoptheme default
     panel 0 ;;
 aero)
     tag=Light; [ "$2" = dark ] && tag=Dark
@@ -50,8 +51,8 @@ aero)
     kwriteconfig6 $g --key Saturation 140
     kwriteconfig6 $g --key CornerRadius 6
     kwriteconfig6 $g --key WindowClasses ""
-    kwriteconfig6 $g --key BlurMatching true
-    kwriteconfig6 $g --key BlurNonMatching false
+    kwriteconfig6 $g --key BlurMatching false
+    kwriteconfig6 $g --key BlurNonMatching true
     kwriteconfig6 $g --key BlurDecorations true
     kwriteconfig6 $g --key BlurMenus true
     kwriteconfig6 $g --key BlurDocks true
@@ -60,9 +61,13 @@ aero)
     kwin /Effects org.kde.kwin.Effects unloadEffect s blur
     kwin /Effects org.kde.kwin.Effects loadEffect s better_blur_dx
     kwin /Effects org.kde.kwin.Effects reconfigureEffect s better_blur_dx
+    python3 $D/plasma-glass.py 0.45 0.6
+    plasma-apply-desktoptheme arkadeos-glass
     panel 2 ;;
 apps)
-    pkill -x dolphin; pkill -x systemsettings; pkill -x konsole; sleep 3
+    pkill -x dolphin; pkill -x systemsettings; pkill -x konsole
+    for _ in $(seq 30); do pgrep -u "$(id -u)" -x 'dolphin|systemsettings|konsole' > /dev/null || break; sleep 0.5; done
+    sleep 1
     nohup dolphin /usr/share/wallpapers > /dev/null 2>&1 &
     sleep 5
     nohup systemsettings kcm_colors > /dev/null 2>&1 &

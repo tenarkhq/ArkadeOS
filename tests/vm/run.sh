@@ -210,7 +210,7 @@ step "draft: Aero glass pictures"
 # átlátszó a tálca v az ablakok fejléce? mint a windows7nél anno"): the
 # desktop as it is, then the taskbar and the title bars as blurred glass with
 # Better Blur DX (built into the test image by the workflow).
-for f in draft.sh scheme.py kwinrulesrc; do
+for f in draft.sh scheme.py kwinrulesrc plasma-glass.py; do
     ssh_vm "mkdir -p /tmp/draft && echo $(base64 -w0 "${here}/draft/${f}") | base64 -d > /tmp/draft/${f} && chown -R arkade: /tmp/draft"
 done
 draft() { ssh_vm "${session} bash /tmp/draft/draft.sh $*" >> "${out}/draft.log" 2>&1 || true; }
@@ -229,17 +229,18 @@ for theme in dark light; do
     awake
     shot draft-1-now-${theme}
 done
-# Glass, as on Windows 7: medium, stronger, light, and Aero blue.
-draft look dark; draft aero dark 150; draft apps; awake; shot draft-2-glass-dark
-draft aero dark 100; draft apps; awake; shot draft-3-glass-dark-strong
+# Glass, as on Windows 7: every window's title bar and the taskbar blurred
+# glass, the contents solid. Neutral and Aero blue, dark and light.
+draft look dark; draft aero dark 120; draft apps; awake; shot draft-2-glass-dark
+draft aero dark 130 40,80,140; draft apps; awake; shot draft-3-glass-dark-aero-blue
 ssh_vm "${session} busctl --user call org.kde.plasmashell /PlasmaShell org.kde.PlasmaShell activateLauncherMenu" >> "${out}/draft.log" 2>&1 || true
 sleep 4
 shot draft-4-glass-dark-menu
 key esc
-draft look light; draft aero light 150; draft apps; awake; shot draft-5-glass-light
+draft look light; draft aero light 140; draft apps; awake; shot draft-5-glass-light
 draft aero light 140 120,170,225; draft apps; awake; shot draft-6-glass-light-aero-blue
 # The same glass on ArkadeOS's own wallpaper.
-draft look dark; draft aero dark 150; draft wall ArkadeOS; draft apps; awake; shot draft-7-glass-dark-arkadeos-wallpaper
+draft look dark; draft aero dark 120; draft wall ArkadeOS; draft apps; awake; shot draft-7-glass-dark-arkadeos-wallpaper
 ssh_vm "${session} busctl --user call org.kde.KWin /KWin org.kde.KWin supportInformation" > "${out}/draft-kwin.txt" 2>&1 || true
 fi # draft
 
