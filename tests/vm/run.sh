@@ -466,6 +466,21 @@ check "game watcher running" 'systemctl --user -M arkade@ is-active arkadeos-gam
 # 2026-11-12); on battery Plasma's own idle sleep stays.
 check "no sleep by itself on the charger" "${session} kreadconfig6 --file powerdevilrc --group AC --group SuspendAndShutdown --key AutoSuspendAction | grep -qx 0 &&
     test -z \"\$(${session} kreadconfig6 --file powerdevilrc --group Battery --group SuspendAndShutdown --key AutoSuspendAction)\""
+# On the charger Akku goes back to Balanced (Roland, 2026-11-13: Akku on the
+# charger after a restart). The VM is on the charger; stand-ins for a
+# laptop's battery, and for a desktop's wireless mouse, whose Quiet stays.
+ssh_vm 'for d in laptop/BAT0 laptop/AC0 desktop/hidpp_battery_0; do mkdir -p /tmp/ps/$d; done
+    echo Battery > /tmp/ps/laptop/BAT0/type; echo Mains > /tmp/ps/laptop/AC0/type
+    echo Battery > /tmp/ps/desktop/hidpp_battery_0/type; echo Device > /tmp/ps/desktop/hidpp_battery_0/scope'
+check "charger check runs at boot" 'systemctl is-enabled arkadeos-power-ac.service'
+check "desktop: Quiet stays on the charger" '/usr/libexec/arkadeos/power-set battery &&
+    ARKADEOS_POWER_SUPPLY=/tmp/ps/desktop ARKADEOS_POWER_STATE=/tmp/ps/desktop.state ARKADEOS_POWER_WAIT=0 /usr/libexec/arkadeos/power-ac &&
+    arkadeos-power status | grep -qx profile=battery'
+check "laptop: Akku back to Balanced on the charger, once" 'ARKADEOS_POWER_SUPPLY=/tmp/ps/laptop ARKADEOS_POWER_STATE=/tmp/ps/laptop.state ARKADEOS_POWER_WAIT=0 /usr/libexec/arkadeos/power-ac &&
+    arkadeos-power status | grep -qx profile=balanced && /usr/libexec/arkadeos/power-set battery &&
+    ARKADEOS_POWER_SUPPLY=/tmp/ps/laptop ARKADEOS_POWER_STATE=/tmp/ps/laptop.state ARKADEOS_POWER_WAIT=0 /usr/libexec/arkadeos/power-ac &&
+    arkadeos-power status | grep -qx profile=battery'
+ssh_vm '/usr/libexec/arkadeos/power-set balanced' || true
 # T050: the switch reads the profile when it changes, not every three seconds.
 # A stand-in in front of arkadeos-power notes who asks for the status; the
 # test's own questions come from runuser.

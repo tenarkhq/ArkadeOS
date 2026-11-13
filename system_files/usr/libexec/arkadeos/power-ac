@@ -1,11 +1,50 @@
 #!/usr/bin/bash
-# The charger was plugged in or out (T011). Balanced and Akku follow the
-# charger by themselves; Max is charger-only, so on battery it goes back to
-# Balanced, which on battery runs as Akku.
+# The charger was plugged in or out (T011). Runs at every power supply event
+# (a battery's level too, a wireless mouse's as well), so it acts only when
+# the charger state differs from the last time, the first time after boot
+# included.
+#   Unplugged: Balanced runs as Akku by itself (tuned-ppd); Max is
+#     charger-only, so it goes back to Balanced.
+#   Plugged in: Akku is the battery's profile, it goes back to Balanced.
+#     Not only a click sets it: tuned-ppd takes the firmware's quiet fan
+#     mode (asus-wmi on battery, the Fn key) as a chosen Akku and keeps it,
+#     over a restart too, so Roland's laptop ran Akku on the charger
+#     (2026-11-13). Akku held by a game set to it stays.
+# Only where the machine runs on a battery of its own: a desktop's Quiet
+# (the same profile) is a choice that stays.
 set -euo pipefail
 
-sleep 2  # UPower reads the new state after the kernel event
-if [[ -e /run/arkadeos/power-max ]] &&
-    busctl get-property org.freedesktop.UPower /org/freedesktop/UPower org.freedesktop.UPower OnBattery | grep -q true; then
-    exec /usr/libexec/arkadeos/power-set balanced
+supply=${ARKADEOS_POWER_SUPPLY:-/sys/class/power_supply}  # a stand-in tree in tests
+last=${ARKADEOS_POWER_STATE:-/run/arkadeos/on-battery}
+set_profile=${ARKADEOS_POWER_SET:-/usr/libexec/arkadeos/power-set}
+
+# A battery of the machine: a mouse's or a headset's (scope Device) is not one.
+own_battery() {
+    local d
+    for d in "${supply}"/*/; do
+        [[ "$(cat "${d}type" 2>/dev/null)" == Battery && "$(cat "${d}scope" 2>/dev/null)" != Device ]] && return 0
+    done
+    return 1
+}
+
+sleep "${ARKADEOS_POWER_WAIT:-2}"  # UPower reads the new state after the kernel event
+own_battery || exit 0
+now=$(busctl get-property org.freedesktop.UPower /org/freedesktop/UPower org.freedesktop.UPower OnBattery | cut -d' ' -f2)
+[[ "${now}" == true || "${now}" == false ]] || exit 0
+was=$(cat "${last}" 2>/dev/null || true)
+mkdir -p "$(dirname "${last}")"
+echo "${now}" > "${last}"
+[[ "${now}" != "${was}" ]] || exit 0
+
+if [[ "${now}" == true ]]; then
+    [[ -e /run/arkadeos/power-max ]] && exec "${set_profile}" balanced
+    exit 0
+fi
+# One call for both: s "power-saver", then aa{sv} <number of holds> ...
+ppd=$(busctl get-property net.hadess.PowerProfiles /net/hadess/PowerProfiles net.hadess.PowerProfiles \
+    ActiveProfile ActiveProfileHolds)
+{ read -r _ active; read -r _ holds _; } <<< "${ppd}"
+if [[ "${active//\"/}" == power-saver && "${holds}" == 0 ]]; then
+    echo "on the charger: Akku back to Balanced"
+    exec "${set_profile}" balanced
 fi

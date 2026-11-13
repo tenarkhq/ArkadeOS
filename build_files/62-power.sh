@@ -1,9 +1,12 @@
 #!/usr/bin/bash
 # Power profiles (T011): the profiles and helpers are files under
-# system_files; this turns on the game watcher for every user.
+# system_files; this turns on the game watcher for every user and the
+# charger check.
 set -euo pipefail
 
 systemctl --global enable arkadeos-game-profile.service
+# Max and Akku follow the charger, checked at boot too (power-ac).
+systemctl enable arkadeos-power-ac.service
 systemctl is-enabled tuned.service tuned-ppd.service
 
 # tuned-ppd refuses to start on a bad mapping (unknown or repeated profiles):

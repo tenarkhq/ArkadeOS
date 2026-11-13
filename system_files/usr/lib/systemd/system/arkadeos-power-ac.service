@@ -1,6 +1,13 @@
 [Unit]
-Description=ArkadeOS: leave Max when the charger is unplugged
+Description=ArkadeOS: power profile when the charger is plugged in or out
+# At boot too: tuned-ppd brings back the last Akku, and a full battery on the
+# charger may send no event for a long time (Roland, 2026-11-13).
+Wants=upower.service tuned-ppd.service
+After=upower.service tuned-ppd.service
 
 [Service]
 Type=oneshot
 ExecStart=/usr/libexec/arkadeos/power-ac
+
+[Install]
+WantedBy=multi-user.target
