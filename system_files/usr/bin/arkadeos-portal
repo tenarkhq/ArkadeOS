@@ -8,7 +8,14 @@ System: update now, go back to the previous version, channel (stable or
 testing), the image for the graphics card, firmware, desktop defaults.
 Games: the power profile each game runs with (T055); arkadeos-power game
 keeps the list, a game not on it runs on Gaming.
+
+The window is ArkadeOS Glass's (T086, Roland, 2026-11-13, design A of
+https://claude.ai/artifact/A9QNLgyxWb3rFxzpJJBJs8): the pages listed on the
+glass at the left, in the window frame's own glass colour (KWin blurs behind
+every window), each page on a solid pane with cards; switches instead of
+ticks, the changes waiting to be applied in a bar at the bottom.
 """
+import configparser
 import html
 import json
 import os
@@ -21,11 +28,11 @@ from pathlib import Path
 from PySide6.QtCore import (
     QEvent, QLocale, QObject, QProcess, Qt, QThread, QTimer, Signal,
 )
-from PySide6.QtGui import QIcon, QPalette
+from PySide6.QtGui import QColor, QIcon, QPainter, QPalette
 from PySide6.QtWidgets import (
-    QApplication, QCheckBox, QComboBox, QFrame, QGridLayout, QGroupBox, QHBoxLayout,
-    QHeaderView, QLabel, QLineEdit, QMessageBox, QPlainTextEdit, QProgressBar, QPushButton,
-    QScrollArea, QTableWidget, QTabWidget, QToolButton, QVBoxLayout, QWidget,
+    QApplication, QButtonGroup, QCheckBox, QComboBox, QFrame, QGraphicsDropShadowEffect, QGridLayout,
+    QHBoxLayout, QHeaderView, QLabel, QLineEdit, QMessageBox, QPlainTextEdit, QProgressBar, QPushButton,
+    QScrollArea, QStackedWidget, QTableWidget, QToolButton, QVBoxLayout, QWidget,
 )
 
 ITEM = "/usr/libexec/arkadeos/portal-item"
@@ -98,7 +105,49 @@ class StatusReader(QObject):
         self.finished.emit()
 
 
+def split_name(name):
+    """'EasyEffects (microphone filter)' -> ('EasyEffects', 'microphone filter')."""
+    m = re.match(r"^(.*?) \((.*)\)$", name)
+    return (m.group(1), m.group(2)) if m else (name, "")
+
+
+def page_head(title, text, extra=None):
+    """A page's title and its line under it, with an extra widget at the right."""
+    head = QHBoxLayout()
+    head.setContentsMargins(22, 18, 22, 10)
+    words = QVBoxLayout()
+    words.setSpacing(2)
+    big = QLabel(title)
+    big.setObjectName("pageTitle")
+    words.addWidget(big)
+    line = QLabel(text)
+    line.setObjectName("pageSub")
+    line.setWordWrap(True)
+    words.addWidget(line)
+    head.addLayout(words, 1)
+    if extra is not None:
+        head.addWidget(extra, 0, Qt.AlignBottom)
+    return head, line
+
+
+def card():
+    frame = QFrame()
+    frame.setObjectName("card")
+    return frame
+
+
+def set_flag(widget, name, value):
+    """A style flag of a widget (its look in the style sheet follows it)."""
+    if widget.property(name) != value:
+        widget.setProperty(name, value)
+        widget.style().unpolish(widget)
+        widget.style().polish(widget)
+
+
 class AppsTab(QWidget):
+    # How many changes wait to be applied (shown beside the page's name).
+    pending = Signal(int)
+
     def __init__(self, first_run):
         super().__init__()
         self.first_run = first_run
@@ -107,76 +156,148 @@ class AppsTab(QWidget):
         self.items = catalog()
         self.installed = {}
         self.boxes = {}
+        self.names = {i["id"]: i["name"] for i in self.items}
+        self.cards = {}
         self.queue = []
+        self.busy = False
+        self.loaded = False
 
         layout = QVBoxLayout(self)
-        intro = QLabel(tr(
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(0)
+        self.search = QLineEdit()
+        self.search.setObjectName("search")
+        self.search.setPlaceholderText(tr("Search the apps", "Keresés az appok között"))
+        self.search.setClearButtonEnabled(True)
+        self.search.setFixedWidth(240)
+        self.search.textChanged.connect(self.filter)
+        head, _ = page_head(tr("Apps", "Appok"), tr(
             "Welcome to ArkadeOS! What you chose during the installation is being set up; "
             "everything can be changed here later.",
             "Üdv az ArkadeOS-en! Most települ, amit a telepítéskor kiválasztottál; később itt "
             "bármikor módosíthatod.") if self.from_installer else tr(
-            "Welcome to ArkadeOS! Tick what you want on this machine; everything can be "
+            "Welcome to ArkadeOS! Switch on what you want on this machine; everything can be "
             "changed here later too.",
-            "Üdv az ArkadeOS-en! Pipáld ki, mi kerüljön a gépre; később itt bármikor "
+            "Üdv az ArkadeOS-en! Kapcsold be, mi kerüljön a gépre; később itt bármikor "
             "módosíthatod.") if first_run else tr(
-            "Tick to install, untick to remove.",
-            "Pipáld ki, amit telepítenél, vedd ki a pipát, amit eltávolítanál."))
-        intro.setWordWrap(True)
-        layout.addWidget(intro)
+            "Switch on what you want on this machine, switch off what you would remove.",
+            "Kapcsold be, ami kell ezen a gépen, kapcsold ki, amit eltávolítanál."), self.search)
+        layout.addLayout(head)
         # T053: what the installer's hardware check found (English and
         # Hungarian line of each finding).
         check = Path("/etc/arkadeos/hardware-check.txt")
         if first_run and check.exists():
             notes = [b.splitlines() for b in check.read_text().split("\n\n") if b.strip()]
             found = QLabel("\n".join("⚠ " + (n[1] if HU and len(n) > 1 else n[0]) for n in notes))
+            found.setObjectName("notice")
             found.setWordWrap(True)
-            layout.addWidget(found)
+            box = QHBoxLayout()
+            box.setContentsMargins(22, 0, 22, 10)
+            box.addWidget(found)
+            layout.addLayout(box)
 
         self.locked = set()
         body = QWidget()
-        grid = QVBoxLayout(body)
+        body.setObjectName("scrollBody")
+        groups = QVBoxLayout(body)
+        groups.setContentsMargins(22, 0, 22, 16)
+        groups.setSpacing(6)
+        self.groups = []
         for group, title in GROUPS.items():
             members = [i for i in self.items if i["group"] == group]
             if not members:
                 continue
-            box = QGroupBox(title)
-            box_layout = QGridLayout(box)
-            for n, item in enumerate(members):
-                check = QCheckBox(item["name"])
-                check.setEnabled(False)
+            heading = QLabel(title.upper())
+            heading.setObjectName("groupTitle")
+            groups.addWidget(heading)
+            grid = QGridLayout()
+            grid.setHorizontalSpacing(8)
+            grid.setVerticalSpacing(8)
+            grid.setColumnStretch(0, 1)
+            grid.setColumnStretch(1, 1)
+            groups.addLayout(grid)
+            groups.addSpacing(8)
+            frames = []
+            for item in members:
+                frame = card()
+                row = QHBoxLayout(frame)
+                row.setContentsMargins(12, 8, 12, 8)
+                row.setSpacing(12)
+                words = QVBoxLayout()
+                words.setSpacing(0)
+                name, about = split_name(item["name"])
+                title_label = QLabel(name)
+                title_label.setObjectName("cardName")
+                words.addWidget(title_label)
+                note = QLabel()
+                note.setObjectName("cardNote")
+                words.addWidget(note)
+                row.addLayout(words, 1)
+                switch = QCheckBox()
+                switch.setObjectName("switch")
+                switch.setCursor(Qt.PointingHandCursor)
+                switch.setEnabled(False)
+                switch.setAccessibleName(item["name"])
+                row.addWidget(switch)
+                frame.about = about
+                frame.note = note
+                frame.switch = switch
                 if item["kind"] == "fixed":
                     # Part of the image: shown so the list is complete, never removed.
-                    check.setChecked(True)
-                    check.setToolTip(tr("Always on this machine", "Mindig rajta van a gépen"))
+                    switch.setChecked(True)
+                    frame.about = tr("always on this machine", "a rendszer része")
                 else:
-                    self.boxes[item["id"]] = check
+                    self.boxes[item["id"]] = switch
+                    self.cards[item["id"]] = frame
+                    switch.toggled.connect(self.changed)
                 if item["group"] == "vendor" and run("arkadeos-vendor", item["id"], "allowed") != "yes":
                     # Another maker's machine (arkadeos-vendor): never selectable here.
                     self.locked.add(item["id"])
-                    check.setToolTip(tr("This machine is not this maker's laptop",
-                                        "Ez a gép nem ennek a gyártónak a laptopja"))
-                box_layout.addWidget(check, n // 2, n % 2)
-            grid.addWidget(box)
-        grid.addStretch()
+                    frame.about = tr("this machine is not this maker's laptop",
+                                     "ez a gép nem ennek a gyártónak a laptopja")
+                note.setText(frame.about)
+                note.setVisible(bool(frame.about))
+                frame.item = item
+                frames.append(frame)
+            self.groups.append((heading, grid, frames))
+        groups.addStretch()
+        self.place()
         scroll = QScrollArea()
+        scroll.setObjectName("scroll")
         scroll.setWidgetResizable(True)
+        scroll.setFrameShape(QFrame.NoFrame)
+        scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
         scroll.setWidget(body)
         layout.addWidget(scroll, 1)
 
         self.log = QPlainTextEdit()
+        self.log.setObjectName("log")
         self.log.setReadOnly(True)
         self.log.setMaximumHeight(140)
         self.log.hide()
-        layout.addWidget(self.log)
+        logbox = QHBoxLayout()
+        logbox.setContentsMargins(22, 0, 22, 10)
+        logbox.addWidget(self.log)
+        layout.addLayout(logbox)
 
-        row = QHBoxLayout()
+        bar = QFrame()
+        bar.setObjectName("footBar")
+        row = QHBoxLayout(bar)
+        row.setContentsMargins(16, 10, 16, 10)
         self.state = QLabel(tr("Checking what is installed…", "Annak ellenőrzése, mi van telepítve…"))
+        self.state.setObjectName("footNote")
+        self.state.setTextFormat(Qt.RichText)
         row.addWidget(self.state, 1)
+        self.cancel = QPushButton(tr("Cancel", "Mégse"))
+        self.cancel.clicked.connect(self.undo)
+        self.cancel.setVisible(False)
+        row.addWidget(self.cancel)
         self.apply = QPushButton(QIcon.fromTheme("dialog-ok-apply"), tr("Apply", "Alkalmazás"))
+        self.apply.setObjectName("primary")
         self.apply.setEnabled(False)
         self.apply.clicked.connect(self.start)
         row.addWidget(self.apply)
-        layout.addLayout(row)
+        layout.addWidget(bar)
 
         self.thread = QThread()
         self.reader = StatusReader([i["id"] for i in self.items if i["kind"] != "fixed"])
@@ -186,6 +307,55 @@ class AppsTab(QWidget):
         self.reader.finished.connect(self.ready)
         self.reader.finished.connect(self.thread.quit)
         self.thread.start()
+
+    def place(self, text=""):
+        """The cards that match the search, two by two, under their group."""
+        text = text.strip().lower()
+        for heading, grid, frames in self.groups:
+            shown = [f for f in frames if not text or text in f.item["name"].lower()]
+            for frame in frames:
+                grid.removeWidget(frame)
+                frame.setVisible(frame in shown)
+            for n, frame in enumerate(shown):
+                grid.addWidget(frame, n // 2, n % 2)
+            heading.setVisible(bool(shown))
+
+    def filter(self, text):
+        self.place(text)
+
+    def changes(self):
+        if not self.loaded:
+            return []
+        return [(i, b.isChecked()) for i, b in self.boxes.items() if b.isChecked() != self.installed.get(i, False)]
+
+    def changed(self):
+        """Marks the cards whose switch differs from what is installed, and
+        says in the bar what waits to be applied."""
+        waiting = dict(self.changes())
+        for item_id, frame in self.cards.items():
+            if item_id in waiting:
+                set_flag(frame, "pending", True)
+                frame.note.setText(tr("to be installed", "telepítésre jelölve") if waiting[item_id]
+                                   else tr("to be removed", "eltávolításra jelölve"))
+                frame.note.setVisible(True)
+            else:
+                set_flag(frame, "pending", False)
+                frame.note.setText(frame.about)
+                frame.note.setVisible(bool(frame.about))
+        if self.loaded and not self.busy:
+            names = [split_name(self.names[i])[0] for i in waiting]
+            if names:
+                count = tr(f"{len(names)} change{'s' if len(names) > 1 else ''}", f"{len(names)} változás")
+                shown = ", ".join(names[:3]) + ("…" if len(names) > 3 else "")
+                self.state.setText(f"<b>{count}</b> " + tr("waiting: ", "vár: ") + html.escape(shown))
+            else:
+                self.state.setText(tr("Everything is as it is on the machine.", "Minden úgy van, ahogy a gépen."))
+            self.cancel.setVisible(bool(names) and not self.first_run)
+        self.pending.emit(len(waiting))
+
+    def undo(self):
+        for item_id, switch in self.boxes.items():
+            switch.setChecked(self.installed.get(item_id, False))
 
     def found(self, item_id, on):
         self.installed[item_id] = on
@@ -199,8 +369,10 @@ class AppsTab(QWidget):
         check.setEnabled(item_id not in self.locked)
 
     def ready(self):
+        self.loaded = True
         self.state.setText("")
         self.apply.setEnabled(True)
+        self.changed()
         if self.from_installer:
             self.start()
 
@@ -213,7 +385,9 @@ class AppsTab(QWidget):
         if not self.queue:
             self.done()
             return
+        self.busy = True
         self.apply.setEnabled(False)
+        self.cancel.setVisible(False)
         for check in self.boxes.values():
             check.setEnabled(False)
         self.log.show()
@@ -224,9 +398,9 @@ class AppsTab(QWidget):
             self.done()
             return
         item_id, action = self.queue.pop(0)
-        name = self.boxes[item_id].text()
-        self.state.setText(tr(f"{'Installing' if action == 'install' else 'Removing'}: {name}",
-                              f"{'Telepítés' if action == 'install' else 'Eltávolítás'}: {name}"))
+        name = self.names[item_id]
+        self.state.setText(html.escape(tr(f"{'Installing' if action == 'install' else 'Removing'}: {name}",
+                                          f"{'Telepítés' if action == 'install' else 'Eltávolítás'}: {name}")))
         proc = QProcess(self)
         proc.setProcessChannelMode(QProcess.MergedChannels)
         proc.readyRead.connect(lambda: self.log.appendPlainText(
@@ -240,17 +414,19 @@ class AppsTab(QWidget):
             self.installed[item_id] = action == "install"
         else:
             self.boxes[item_id].setChecked(self.installed.get(item_id, False))
-        self.log.appendPlainText(("✔ " if ok else "✘ ") + self.boxes[item_id].text())
+        self.log.appendPlainText(("✔ " if ok else "✘ ") + self.names[item_id])
         self.next()
 
     def done(self):
         if self.first_run:
             STATE.mkdir(parents=True, exist_ok=True)
             FIRST_RUN_DONE.touch()
-        self.state.setText(tr("Done.", "Kész."))
+        self.busy = False
         self.apply.setEnabled(True)
         for item_id, check in self.boxes.items():
             check.setEnabled(item_id not in self.locked)
+        self.changed()
+        self.state.setText(tr("Done.", "Kész."))
 
 
 # The update (uupd.service, "Update now" or the daily 04:00 run) and how far it
@@ -428,7 +604,7 @@ class UpdateProgress(QFrame):
     def __init__(self):
         super().__init__()
         self.samples = []
-        self.setFrameShape(QFrame.StyledPanel)
+        self.setObjectName("progressBox")
         box = QVBoxLayout(self)
         top = QHBoxLayout()
         self.title = QLabel()
@@ -548,21 +724,49 @@ def version_table(lines, strong=""):
 
 
 class SystemTab(QWidget):
-    # A newer version is out on the channel (the tab's name says so too).
+    # A newer version is out on the channel (the page's name says so too).
     newer = Signal(bool)
 
     def __init__(self):
         super().__init__()
-        layout = QVBoxLayout(self)
+        outer = QVBoxLayout(self)
+        outer.setContentsMargins(0, 0, 0, 0)
+        outer.setSpacing(0)
+        head, _ = page_head(tr("System", "Rendszer"), tr("Updates, channel, firmware and going back.",
+                                                          "Frissítés, csatorna, firmware és visszaállítás."))
+        outer.addLayout(head)
+        body = QWidget()
+        body.setObjectName("scrollBody")
+        columns = QHBoxLayout(body)
+        columns.setContentsMargins(22, 0, 22, 16)
+        columns.setSpacing(12)
+        scroll = QScrollArea()
+        scroll.setObjectName("scroll")
+        scroll.setWidgetResizable(True)
+        scroll.setFrameShape(QFrame.NoFrame)
+        scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        scroll.setWidget(body)
+        outer.addWidget(scroll, 1)
 
-        updates = QGroupBox(tr("Updates", "Frissítések"))
+        updates = card()
         u = QVBoxLayout(updates)
+        u.setContentsMargins(16, 14, 16, 16)
+        u.setSpacing(10)
+        u.addWidget(self.heading("system-software-update-symbolic", tr("Updates", "Frissítések")))
+        # How it stands, in one line: up to date, a newer one out, or one
+        # waiting for the reboot.
+        self.headline = QLabel()
+        self.headline.setObjectName("headline")
+        self.headline.setTextFormat(Qt.RichText)
+        u.addWidget(self.headline)
         # Running, waiting for the reboot, previous, and the newest one the
         # channel has (Roland, 2026-11-12: looked up when the Portal opens).
         self.version = QLabel()
+        self.version.setObjectName("versions")
         self.version.setTextFormat(Qt.RichText)
         self.status_lines, self.latest_line, self.latest_newer = [], "", False
         self.looking, self.again, self.looked = False, False, 0.0
+        self.staged = ""
         self.log = UpdateLog()
         u.addWidget(self.version)
         self.progress = UpdateProgress()
@@ -572,29 +776,41 @@ class SystemTab(QWidget):
             "version starts at the next reboot.",
             "A rendszer, az appok és a Homebrew naponta maguktól frissülnek; az új "
             "rendszerverzió a következő újraindításkor indul."))
+        daily.setObjectName("muted")
         daily.setWordWrap(True)
         u.addWidget(daily)
         row = QHBoxLayout()
+        row.setSpacing(8)
         self.restart = QPushButton(QIcon.fromTheme("system-reboot"), tr("Restart now", "Újraindítás most"))
+        self.restart.setObjectName("primary")
         self.restart.clicked.connect(lambda: subprocess.Popen(
             ["qdbus-qt6", "org.kde.LogoutPrompt", "/LogoutPrompt", "promptReboot"]))
         self.restart.setDefault(True)
         row.addWidget(self.restart)
         self.update_now = self.button("system-software-update", tr("Update now", "Frissítés most"),
                                       ["arkadeos-update", "now"])
+        self.update_now.setObjectName("primary")
         row.addWidget(self.update_now)
-        self.rollback = self.button("edit-undo", tr("Back to the previous version", "Vissza az előző verzióra"),
-                                    ["arkadeos-update", "rollback"])
-        row.addWidget(self.rollback)
-        u.addLayout(row)
         self.check = QPushButton(QIcon.fromTheme("view-refresh"), tr("Look for a newer version", "Újabb verzió keresése"))
         self.checker = QProcess(self)
         self.checker.finished.connect(self.newer_found)
         self.checker.errorOccurred.connect(lambda _error: self.newer_found(1))
         self.check.clicked.connect(self.look_for_newer)
-        u.addWidget(self.check)
+        row.addWidget(self.check)
+        row.addStretch()
+        u.addLayout(row)
         row = QHBoxLayout()
-        row.addWidget(QLabel(tr("Channel:", "Csatorna:")))
+        row.setSpacing(8)
+        self.rollback = self.button("edit-undo", tr("Back to the previous version", "Vissza az előző verzióra"),
+                                    ["arkadeos-update", "rollback"])
+        row.addWidget(self.rollback)
+        row.addStretch()
+        u.addLayout(row)
+        row = QHBoxLayout()
+        row.setSpacing(8)
+        label = QLabel(tr("Channel", "Csatorna"))
+        label.setObjectName("muted")
+        row.addWidget(label)
         self.channel = QComboBox()
         self.channel.addItem(tr("Stable", "Stabil"), "stable")
         self.channel.addItem(tr("Testing (newer, less tried)", "Teszt (újabb, kevésbé kipróbált)"), "testing")
@@ -603,43 +819,106 @@ class SystemTab(QWidget):
         switch.clicked.connect(lambda: self.call(["arkadeos-update", "channel", self.channel.currentData()]))
         row.addWidget(switch)
         u.addLayout(row)
-        layout.addWidget(updates)
+        columns.addWidget(updates, 1, Qt.AlignTop)
 
-        firmware = QGroupBox(tr("Firmware", "Firmware"))
-        f = QHBoxLayout(firmware)
-        f.addWidget(self.button("system-software-update", tr("Look for firmware updates", "Firmware-frissítések keresése"),
-                                ["arkadeos-firmware", "check"]))
-        f.addWidget(self.button("run-install", tr("Install firmware updates", "Firmware-frissítések telepítése"),
-                                ["arkadeos-firmware", "update"]))
-        layout.addWidget(firmware)
+        side = QVBoxLayout()
+        side.setSpacing(12)
+        firmware = card()
+        f = QVBoxLayout(firmware)
+        f.setContentsMargins(16, 14, 16, 16)
+        f.setSpacing(10)
+        f.addWidget(self.heading("cpu-symbolic", tr("Firmware", "Firmware")))
+        note = QLabel(tr("The machine's and its devices' firmware, when the maker has a new one.",
+                         "A gép és az eszközei firmware-e, ha a gyártó kiadott újat."))
+        note.setObjectName("muted")
+        note.setWordWrap(True)
+        f.addWidget(note)
+        row = QHBoxLayout()
+        row.setSpacing(8)
+        row.addWidget(self.button("system-software-update", tr("Look for updates", "Keresés"),
+                                  ["arkadeos-firmware", "check"]))
+        row.addWidget(self.button("run-install", tr("Install them", "Telepítés"),
+                                  ["arkadeos-firmware", "update"]))
+        row.addStretch()
+        f.addLayout(row)
+        side.addWidget(firmware)
 
-        desktop = QGroupBox(tr("Reset", "Visszaállítás"))
-        d = QHBoxLayout(desktop)
-        reset = QPushButton(QIcon.fromTheme("edit-reset"), tr("Restore the desktop defaults", "Asztal alapbeállításainak visszaállítása"))
-        reset.clicked.connect(self.reset_desktop)
-        d.addWidget(reset)
-        factory = QPushButton(QIcon.fromTheme("edit-clear-history"), tr("Factory reset (files stay)", "Gyári visszaállítás (a fájlok megmaradnak)"))
-        factory.clicked.connect(self.reset_system)
-        d.addWidget(factory)
-        layout.addWidget(desktop)
-
-        versions = QGroupBox(tr("Earlier builds (last 90 days)", "Korábbi buildek (az elmúlt 90 nap)"))
-        v = QHBoxLayout(versions)
+        versions = card()
+        v = QVBoxLayout(versions)
+        v.setContentsMargins(16, 14, 16, 16)
+        v.setSpacing(10)
+        v.addWidget(self.heading("view-history-symbolic", tr("Earlier builds", "Korábbi buildek")))
+        note = QLabel(tr("The system versions of the last 90 days.", "Az elmúlt 90 nap rendszerverziói."))
+        note.setObjectName("muted")
+        v.addWidget(note)
         self.builds = QComboBox()
-        v.addWidget(self.builds, 1)
+        v.addWidget(self.builds)
+        row = QHBoxLayout()
+        row.setSpacing(8)
         load = QPushButton(tr("List", "Listázás"))
         load.clicked.connect(lambda: self.builds.addItems(run("arkadeos-update", "versions").splitlines()) if not self.builds.count() else None)
-        v.addWidget(load)
+        row.addWidget(load)
         start = QPushButton(tr("Start this one", "Ez induljon"))
         start.clicked.connect(lambda: self.builds.currentText() and self.call(["arkadeos-update", "version", self.builds.currentText()]))
-        v.addWidget(start)
-        layout.addWidget(versions)
-        layout.addStretch()
+        row.addWidget(start)
+        row.addStretch()
+        v.addLayout(row)
+        side.addWidget(versions)
+
+        desktop = card()
+        d = QVBoxLayout(desktop)
+        d.setContentsMargins(16, 14, 16, 16)
+        d.setSpacing(10)
+        d.addWidget(self.heading("edit-undo-symbolic", tr("Reset", "Visszaállítás")))
+        reset = QPushButton(QIcon.fromTheme("edit-reset"), tr("Desktop defaults", "Asztal alapbeállításai"))
+        reset.setToolTip(tr("Restore the desktop defaults", "Asztal alapbeállításainak visszaállítása"))
+        reset.clicked.connect(self.reset_desktop)
+        d.addWidget(reset, 0, Qt.AlignLeft)
+        factory = QPushButton(QIcon.fromTheme("edit-clear-history"), tr("Factory reset (files stay)", "Gyári állapot (a fájlok maradnak)"))
+        factory.setObjectName("danger")
+        factory.clicked.connect(self.reset_system)
+        d.addWidget(factory, 0, Qt.AlignLeft)
+        side.addWidget(desktop)
+        side.addStretch()
+        columns.addLayout(side, 1)
+
         self.running = False
         self.refresh()
         self.timer = QTimer(self)
         self.timer.timeout.connect(self.poll)
         self.timer.start(2000)
+
+    @staticmethod
+    def heading(icon, text):
+        """A card's title with its icon."""
+        box = QWidget()
+        row = QHBoxLayout(box)
+        row.setContentsMargins(0, 0, 0, 0)
+        row.setSpacing(8)
+        mark = QLabel()
+        mark.setPixmap(QIcon.fromTheme(icon).pixmap(18, 18))
+        row.addWidget(mark)
+        title = QLabel(text)
+        title.setObjectName("cardTitle")
+        row.addWidget(title, 1)
+        return box
+
+    def update_headline(self, running=False):
+        """The update card's first line: what to know at a glance."""
+        if running:
+            text, kind = tr("Updating…", "Frissítés folyamatban…"), "busy"
+        elif self.staged:
+            text, kind = tr(f"{self.staged} starts after a restart", f"Újraindítás után a {self.staged} indul"), "new"
+        elif self.latest_newer:
+            text, kind = tr("A newer version is out", "Újabb verzió érhető el"), "new"
+        elif self.looking:
+            text, kind = tr("Looking for a newer version…", "Újabb verzió keresése…"), "busy"
+        else:
+            text, kind = tr("The system is up to date", "A rendszer naprakész"), "ok"
+        palette = QApplication.palette()
+        mark, colour = {"ok": ("✓", "#22C55E"), "new": ("●", palette.color(QPalette.Highlight).name()),
+                        "busy": ("…", palette.color(QPalette.PlaceholderText).name())}[kind]
+        self.headline.setText(f"<span style='color:{colour}'>{mark}</span>&nbsp;&nbsp;{html.escape(text)}")
 
     def poll(self):
         if not self.isVisible() and not self.running:
@@ -652,6 +931,8 @@ class SystemTab(QWidget):
         self.update_now.setText(tr("Updating…", "Frissítés folyamatban…") if running
                                 else tr("Update now", "Frissítés most"))
         self.restart.setVisible(bool(s["staged"]) and not running)
+        self.staged = s["staged"]
+        self.update_headline(running)
         if self.running and not running:
             self.refresh()
         self.running = running
@@ -695,6 +976,7 @@ class SystemTab(QWidget):
     def show_versions(self):
         lines = self.status_lines + ([self.latest_line] if self.latest_line else [])
         self.version.setText(version_table(lines, self.latest_line if self.latest_newer else ""))
+        self.update_headline(self.running)
 
     def button(self, icon, text, command):
         b = QPushButton(QIcon.fromTheme(icon), text)
@@ -802,15 +1084,24 @@ def steam_games():
 class GamesTab(QWidget):
     def __init__(self):
         super().__init__()
-        layout = QVBoxLayout(self)
-        intro = QLabel(tr(
+        outer = QVBoxLayout(self)
+        outer.setContentsMargins(0, 0, 0, 0)
+        outer.setSpacing(0)
+        head, _ = page_head(tr("Games", "Játékok"), tr(
             "The power profile each game runs with. It switches on when the game starts, and "
             "the profile before comes back when it exits. A game not on the list runs on Gaming.",
             "Melyik játék milyen energiaprofillal fusson. A játék indulásakor ez kapcsol be "
             "magától, és kilépéskor visszaáll az előző profil. Ami nincs a listán, Gaminggel fut."))
-        intro.setWordWrap(True)
-        layout.addWidget(intro)
+        outer.addLayout(head)
+        layout = QVBoxLayout()
+        layout.setContentsMargins(22, 0, 22, 16)
+        layout.setSpacing(10)
+        outer.addLayout(layout, 1)
         self.table = QTableWidget(0, 4)
+        self.table.setObjectName("games")
+        self.table.setShowGrid(False)
+        self.table.verticalHeader().setDefaultSectionSize(46)
+        self.table.horizontalHeader().setDefaultAlignment(Qt.AlignLeft | Qt.AlignVCenter)
         self.table.setHorizontalHeaderLabels([tr("Game", "Játék"), tr("From", "Honnan"),
                                               tr("Power profile", "Energiaprofil"), ""])
         header = self.table.horizontalHeader()
@@ -844,6 +1135,7 @@ class GamesTab(QWidget):
             "A Steam-játékok maguktól kerülnek a listára. Más játékhoz a program nevét kell megadni "
             "(például Wow.exe), akkor is, ha a játék még nincs telepítve. A kézzel felvett programot "
             "a ✕ törli."))
+        hint.setObjectName("muted")
         hint.setWordWrap(True)
         layout.addWidget(hint)
         self.status = QLabel()
@@ -985,6 +1277,222 @@ class LookLog(QObject):
         return False
 
 
+def kdeglobals():
+    c = configparser.ConfigParser(strict=False, interpolation=None)
+    c.optionxform = str
+    try:
+        c.read(Path(os.environ.get("XDG_CONFIG_HOME", Path.home() / ".config")) / "kdeglobals")
+    except configparser.Error:
+        pass
+    return c
+
+
+def glass_colours():
+    """The window frame's glass, active and inactive: the colour scheme's
+    title bar colours, with their see-through (ArkadeOS Glass, T086)."""
+    c = kdeglobals()
+    out = {}
+    for active, key, fallback in ((True, "activeBackground", (45, 81, 110, 136)),
+                                  (False, "inactiveBackground", (30, 53, 72, 133))):
+        try:
+            parts = tuple(int(x) for x in c.get("WM", key, fallback="").split(","))
+        except ValueError:
+            parts = ()
+        out[active] = QColor(*(parts if len(parts) in (3, 4) else fallback))
+    return out
+
+
+def mix(a, b, share):
+    """Colour a with the given share of b."""
+    return QColor(*(round(x + (y - x) * share) for x, y in zip(a.getRgb()[:3], b.getRgb()[:3])))
+
+
+def rgba(c, alpha):
+    return f"rgba({c.red()},{c.green()},{c.blue()},{alpha})"
+
+
+SWITCHES = Path(os.environ.get("XDG_RUNTIME_DIR") or f"/tmp/arkadeos-portal-{os.getuid()}") / "arkadeos-portal"
+
+
+def switch_images(on, track, knob):
+    """The switch's four looks (on, off, and both greyed) as pictures for the
+    style sheet."""
+    SWITCHES.mkdir(parents=True, exist_ok=True)
+    paths = {}
+    for name, fill, x, dot, alpha in (("on", on, 26, "#ffffff", 1), ("off", track, 10, knob, 1),
+                                      ("on-disabled", on, 26, "#ffffff", .45), ("off-disabled", track, 10, knob, .45)):
+        path = SWITCHES / f"switch-{name}.svg"
+        path.write_text(f'<svg xmlns="http://www.w3.org/2000/svg" width="36" height="20" viewBox="0 0 36 20">'
+                        f'<g opacity="{alpha}"><rect width="36" height="20" rx="10" fill="{fill}"/>'
+                        f'<circle cx="{x}" cy="10" r="7" fill="{dot}"/></g></svg>')
+        paths[name] = path.as_posix()
+    return paths
+
+
+def style_sheet(palette):
+    """ArkadeOS Glass for the Portal, from the colour scheme in use: the solid
+    pane and its cards, switches, buttons and fields; the glass side's words
+    white on the dark glass, dark on the light one."""
+    window = palette.color(QPalette.Window)
+    text = palette.color(QPalette.WindowText)
+    accent = palette.color(QPalette.Highlight)
+    muted = palette.color(QPalette.PlaceholderText).name()
+    dark = window.lightness() < 128
+    white, black = QColor("#ffffff"), QColor("#000000")
+    card = mix(window, white, .045) if dark else palette.color(QPalette.Base)
+    field = mix(window, black, .28) if dark else white
+    button = mix(window, text, .10)
+    line = rgba(text, .10)
+    ink = "#0b1a28"
+    glass_ink = "#ffffff" if dark else "#10161f"
+    danger = "#ff8fa0" if dark else "#c0283f"
+    amber = QColor("#F59E0B")
+    s = switch_images(accent.name(), mix(window, text, .22).name(), "#c9d1dc" if dark else "#ffffff")
+    return f"""
+#pane {{ background: {window.name()}; border-radius: 6px; }}
+#scroll, #scrollBody {{ background: transparent; }}
+#scroll > QWidget > QWidget {{ background: transparent; }}
+#pageTitle {{ font-size: 21px; font-weight: 700; }}
+#pageSub, #muted, #cardNote, #footNote {{ color: {muted}; }}
+#groupTitle {{ color: {muted}; font-size: 11px; font-weight: 700; letter-spacing: 1px; padding-top: 4px; }}
+#card {{ background: {card.name()}; border: 1px solid {line}; border-radius: 10px; }}
+#card[pending="true"] {{ background: {rgba(accent, .12)}; border: 1px solid {rgba(accent, .7)}; }}
+#card[pending="true"] #cardNote {{ color: {accent.name()}; }}
+#cardName {{ font-weight: 600; }}
+#cardTitle {{ font-size: 14px; font-weight: 700; }}
+#headline {{ font-size: 16px; font-weight: 700; }}
+#versions {{ color: {text.name()}; }}
+#notice {{ background: {rgba(amber, .14)}; border: 1px solid {rgba(amber, .5)}; border-radius: 8px; padding: 8px 12px; }}
+#footBar {{ background: {mix(window, text, .04).name()}; border-top: 1px solid {line};
+  border-bottom-left-radius: 6px; border-bottom-right-radius: 6px; }}
+#pane QPushButton {{ background: {button.name()}; border: 1px solid {line}; border-radius: 8px; padding: 6px 14px;
+  font-weight: 600; min-height: 18px; }}
+#pane QPushButton:hover {{ background: {mix(window, text, .16).name()}; }}
+#pane QPushButton:disabled {{ color: {muted}; }}
+#pane QPushButton#primary {{ background: {accent.name()}; color: {ink}; border: 1px solid {accent.name()}; }}
+#pane QPushButton#primary:hover {{ background: {accent.lighter(112).name()}; }}
+#pane QPushButton#primary:disabled {{ background: {rgba(accent, .45)}; color: {rgba(QColor(ink), .6)}; }}
+#pane QPushButton#danger {{ color: {danger}; }}
+#pane QLineEdit, #pane QComboBox {{ background: {field.name()}; border: 1px solid {line}; border-radius: 8px;
+  padding: 5px 10px; min-height: 18px; }}
+#pane QComboBox::drop-down {{ border: none; width: 22px; }}
+#switch::indicator {{ width: 36px; height: 20px; }}
+#switch::indicator:checked {{ image: url({s["on"]}); }}
+#switch::indicator:unchecked {{ image: url({s["off"]}); }}
+#switch::indicator:checked:disabled {{ image: url({s["on-disabled"]}); }}
+#switch::indicator:unchecked:disabled {{ image: url({s["off-disabled"]}); }}
+#log {{ background: {field.name()}; border: 1px solid {line}; border-radius: 8px; }}
+#progressBox {{ background: {field.name()}; border: 1px solid {line}; border-radius: 10px; }}
+#progressBox QProgressBar {{ background: {mix(window, black, .45 if dark else .12).name()}; border: none; border-radius: 4px; }}
+#progressBox QProgressBar::chunk {{ border-radius: 4px; background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
+  stop:0 {accent.name()}, stop:1 {accent.lighter(125).name()}); }}
+#games, #games QHeaderView {{ background: transparent; border: none; }}
+#games QComboBox {{ margin: 6px 0; }}
+#games QHeaderView::section {{ background: transparent; border: none; border-bottom: 1px solid {line};
+  color: {muted}; padding: 6px 8px; font-weight: 700; }}
+#side QPushButton#nav {{ background: transparent; color: {glass_ink}; border: 1px solid transparent; border-radius: 8px;
+  padding: 8px 10px; text-align: left; font-size: 14px; font-weight: 600; }}
+#side QPushButton#nav:hover {{ background: rgba(255,255,255,.10); }}
+#side QPushButton#nav:checked {{ background: rgba(255,255,255,{.20 if dark else .45}); border: 1px solid rgba(255,255,255,{.35 if dark else .7}); }}
+#badge {{ background: {accent.name()}; color: {ink}; border-radius: 9px; padding: 1px 7px; font-size: 11px; font-weight: 700; }}
+#sideFoot {{ color: {glass_ink}; font-size: 11px; }}
+"""
+
+
+class Portal(QWidget):
+    """The window: the pages listed on the glass at the left, the page on a
+    solid pane at the right (design A)."""
+
+    def __init__(self, first_run):
+        super().__init__()
+        self.setAttribute(Qt.WA_TranslucentBackground)
+        self.setWindowTitle("ArkadeOS Portal")
+        self.setWindowIcon(QIcon.fromTheme("arkadeos-portal", QIcon.fromTheme("preferences-system")))
+        self.glass = glass_colours()
+        row = QHBoxLayout(self)
+        row.setContentsMargins(0, 0, 0, 0)
+        row.setSpacing(7)
+        side = QWidget()
+        side.setObjectName("side")
+        side.setFixedWidth(196)
+        self.nav = QVBoxLayout(side)
+        self.nav.setContentsMargins(4, 2, 0, 4)
+        self.nav.setSpacing(2)
+        row.addWidget(side)
+        pane = QFrame()
+        pane.setObjectName("pane")
+        inside = QVBoxLayout(pane)
+        inside.setContentsMargins(0, 0, 0, 0)
+        self.stack = QStackedWidget()
+        inside.addWidget(self.stack)
+        row.addWidget(pane, 1)
+        self.buttons = QButtonGroup(self)
+
+        apps = AppsTab(first_run)
+        button = self.page(apps, "view-app-grid-symbolic", tr("Apps", "Appok"))
+        apps.pending.connect(lambda n, b=button: self.badge(b, str(n) if n else ""))
+        if not first_run:
+            self.page(GamesTab(), "input-gamepad-symbolic", tr("Games", "Játékok"))
+            system = SystemTab()
+            button = self.page(system, "preferences-system-symbolic", tr("System", "Rendszer"))
+            # The Portal opens on Apps: a newer version shows beside System.
+            system.newer.connect(lambda on, b=button: self.badge(b, tr("new", "új") if on else ""))
+        self.nav.addStretch()
+        version = next((line.split("=", 1)[1].strip('"') for line in Path("/usr/lib/os-release").read_text().splitlines()
+                        if line.startswith("VERSION=")), "")
+        channel = {"stable": tr("Stable channel", "Stabil csatorna"), "testing": tr("Testing channel", "Teszt csatorna")}.get(
+            run("arkadeos-update", "channel"), "")
+        foot = QLabel("\n".join(x for x in (f"ArkadeOS {version}".strip(), channel) if x))
+        foot.setObjectName("sideFoot")
+        foot.setContentsMargins(10, 0, 0, 6)
+        self.nav.addWidget(foot)
+        self.buttons.buttons()[0].setChecked(True)
+
+    def page(self, widget, icon, title):
+        index = self.stack.addWidget(widget)
+        button = QPushButton(QIcon.fromTheme(icon), "  " + title)
+        button.setObjectName("nav")
+        button.setCheckable(True)
+        button.clicked.connect(lambda: self.stack.setCurrentIndex(index))
+        inner = QHBoxLayout(button)
+        inner.setContentsMargins(0, 0, 10, 0)
+        inner.addStretch()
+        badge = QLabel()
+        badge.setObjectName("badge")
+        badge.setAttribute(Qt.WA_TransparentForMouseEvents)
+        badge.setFixedHeight(18)
+        badge.hide()
+        inner.addWidget(badge, 0, Qt.AlignVCenter)
+        button.badge_label = badge
+        self.buttons.addButton(button)
+        self.nav.addWidget(button)
+        return button
+
+    @staticmethod
+    def badge(button, text):
+        button.badge_label.setText(text)
+        button.badge_label.setVisible(bool(text))
+
+    def restyle(self):
+        self.glass = glass_colours()
+        QApplication.instance().setStyleSheet(style_sheet(QApplication.palette()))
+        self.update()
+
+    def event(self, event):
+        if event.type() == QEvent.ApplicationPaletteChange:
+            # The day/night switch: the colours and the glass come again.
+            QTimer.singleShot(0, self.restyle)
+        elif event.type() == QEvent.WindowActivate or event.type() == QEvent.WindowDeactivate:
+            self.update()
+        return super().event(event)
+
+    def paintEvent(self, event):
+        # The glass: the frame's own colour, KWin blurs the desktop behind it.
+        painter = QPainter(self)
+        painter.setCompositionMode(QPainter.CompositionMode_Source)
+        painter.fillRect(self.rect(), self.glass[self.isActiveWindow()])
+
+
 def main():
     first_run = "--first-run" in sys.argv
     if first_run and FIRST_RUN_DONE.exists():
@@ -993,19 +1501,9 @@ def main():
         wait_for_look()
     app = QApplication(sys.argv)
     app.setDesktopFileName("org.arkadeos.Portal")
-    window = QTabWidget()
-    window.setWindowTitle("ArkadeOS Portal")
-    window.setWindowIcon(QIcon.fromTheme("arkadeos-portal", QIcon.fromTheme("preferences-system")))
-    window.addTab(AppsTab(first_run), QIcon.fromTheme("applications-all"), tr("Apps", "Appok"))
-    if not first_run:
-        system = SystemTab()
-        tab = window.addTab(system, QIcon.fromTheme("preferences-system"), tr("System", "Rendszer"))
-        # The Portal opens on Apps: a newer version shows on the tab's name.
-        system.newer.connect(lambda on: (
-            window.setTabText(tab, tr("System · new version", "Rendszer · új verzió") if on else tr("System", "Rendszer")),
-            window.setTabIcon(tab, QIcon.fromTheme("system-software-update" if on else "preferences-system"))))
-        window.addTab(GamesTab(), QIcon.fromTheme("applications-games"), tr("Games", "Játékok"))
-    window.resize(760, 640)
+    app.setStyleSheet(style_sheet(app.palette()))
+    window = Portal(first_run)
+    window.resize(960, 640)
     LookLog(window)
     window.show()
     app.exec()
