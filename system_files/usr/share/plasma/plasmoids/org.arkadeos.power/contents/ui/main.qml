@@ -35,12 +35,14 @@ PlasmoidItem {
         max: "Max",
         wow: "WoW"
     })
+    // Breeze's own profile icons: it has no power-profile-* ones (those are
+    // Adwaita's), so they showed as a blank page (T086).
     readonly property var icons: ({
-        battery: "power-profile-power-saver-symbolic",
-        balanced: "power-profile-balanced-symbolic",
-        gaming: "power-profile-performance-symbolic",
-        max: "power-profile-performance-symbolic",
-        wow: "power-profile-performance-symbolic"
+        battery: "battery-profile-powersave-symbolic",
+        balanced: "battery-profile-balanced-symbolic",
+        gaming: "battery-profile-performance-symbolic",
+        max: "battery-profile-performance-symbolic",
+        wow: "battery-profile-performance-symbolic"
     })
     readonly property string autoText: auto === "game" ? tr("Automatic: a game is running", "Automatikus: játék fut")
         : auto === "battery" ? tr("Automatic: running on battery", "Automatikus: akkuról megy")

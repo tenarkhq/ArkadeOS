@@ -72,12 +72,21 @@ def png(w, h, alpha):
 def shadow_alpha(strength, u, v, kind):
     """The shadow's alpha at a point u px outward from the frame's side edge
     and v px outward from its top or bottom edge (negative: inside). kind is
-    'top' or 'bottom': the shadow sits DY lower than the frame."""
+    'top' or 'bottom': the shadow sits DY lower than the frame. Inside the
+    frame it is none, but outside its rounded corners it is there: without it
+    the corners showed a light notch in the shadow (VM, 2026-11-13)."""
+    outside = 1.0
     if u <= 0 and v <= 0:
-        return 0.0
+        r = R_TOP if kind == "top" else R_BOTTOM
+        if u <= -r or v <= -r:
+            return 0.0
+        # How much of this pixel lies outside the corner's arc.
+        outside = max(0.0, min(1.0, math.hypot(u + r, v + r) - r + 0.5))
+        if outside == 0:
+            return 0.0
     fx = phi((SPREAD - u) / SIGMA)
     fy = phi((SPREAD - DY - v) / SIGMA) if kind == "top" else phi((SPREAD + DY - v) / SIGMA)
-    return strength * fx * fy
+    return strength * fx * fy * outside
 
 
 def image(x, y, w, h, alpha):
@@ -129,6 +138,9 @@ def frame(prefix, glass, x0, y0, strength):
                 f'<path d="{corner(x, y, w, h, r, top, right, 0, 1)}" fill="{DARK_RIM}"/>'
                 f'<path d="{corner(x, y, w, h, r, top, right, 1, 2)}" fill="{LIGHT_RIM}"/>')
 
+    # The top and bottom edges are stretched, so their shadow cannot fade
+    # sideways: it is the strength the corners have at their inner side
+    # (u = -s), or a seam shows where they meet.
     W1, H1 = PL + s, PT + t       # top corners
     H3 = b + PB                   # bottom corners
     # top row
@@ -138,7 +150,7 @@ def frame(prefix, glass, x0, y0, strength):
           + f'<rect x="{x0 + PL + s - 1}" y="{y0 + PT + t - 1}" width="1" height="1" fill="{EDGE}"/>')
     x = x0 + W1 + 2
     piece("top", x, y0, 1, H1,
-          image(x, y0, 1, H1, lambda _x, y: shadow_alpha(strength, -INF, PT - y, "top"))
+          image(x, y0, 1, H1, lambda _x, y: shadow_alpha(strength, -s, PT - y, "top"))
           + f'<rect x="{x}" y="{y0 + PT}" width="1" height="{t}" fill="{g}"/><rect x="{x}" y="{y0 + PT}" width="1" height="1" fill="{DARK_RIM}"/>'
           f'<rect x="{x}" y="{y0 + PT + 1}" width="1" height="1" fill="{LIGHT_RIM}"/><rect x="{x}" y="{y0 + PT + t - 1}" width="1" height="1" fill="{EDGE}"/>')
     x = x0 + W1 + 5
@@ -166,7 +178,7 @@ def frame(prefix, glass, x0, y0, strength):
           + f'<rect x="{x0 + PL + s - 1}" y="{y}" width="1" height="1" fill="{EDGE}"/>')
     x = x0 + W1 + 2
     piece("bottom", x, y, 1, H3,
-          image(x, y, 1, H3, lambda _x, yy: shadow_alpha(strength, -INF, yy - b, "bottom"))
+          image(x, y, 1, H3, lambda _x, yy: shadow_alpha(strength, -s, yy - b, "bottom"))
           + f'<rect x="{x}" y="{y}" width="1" height="{b}" fill="{g}"/><rect x="{x}" y="{y}" width="1" height="1" fill="{EDGE}"/>'
           f'<rect x="{x}" y="{y + b - 2}" width="1" height="1" fill="{LIGHT_RIM}"/><rect x="{x}" y="{y + b - 1}" width="1" height="1" fill="{DARK_RIM}"/>')
     x = x0 + W1 + 5

@@ -46,7 +46,11 @@ panels().forEach(function (panel) {
     bar.addWidget("org.kde.plasma.panelspacer")
     bar.addWidget("org.arkadeos.power")
     bar.addWidget("org.kde.plasma.systemtray")
-    bar.addWidget("org.kde.plasma.digitalclock")
+    var clock = bar.addWidget("org.kde.plasma.digitalclock")
+    clock.currentConfigGroup = ["Appearance"]
+    clock.writeConfig("dateDisplayFormat", 1)
+    clock.writeConfig("autoFontAndSize", false)
+    clock.writeConfig("fontSize", 10)
     bar.addWidget("org.kde.plasma.showdesktop")
     bar.addWidget("org.arkadeos.capsule")
 })

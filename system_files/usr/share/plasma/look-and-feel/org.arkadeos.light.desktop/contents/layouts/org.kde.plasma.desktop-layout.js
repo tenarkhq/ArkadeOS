@@ -37,7 +37,13 @@ panel.addWidget("org.kde.plasma.panelspacer")
 
 panel.addWidget("org.arkadeos.power")
 panel.addWidget("org.kde.plasma.systemtray")
-panel.addWidget("org.kde.plasma.digitalclock")
+// The clock as in the design: time and date on one line, at the size of
+// the tray's text, not filling the bar.
+var clock = panel.addWidget("org.kde.plasma.digitalclock")
+clock.currentConfigGroup = ["Appearance"]
+clock.writeConfig("dateDisplayFormat", 1)
+clock.writeConfig("autoFontAndSize", false)
+clock.writeConfig("fontSize", 10)
 panel.addWidget("org.kde.plasma.showdesktop")
 panel.addWidget("org.arkadeos.capsule")
 

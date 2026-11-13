@@ -101,16 +101,25 @@ PlasmoidItem {
     Rectangle {
         parent: root.layout ? root.layout.parent : root
         z: root.layout ? root.layout.z - 1 : 0
-        visible: root.group !== null
-        readonly property Item first: root.group ? root.group.first : null
-        readonly property Item own: root.group ? root.group.own : null
-        readonly property real across: first ? Math.min(root.thick, root.horizontal ? first.height : first.width) : 0
-        x: !first ? 0 : root.horizontal ? root.layout.x + first.x - root.pad
-                                        : root.layout.x + first.x + (first.width - across) / 2
-        y: !first ? 0 : root.horizontal ? root.layout.y + first.y + (first.height - across) / 2
-                                        : root.layout.y + first.y - root.pad
-        width: !first ? 0 : root.horizontal ? root.layout.x + own.x + own.width - x : across
-        height: !first ? 0 : root.horizontal ? across : root.layout.y + own.y + own.height - y
+        visible: box.width > 0
+        // One reading of the group, so that its two ends never come from
+        // two different moments (one of them null) while widgets change.
+        readonly property rect box: {
+            const g = root.group
+            const l = root.layout
+            if (!g || !l || !g.first || !g.own)
+                return Qt.rect(0, 0, 0, 0)
+            const f = g.first, o = g.own
+            const across = Math.min(root.thick, root.horizontal ? f.height : f.width)
+            return root.horizontal
+                ? Qt.rect(l.x + f.x - root.pad, l.y + f.y + (f.height - across) / 2, o.x + o.width - f.x + root.pad, across)
+                : Qt.rect(l.x + f.x + (f.width - across) / 2, l.y + f.y - root.pad, across, o.y + o.height - f.y + root.pad)
+        }
+        x: box.x
+        y: box.y
+        width: box.width
+        height: box.height
+        readonly property real across: root.horizontal ? height : width
         radius: across / 2
         // As in the design: white glass at 10 %, its rim at 25 %.
         color: Qt.rgba(1, 1, 1, 0.10)

@@ -36,6 +36,11 @@ tasks = order[2]
 launchers = c.get(f"Containments][{bar}][Applets][{tasks}][Configuration][General", "launchers", fallback="")
 assert "org.arkadeos.GameMode.desktop" not in launchers, launchers
 assert "org.arkadeos.Portal.desktop" in launchers, launchers
+# The clock on one line at the tray's text size, as in the design (T086).
+clock = order[6]
+look = c[f"Containments][{bar}][Applets][{clock}][Configuration][Appearance"] if c.has_section(
+    f"Containments][{bar}][Applets][{clock}][Configuration][Appearance") else {}
+assert (look.get("dateDisplayFormat"), look.get("autoFontAndSize"), look.get("fontSize")) == ("1", "false", "10"), dict(look)
 if len(sys.argv) > 2:
     # Flush with the edge: Plasma keeps a panel's float in plasmashellrc.
     s = configparser.ConfigParser(strict=False, interpolation=None)
