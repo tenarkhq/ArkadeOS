@@ -1,0 +1,13 @@
+{
+    "KPlugin": {
+        "Authors": [
+            {
+                "Name": "ArkadeOS"
+            }
+        ],
+        "Id": "ArkadeOS-Szalagok",
+        "License": "CC-BY-SA-4.0",
+        "Name": "Ark Ribbons",
+        "Name[hu]": "Ark szalagok"
+    }
+}

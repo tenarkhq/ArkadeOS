@@ -1,0 +1,13 @@
+{
+    "KPlugin": {
+        "Authors": [
+            {
+                "Name": "ArkadeOS"
+            }
+        ],
+        "Id": "ArkadeOS-Kereszt",
+        "License": "CC-BY-SA-4.0",
+        "Name": "Ark Cross",
+        "Name[hu]": "Ark kereszt"
+    }
+}
