@@ -240,6 +240,10 @@ check "the tray icons are ArkadeOS Glass's own, the power switch's too" 'for t i
         brightness-high-symbolic network-bluetooth-symbolic notification-inactive-symbolic user-desktop-symbolic \
         $(grep -oE "\"[a-z0-9-]+-symbolic\"" /usr/share/plasma/plasmoids/org.arkadeos.power/contents/ui/main.qml | tr -d "\"" | sort -u); do
         test -f /usr/share/icons/${t}/status/22/${n}.svg || { echo "missing ${t} ${n}"; exit 1; }; done; done'
+# System Settings with the ArkadeOS Glass Union style (Roland, 2026-11-13):
+# its launchers set it, and the style loads without errors.
+check "System Settings in the ArkadeOS Glass Union style" 'grep -q UNION_STYLE_NAME=arkadeos-glass /usr/bin/systemsettings /usr/bin/kcmshell6 &&
+    test -x /usr/libexec/arkadeos/systemsettings && test -f /usr/share/union/styles/arkadeos-glass/metadata.json'
 # Its app icons (Roland, 2026-11-13, family A): the file manager, terminal
 # and System Settings over Breeze's in both themes, the Portal's in hicolor,
 # and the icons of System Settings' pages.

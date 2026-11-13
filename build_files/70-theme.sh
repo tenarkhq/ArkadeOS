@@ -89,3 +89,21 @@ done
 # The new default wallpaper (Égkék) for every global theme's defaults.
 sed -i 's/^Image=ArkadeOS$/Image=ArkadeOS-Egkek/' /usr/share/plasma/look-and-feel/*/contents/defaults
 if grep -rqE '^Image=(Next|Fedora|ArkadeOS)$' /usr/share/plasma/look-and-feel/*/contents/defaults; then exit 1; fi
+# System Settings in ArkadeOS Glass (T086, Roland, 2026-11-13: "az egész
+# ablak kinézetét rendezni kell nem csak az ikonokat"): its Qt Quick parts
+# (the side list, most pages) drawn by Union, KDE's CSS style engine, with
+# the ArkadeOS Glass style (/usr/share/union/styles/arkadeos-glass): the side
+# list tinted with the glass colour, soft rounded selection, rounder fields,
+# buttons and cards. Union is still in development at KDE, so only System
+# Settings and its single-page windows (kcmshell6) start with it; every other
+# app keeps Breeze.
+test -f /usr/share/union/styles/arkadeos-glass/contents/css/style.css
+test -f /usr/share/union/styles/breeze/contents/css/style.css
+for bin in systemsettings kcmshell6; do
+    mv "/usr/bin/${bin}" "/usr/libexec/arkadeos/${bin}"
+    printf '%s\n' '#!/usr/bin/sh' \
+        "# ArkadeOS: ${bin} with the ArkadeOS Glass Union style (build_files/70-theme.sh)." \
+        'export QT_QUICK_CONTROLS_STYLE=org.kde.union UNION_STYLE_NAME=arkadeos-glass' \
+        "exec /usr/libexec/arkadeos/${bin} \"\$@\"" > "/usr/bin/${bin}"
+    chmod 755 "/usr/bin/${bin}"
+done

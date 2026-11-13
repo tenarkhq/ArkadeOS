@@ -1,0 +1,10 @@
+{
+    "input-type": "css",
+    "input-version": 1,
+    "name": "ArkadeOS Glass (Union)",
+    "description": "ArkadeOS Glass: Breeze with rounder, softer controls and glass-tinted selection.",
+    "version": "1.0",
+    "license": "BSD-2-Clause",
+    "url": "https://github.com/tenarkhq/ArkadeOS",
+    "authors": ["ArkadeOS"]
+}

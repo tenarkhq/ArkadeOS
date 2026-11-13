@@ -1,0 +1,86 @@
+/*
+ * ArkadeOS Glass for Union (T086, Roland, 2026-11-13: "a beállítások ablakot
+ * is rendbe rakhatnád ... az egészre gondoltam. ronda."). Breeze's Union
+ * style with the look of the ArkadeOS Portal: rounder corners, controls as
+ * soft surfaces with a faint rim instead of hard frames, selection as a
+ * glass-tinted pill, cards without shadows. Colours come from the colour
+ * scheme, so it follows light and dark.
+ */
+
+@import "../../../breeze/contents/css/style.css";
+
+:root {
+    --corner-radius: 8px;
+    --line-color: modify-color(var(--window-text-color) set-alpha 0.10);
+    --hover-wash: modify-color(var(--window-text-color) set-alpha 0.07);
+    --soft-highlight: modify-color(var(--highlight-color) set-alpha 0.22);
+    --soft-highlight-border: modify-color(var(--highlight-color) set-alpha 0.60);
+
+    --window-border-color: var(--line-color);
+    --view-border-color: var(--line-color);
+    --highlight-hover-color: var(--hover-wash);
+
+    --button-active-background-color: mix(var(--window-background-color), var(--window-text-color), 0.10);
+    --button-active-border-color: var(--line-color);
+    --button-active-highlight-color: mix(var(--window-background-color), var(--window-text-color), 0.16);
+    --button-active-checked-color: var(--soft-highlight);
+    --button-shadow: 0px 0px 0px 0px rgba(0, 0, 0, 0);
+
+    --card-background-color: mix(var(--window-background-color), var(--window-text-color), 0.04);
+    --card-border-color: var(--line-color);
+    --card-hover-color: mix(var(--card-background-color), var(--highlight-color), 0.08);
+
+    --switch-indicator-active-background-color: mix(var(--window-background-color), var(--window-text-color), 0.22);
+}
+
+itemdelegate,
+checkdelegate,
+radiodelegate,
+switchdelegate,
+swipedelegate,
+itemviewitem
+{
+    border-radius: var(--corner-radius);
+
+    &:hovered
+    {
+        border: 1px solid rgba(0, 0, 0, 0);
+        background-color: var(--hover-wash);
+    }
+
+    &:active-focus
+    {
+        border: 1px solid var(--soft-highlight-border);
+        background-color: var(--hover-wash);
+    }
+
+    &:pressed,
+    &:highlighted
+    {
+        border: 1px solid var(--soft-highlight-border);
+        background-color: var(--soft-highlight);
+        color: var(--window-text-color);
+    }
+}
+
+card
+{
+    border-radius: 12px;
+    box-shadow: 0px 0px 0px 0px rgba(0, 0, 0, 0);
+}
+
+textfield,
+textarea,
+spinbox,
+searchfield
+{
+    background-color: mix(var(--view-background-color), var(--window-background-color), 0.35);
+}
+
+/* The side lists (System Settings' pages, other apps' sidebars: views in a
+   window) tinted with the glass colour, so they read as one with the frame
+   and the header, apart from the page. */
+[colorset="view"] scrollview
+{
+    background-color: mix(var(--view-background-color), var(--highlight-color), 0.12);
+}
