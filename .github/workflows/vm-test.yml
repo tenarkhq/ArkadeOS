@@ -46,7 +46,8 @@ jobs:
           TAG: ${{ inputs.tag || format('build-{0}', github.event.workflow_run.head_sha) }}
         run: |
           echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
-          groups=all
+          # Work branch blur-draft: only the draft pictures (with the base).
+          groups=draft
           if [ "${EVENT}" = schedule ]; then
             # A nightly run without a new build (build.yml): nothing to test
             # while this commit's push run is still going (GitHub's nightly
@@ -91,7 +92,7 @@ jobs:
             done
             echo "${out:-none}"
           }
-          echo "half1=$(half 'look keys power games')" >> "$GITHUB_OUTPUT"
+          echo "half1=$(half 'look keys power games draft')" >> "$GITHUB_OUTPUT"
           echo "half2=$(half 'apps update')" >> "$GITHUB_OUTPUT"
 
   vm-test:
@@ -190,6 +191,18 @@ jobs:
           # T025: the update the VM pulls later: the same image plus a marker file.
           printf '%s\n' 'FROM localhost/vm-test' 'RUN echo vm-test-update > /usr/share/arkadeos/update-test' |
             sudo podman build -q -t localhost/vm-test-update -f - .
+
+      - name: Draft - Better Blur DX in the test image
+        if: env.NEEDED == 'true'
+        # Work branch only: the effect built for the image's own KWin, as the
+        # image build would do it.
+        run: |
+          printf '%s\n' 'FROM localhost/vm-test AS build' \
+            'RUN dnf -y -q install git cmake extra-cmake-modules gcc-c++ "kwin-devel-$(rpm -q --qf "%{VERSION}-%{RELEASE}" kwin)" kf6-kwindowsystem-devel plasma-workspace-devel libplasma-devel qt6-qtbase-private-devel qt6-qtbase-devel kf6-knotifications-devel kf6-kio-devel kf6-kcrash-devel kf6-ki18n-devel kf6-kguiaddons-devel libepoxy-devel kf6-kglobalaccel-devel kf6-kcmutils-devel kf6-kconfigwidgets-devel kf6-kdeclarative-devel kdecoration-devel wayland-devel libdrm-devel > /dev/null && git clone -q --depth 1 --branch v2.6.0 https://github.com/xarblu/kwin-effects-better-blur-dx /src && cmake -S /src -B /src/build -DCMAKE_INSTALL_PREFIX=/usr -DCMAKE_BUILD_TYPE=Release > /dev/null && cmake --build /src/build -j"$(nproc)" > /dev/null && DESTDIR=/out cmake --install /src/build' \
+            'FROM localhost/vm-test' \
+            'COPY --from=build /out/usr/lib64/qt6/plugins/kwin/effects/ /usr/lib64/qt6/plugins/kwin/effects/' |
+            sudo podman build -q -t localhost/vm-test -f - .
+          sudo podman run --rm --entrypoint ls localhost/vm-test -la /usr/lib64/qt6/plugins/kwin/effects/plugins/ | grep -i blur >> "$GITHUB_STEP_SUMMARY"
 
       - name: Local registry
         if: env.NEEDED == 'true'
@@ -361,8 +374,9 @@ jobs:
   testing:
     name: testing channel
     needs: [scope, vm-test, update-path]
+    # Work branch blur-draft: never moves the channel.
     if: >-
-      always() && needs.scope.outputs.skip != 'true' && startsWith(needs.scope.outputs.tag, 'build-') &&
+      false && needs.scope.outputs.skip != 'true' && startsWith(needs.scope.outputs.tag, 'build-') &&
       needs.vm-test.result == 'success' && (needs.update-path.result == 'success' || needs.update-path.result == 'skipped')
     runs-on: ubuntu-latest
     permissions:

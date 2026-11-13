@@ -1,0 +1,30 @@
+[General]
+count=3
+rules=1,2,3
+
+[1]
+Description=draft dolphin
+wmclass=dolphin
+wmclassmatch=2
+position=70,40
+positionrule=3
+size=760,470
+sizerule=3
+
+[2]
+Description=draft systemsettings
+wmclass=systemsettings
+wmclassmatch=2
+position=500,230
+positionrule=3
+size=720,480
+sizerule=3
+
+[3]
+Description=draft konsole
+wmclass=konsole
+wmclassmatch=2
+position=40,420
+positionrule=3
+size=560,300
+sizerule=3

@@ -204,6 +204,44 @@ plasma_dirs="\$(grep -z ^XDG_CONFIG_DIRS= /proc/\$(pgrep -u arkade -x plasmashel
 # No idle lock during the test (the lock screen itself is checked in look).
 ssh_vm "${session} kwriteconfig6 --file kscreenlockerrc --group Daemon --key Autolock false" || true
 
+if want draft; then
+step "draft: Better Blur DX pictures"
+# Work branch only (Roland, 2026-11-13: "nézzük meg a bett blurt"): the
+# desktop as it is, then with Better Blur DX (built into the test image by
+# the workflow), light and dark.
+for f in draft.sh scheme.py kwinrulesrc ArkadeGlass.colorscheme Glass.profile; do
+    ssh_vm "mkdir -p /tmp/draft && echo $(base64 -w0 "${here}/draft/${f}") | base64 -d > /tmp/draft/${f} && chown -R arkade: /tmp/draft"
+done
+draft() { ssh_vm "${session} bash /tmp/draft/draft.sh $*" >> "${out}/draft.log" 2>&1 || true; }
+awake() {
+    key shift
+    sleep 1
+    ssh_vm "loginctl unlock-sessions; ${session} kscreen-doctor --dpms on" >/dev/null 2>&1 || true
+}
+ssh_vm "nohup ${session} kde-inhibit --power --screenSaver sleep 3000 > /dev/null 2>&1 &"
+ssh_vm "ls -la /usr/lib64/qt6/plugins/kwin/effects/plugins/ | grep -i blur" >> "${out}/draft.log" 2>&1 || true
+draft setup
+for theme in light dark; do
+    draft look ${theme}
+    draft apps
+    awake
+    shot draft-now-${theme}
+done
+for theme in dark light; do
+    draft look ${theme}
+    draft blur ${theme}
+    draft apps
+    awake
+    shot draft-blur-${theme}
+done
+# The app menu over the windows.
+ssh_vm "${session} busctl --user call org.kde.plasmashell /PlasmaShell org.kde.PlasmaShell activateLauncherMenu" >> "${out}/draft.log" 2>&1 || true
+sleep 4
+shot draft-blur-light-menu
+key esc
+ssh_vm "${session} busctl --user call org.kde.KWin /KWin org.kde.KWin supportInformation" > "${out}/draft-kwin.txt" 2>&1 || true
+fi # draft
+
 if want look; then
 step "look"
 # T006: the ArkadeOS global theme, Breeze inside (Roland, 2026-11-04), applied
