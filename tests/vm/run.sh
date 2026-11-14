@@ -89,17 +89,23 @@ state=$(ssh_vm "timeout 600 systemctl is-system-running --wait" || true)
 [[ -n "${state}" ]] || { shot boot-stuck; echo "the VM stopped answering while booting" >&2; exit 1; }
 step "system state: ${state}"
 ssh_vm 'systemctl --failed --no-legend --plain' | tee "${out}/failed-units.txt"
-shot login
 
 step "logging in to the desktop"
-# Test-only user with automatic login; the disk never leaves the test job.
-ssh_vm 'useradd -m -G wheel arkade &&
-    mkdir -p /etc/plasmalogin.conf.d &&
+# Test-only user; the disk never leaves the test job. The login screen first
+# shows it on its glass card (round 8); a key brings the card out of the
+# screen's idle state.
+ssh_vm 'useradd -m -G wheel arkade && systemctl restart plasmalogin'
+sleep 10
+key shift
+sleep 2
+shot login
+# Then automatic login, and the welcome screen while the desktop loads (round
+# 8): it shows for a few seconds only, so a picture every second and a half.
+ssh_vm 'mkdir -p /etc/plasmalogin.conf.d &&
     printf "[Autologin]\nUser=arkade\nSession=plasma.desktop\n" > /etc/plasmalogin.conf.d/00-vm-test.conf &&
     systemctl restart plasmalogin'
-# The welcome screen while the desktop loads (round 8).
-for n in 1 2; do
-    sleep 4
+for n in 1 2 3 4 5 6; do
+    sleep 1.5
     shot "welcome-${n}"
 done
 for _ in $(seq 60); do
