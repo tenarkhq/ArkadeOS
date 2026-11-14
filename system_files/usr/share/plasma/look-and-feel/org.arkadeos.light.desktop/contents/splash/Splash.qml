@@ -62,15 +62,16 @@ Rectangle {
         }
 
         Text {
+            readonly property real size: root.height * 0.055
             anchors.horizontalCenter: parent.horizontalCenter
             // the spacing after the last letter, balanced on the left
-            leftPadding: font.letterSpacing
+            leftPadding: size * 0.34
             text: "ARKADEOS"
             color: "#eef6fd"
             font.family: "Inter"
             font.weight: Font.Light
-            font.pixelSize: root.height * 0.055
-            font.letterSpacing: font.pixelSize * 0.34
+            font.pixelSize: size
+            font.letterSpacing: size * 0.34
         }
 
         // the bar fills as Plasma's loading steps pass

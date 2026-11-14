@@ -117,18 +117,19 @@ check() {
     echo "${r} $1" | tee -a "${out}/result.txt"
 }
 ssh_vm 'cat /proc/cmdline; bootc status; cat /etc/arkadeos/installed-image; findmnt -R /; lsblk -f; journalctl -b --no-pager | grep -i plymouth' > "${out}/installed.txt" 2>&1 || true
-# T082: the boot screen caught while it asks for the disk password is the
-# animated one: the wordmark's rose glow shows (hue 330-355 degrees). A text
-# console or a fallback screen has none (11-03: 526 such pixels against 0).
-rose=0
+# T082, T086 round 8: the boot screen caught while it asks for the disk
+# password is the animated one: the Start mark's sky-blue light shows (hue
+# 194-220 degrees, saturated, neither dark nor white). A text console or a
+# fallback screen has none.
+lit=0
 for f in "${out}"/unlock-*.png; do
     [[ -f "${f}" ]] || continue
-    n=$(convert "${f}" -colorspace HSL -fx '(u.r>0.9)*(u.r<0.99)*(u.g>0.4)*(u.b>0.25)*(u.b<0.85)' -format '%[fx:mean*w*h]' info: 2>/dev/null)
-    (( ${n%.*} > 100 )) && rose=1
+    n=$(convert "${f}" -colorspace HSL -fx '(u.r>0.54)*(u.r<0.61)*(u.g>0.45)*(u.b>0.3)*(u.b<0.9)' -format '%[fx:mean*w*h]' info: 2>/dev/null)
+    (( ${n%.*} > 500 )) && lit=1
 done
 if [[ -n "${LUKS_PASSWORD:-}" ]]; then
-    if (( rose )); then echo "ok boot screen animated (ArkadeOS wordmark)" | tee -a "${out}/result.txt"
-    else echo "FAILED boot screen animated (ArkadeOS wordmark)" | tee -a "${out}/result.txt"; failed=1; fi
+    if (( lit )); then echo "ok boot screen animated (the Start mark's light)" | tee -a "${out}/result.txt"
+    else echo "FAILED boot screen animated (the Start mark's light)" | tee -a "${out}/result.txt"; failed=1; fi
 fi
 check "installed and booted" 'grep -qx "PRETTY_NAME=\"ArkadeOS\"" /usr/lib/os-release'
 check "right image for the graphics card (${expect})" "test \"\$(cat /etc/arkadeos/installed-image)\" = '${expect}'"

@@ -296,7 +296,7 @@ check "welcome screen: blurred Égkék, the Start mark, the word and the bar (ro
     grep -q ArkadeOS-Egkek ${f} && grep -q ARKADEOS ${f} && test -s /usr/share/icons/arkadeos-glass-dark/marks/l/arkadeos-logo.svg &&
     test -s /usr/share/wallpapers/ArkadeOS-Egkek/contents/images_dark/2560x1600.jxl'
 check "lock and login screens on Égkék with the glass card (round 8)" "${session} kreadconfig6 --file kscreenlockerrc --group Greeter --group Wallpaper --group org.kde.image --group General --key Image | grep -q ArkadeOS-Egkek &&
-    grep -q ArkadeOS-Egkek /etc/plasmalogin.conf.d/10-arkadeos.conf && ! grep -q '^prefer' /usr/lib64/qt6/qml/org/kde/breeze/components/qmldir &&
+    grep -q ArkadeOS-Egkek /usr/lib/plasmalogin/plasmalogin.conf.d/20-arkadeos.conf && ! grep -q '^prefer' /usr/lib64/qt6/qml/org/kde/breeze/components/qmldir &&
     grep -q arkadeosCard /usr/lib64/qt6/qml/org/kde/breeze/components/SessionManagementScreen.qml"
 # T010: Hungarian is complete, our own texts included.
 check "Hungarian language" "rpm -q hunspell-hu && test -f /usr/share/locale/hu/LC_MESSAGES/dolphin.mo &&

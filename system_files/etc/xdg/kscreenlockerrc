@@ -1,7 +1,7 @@
 # ArkadeOS lock screen (T086 round 8, approved 2026-11-14): the dark picture
 # of the Égkék wallpaper in both looks, as on the login screen
-# (plasmalogin.conf.d/10-arkadeos.conf). Fedora's defaults sit below this in
-# /usr/share/kde-settings.
+# (/usr/lib/plasmalogin/plasmalogin.conf.d/20-arkadeos.conf). Fedora's
+# defaults sit below this in /usr/share/kde-settings.
 [Greeter]
 WallpaperPlugin=org.kde.image
 

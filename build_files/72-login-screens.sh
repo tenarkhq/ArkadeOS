@@ -6,8 +6,8 @@
 # them here gives both screens the approved look: a thin clock, a glass card
 # behind the face and the password, glass circle buttons and the Start mark in
 # the top left corner. Their wallpaper is Égkék (kscreenlockerrc and
-# plasmalogin.conf.d/10-arkadeos.conf); the status icons stay in Plasma's
-# footer at the bottom.
+# /usr/lib/plasmalogin/plasmalogin.conf.d/20-arkadeos.conf); the status icons
+# stay in Plasma's footer at the bottom.
 set -euo pipefail
 
 components=/usr/lib64/qt6/qml/org/kde/breeze/components
