@@ -32,7 +32,8 @@ cd /
 rm -rf /usr/share/backgrounds/f[0-9]* /usr/share/backgrounds/fedora-workstation
 # The Breeze and Fedora global themes named two of them; they get ArkadeOS's.
 sed -i 's/^Image=\(Next\|Fedora\)$/Image=ArkadeOS/' /usr/share/plasma/look-and-feel/*/contents/defaults
-sed -i 's#wallpapers/Fedora/#wallpapers/ArkadeOS-Lock/#' /usr/share/kde-settings/kde-profile/default/xdg/kscreenlockerrc
+sed -i 's#wallpapers/Fedora/#wallpapers/ArkadeOS-Egkek/contents/images_dark/3840x2160.jxl#' /usr/share/kde-settings/kde-profile/default/xdg/kscreenlockerrc
+grep -q '^Image=file:///usr/share/wallpapers/ArkadeOS-Egkek/contents/images_dark/3840x2160.jxl$' /usr/share/kde-settings/kde-profile/default/xdg/kscreenlockerrc
 
 # ArkadeOS Glass (T086, Roland, 2026-11-13): the sky-blue glass look. Its
 # colour schemes are Breeze's, with the title area (menu bar and toolbar,

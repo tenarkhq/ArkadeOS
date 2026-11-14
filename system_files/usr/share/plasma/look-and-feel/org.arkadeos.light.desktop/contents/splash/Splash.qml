@@ -1,6 +1,6 @@
 /*
     ArkadeOS welcome screen, shown after login while the desktop loads (round
-    8, approved 2026-11-14: "így jó"). The Égkék wallpaper blurred and dimmed,
+    8, approved 2026-11-14: "így jó"). The dark Égkék picture blurred and dimmed,
     on it the Start mark, the ARKADEOS word (Inter Light, capitals, spaced as
     the boot screen's) and a thin glass-blue bar that fills as the desktop
     loads; the whole fades in, and the desktop takes over when it is ready.
@@ -21,7 +21,7 @@ Rectangle {
     Image {
         id: wallpaper
         anchors.fill: parent
-        source: "file:///usr/share/wallpapers/ArkadeOS-Egkek/contents/images/2560x1600.jxl"
+        source: "file:///usr/share/wallpapers/ArkadeOS-Egkek/contents/images_dark/2560x1600.jxl"
         sourceSize: Qt.size(1280, 800)
         fillMode: Image.PreserveAspectCrop
         visible: false

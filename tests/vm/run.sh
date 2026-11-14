@@ -97,6 +97,11 @@ ssh_vm 'useradd -m -G wheel arkade &&
     mkdir -p /etc/plasmalogin.conf.d &&
     printf "[Autologin]\nUser=arkade\nSession=plasma.desktop\n" > /etc/plasmalogin.conf.d/00-vm-test.conf &&
     systemctl restart plasmalogin'
+# The welcome screen while the desktop loads (round 8).
+for n in 1 2; do
+    sleep 4
+    shot "welcome-${n}"
+done
 for _ in $(seq 60); do
     ssh_vm 'pgrep -u arkade -x plasmashell' >/dev/null && break
     sleep 5
@@ -287,7 +292,12 @@ check "ArkadeOS boot screen" "plymouth-set-default-theme | grep -qx arkadeos && 
 check "Égkék wallpaper and the lit launcher mark" "f=${home}/plasma-org.kde.plasma.desktop-appletsrc &&
     grep -qx 'Image=file:///usr/share/wallpapers/ArkadeOS-Egkek/' \$f && grep -qx icon=arkadeos-launcher-glow \$f &&
     for w in Egkek Szalagok Kereszt; do for d in images images_dark; do test -s /usr/share/wallpapers/ArkadeOS-\$w/contents/\$d/2560x1600.jxl || exit 1; done; done"
-check "dark lock screen" "${session} kreadconfig6 --file kscreenlockerrc --group Greeter --group Wallpaper --group org.kde.image --group General --key Image | grep -q ArkadeOS-Lock"
+check "welcome screen: blurred Égkék, the Start mark, the word and the bar (round 8)" 'f=/usr/share/plasma/look-and-feel/org.arkadeos.light.desktop/contents/splash/Splash.qml &&
+    grep -q ArkadeOS-Egkek ${f} && grep -q ARKADEOS ${f} && test -s /usr/share/icons/arkadeos-glass-dark/marks/l/arkadeos-logo.svg &&
+    test -s /usr/share/wallpapers/ArkadeOS-Egkek/contents/images_dark/2560x1600.jxl'
+check "lock and login screens on Égkék with the glass card (round 8)" "${session} kreadconfig6 --file kscreenlockerrc --group Greeter --group Wallpaper --group org.kde.image --group General --key Image | grep -q ArkadeOS-Egkek &&
+    grep -q ArkadeOS-Egkek /etc/plasmalogin.conf.d/10-arkadeos.conf && ! grep -q '^prefer' /usr/lib64/qt6/qml/org/kde/breeze/components/qmldir &&
+    grep -q arkadeosCard /usr/lib64/qt6/qml/org/kde/breeze/components/SessionManagementScreen.qml"
 # T010: Hungarian is complete, our own texts included.
 check "Hungarian language" "rpm -q hunspell-hu && test -f /usr/share/locale/hu/LC_MESSAGES/dolphin.mo &&
     grep -q 'Name\\[hu\\]' /usr/share/plasma/look-and-feel/org.arkadeos.light.desktop/metadata.json"
@@ -352,6 +362,15 @@ sleep 12
 shot app-kinfocenter
 check "Info Center opens as Info Center, not System Settings" "pgrep -u arkade -f '^/usr/bin/[k]infocenter' >/dev/null"
 ssh_vm "pkill -u arkade -f kinfocenter" || true
+# The lock screen (round 8): the Égkék wallpaper, the clock, the glass card
+# with the face and the password, the Start mark in the corner.
+ssh_vm "loginctl lock-sessions" || true
+sleep 6
+key shift
+sleep 3
+shot lock
+ssh_vm "loginctl unlock-sessions" || true
+sleep 3
 # Which apps sit in the tray and with which icon, beside the pictures.
 ssh_vm "for i in \$(${session} busctl --user get-property org.kde.StatusNotifierWatcher /StatusNotifierWatcher org.kde.StatusNotifierWatcher RegisteredStatusNotifierItems | grep -oE '\"[^\"]+\"' | tr -d '\"'); do
         echo \"== \${i}\"; ${session} busctl --user get-property \"\${i%%/*}\" \"/\${i#*/}\" org.kde.StatusNotifierItem Id Title IconName Status; done;
