@@ -26,3 +26,15 @@ for recipe in 40-nvidia.just:toggle-nvk 82-bazzite-cockpit.just:cockpit; do
     grep -qE "^${recipe#*:}[ :]" "${file}"
     sed -i -E "/^${recipe#*:}[ :]/i [private]" "${file}"
 done
+
+# Glass audit, finding 9 (Roland, 2026-11-14: "minden glass aknát
+# javítsunk"): Bazzite's leftovers leave the menu, the programs stay. Their
+# own updater beside the ArkadeOS update, Bazzite's documentation and forum
+# pages, the Mint web app manager beside our "New web app", the NVIDIA X
+# settings that do nothing on Wayland, and yad's icon browser.
+for app in io.github.rfrench3.bazzite-updater bazzite-documentation discourse webapp-manager nvidia-settings yad-icon-browser; do
+    f=/usr/share/applications/${app}.desktop
+    [[ -f "${f}" ]] || continue
+    sed -i -e '/^NoDisplay=/d' -e '0,/^\[Desktop Entry\]/s//[Desktop Entry]\nNoDisplay=true/' "${f}"
+    grep -qx NoDisplay=true "${f}"
+done

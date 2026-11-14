@@ -226,6 +226,8 @@ check "ArkadeOS Glass in the ArkadeOS global theme" "grep -qE '^org\.arkadeos\.(
 # its own opacities say otherwise, whatever the colour scheme's alpha.
 check "menu bar, toolbars, tab bars and Dolphin's sidebar see-through (Darkly)" "for k in MenuBarOpacity ToolBarOpacity TabBarOpacity DolphinSidebarOpacity; do
         v=\$(${session} kreadconfig6 --file darklyrc --group Style --key \$k); test -n \"\$v\" && test \"\$v\" -lt 100 || exit 1; done"
+check "Bazzite leftovers out of the menu (Glass audit 9)" "for a in io.github.rfrench3.bazzite-updater bazzite-documentation discourse webapp-manager nvidia-settings yad-icon-browser; do
+        f=/usr/share/applications/\$a.desktop; test ! -f \$f || grep -qx NoDisplay=true \$f || exit 1; done"
 check "the glass blur runs (Better Blur DX for this KWin), KWin's own blur off" "${session} busctl --user call org.kde.KWin /Effects org.kde.kwin.Effects isEffectLoaded s better_blur_dx | grep -qx 'b true' &&
     ${session} busctl --user call org.kde.KWin /Effects org.kde.kwin.Effects isEffectLoaded s blur | grep -qx 'b false'"
 check "day/night switch on" "test \"\$(${session} kreadconfig6 --group KDE --key AutomaticLookAndFeel)\" = true"
@@ -329,6 +331,13 @@ for variant in dark light; do
     shot "glass-${variant}-settings"
 done
 ssh_vm "pkill -u arkade -x systemsettings" || true
+# Glass audit 1: Info Center is a link to the Glass systemsettings wrapper and
+# opens only under its own name; the wrapper must hand that name on.
+ssh_vm "nohup ${session} kinfocenter >/dev/null 2>&1 &" || true
+sleep 12
+shot app-kinfocenter
+check "Info Center opens as Info Center, not System Settings" "pgrep -u arkade -f '^/usr/bin/[k]infocenter' >/dev/null"
+ssh_vm "pkill -u arkade -f kinfocenter" || true
 # Which apps sit in the tray and with which icon, beside the pictures.
 ssh_vm "for i in \$(${session} busctl --user get-property org.kde.StatusNotifierWatcher /StatusNotifierWatcher org.kde.StatusNotifierWatcher RegisteredStatusNotifierItems | grep -oE '\"[^\"]+\"' | tr -d '\"'); do
         echo \"== \${i}\"; ${session} busctl --user get-property \"\${i%%/*}\" \"/\${i#*/}\" org.kde.StatusNotifierItem Id Title IconName Status; done;
