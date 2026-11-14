@@ -107,11 +107,13 @@ if grep -rqE '^Image=(Next|Fedora|ArkadeOS)$' /usr/share/plasma/look-and-feel/*/
 # the ArkadeOS Glass style (/usr/share/union/styles/arkadeos-glass): the side
 # list tinted with the glass colour, soft rounded selection, rounder fields,
 # buttons and cards. Union is still in development at KDE, so only System
-# Settings and its single-page windows (kcmshell6) start with it; every other
-# app keeps Breeze.
+# Settings, its single-page windows (kcmshell6), and the two other Qt Quick
+# apps on the image, System Monitor and Filelight (Glass audit 3: they were
+# the windows left out of the glass), start with it; every other app keeps
+# Breeze.
 test -f /usr/share/union/styles/arkadeos-glass/contents/css/style.css
 test -f /usr/share/union/styles/breeze/contents/css/style.css
-for bin in systemsettings kcmshell6; do
+for bin in systemsettings kcmshell6 plasma-systemmonitor filelight; do
     mv "/usr/bin/${bin}" "/usr/libexec/arkadeos/${bin}"
     # exec -a keeps the name it was started by: kinfocenter is a link to
     # systemsettings and opens Info Center only under its own name.

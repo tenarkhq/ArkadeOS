@@ -266,7 +266,8 @@ check "the tray icons are ArkadeOS Glass's own, the power switch's too" 'for t i
         test -f /usr/share/icons/${t}/status/22/${n}.svg || { echo "missing ${t} ${n}"; exit 1; }; done; done'
 # System Settings with the ArkadeOS Glass Union style (Roland, 2026-11-13):
 # its launchers set it, and the style loads without errors.
-check "System Settings in the ArkadeOS Glass Union style" 'grep -q UNION_STYLE_NAME=arkadeos-glass /usr/bin/systemsettings /usr/bin/kcmshell6 &&
+check "System Settings, System Monitor and Filelight in the ArkadeOS Glass Union style" 'grep -q UNION_STYLE_NAME=arkadeos-glass /usr/bin/systemsettings /usr/bin/kcmshell6 /usr/bin/plasma-systemmonitor /usr/bin/filelight &&
+    test -x /usr/libexec/arkadeos/plasma-systemmonitor && test -x /usr/libexec/arkadeos/filelight &&
     test -x /usr/libexec/arkadeos/systemsettings && test -f /usr/share/union/styles/arkadeos-glass/metadata.json'
 check "System Settings: selected rows keep readable text on the soft selection" 'grep -q QML_IMPORT_PATH=/usr/share/arkadeos/union-qml /usr/bin/systemsettings /usr/bin/kcmshell6 &&
     d=/usr/share/arkadeos/union-qml/org/kde/kirigami/delegates && grep -q "property color color: Platform.Theme.textColor$" ${d}/TitleSubtitle.qml &&
@@ -373,6 +374,12 @@ sleep 12
 shot app-kinfocenter
 check "Info Center opens as Info Center, not System Settings" "pgrep -u arkade -f '^/usr/bin/[k]infocenter' >/dev/null"
 ssh_vm "pkill -u arkade -f kinfocenter" || true
+# Glass audit 3: Filelight, the other Qt Quick app, in the glass Union style.
+ssh_vm "nohup ${session} filelight >/dev/null 2>&1 &" || true
+sleep 12
+shot app-filelight
+check "Filelight opens" "pgrep -u arkade -f '^/usr/bin/[f]ilelight' >/dev/null"
+ssh_vm "pkill -u arkade -f filelight" || true
 # The lock screen (round 8): the Égkék wallpaper, the clock, the glass card
 # with the face and the password, the Start mark in the corner.
 ssh_vm "loginctl lock-sessions" || true
