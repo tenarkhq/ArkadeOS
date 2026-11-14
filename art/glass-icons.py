@@ -62,40 +62,49 @@ def cross(x, y, s=2, cls="Text"):
 DIM = 0.35
 icons = {}
 
-# Volume: the speaker and up to two waves.
-SPEAKER = "M3.75 8.75 H6.75 L10.75 5.25 V16.75 L6.75 13.25 H3.75 Z"
-WAVE1 = "M13.9 8.2 A4.1 4.1 0 0 1 13.9 13.8"
-WAVE2 = "M15.5 5.6 A7 7 0 0 1 15.5 16.4"
-icons["audio-volume-muted-symbolic"] = svg(line(SPEAKER), cross(16.5, 11, 2))
-icons["audio-volume-low-symbolic"] = svg(line(SPEAKER), line(WAVE1), line(WAVE2, a=DIM))
-icons["audio-volume-medium-symbolic"] = svg(line(SPEAKER), line(WAVE1), line(WAVE2, a=0.65))
-icons["audio-volume-high-symbolic"] = svg(line(SPEAKER), line(WAVE1), line(WAVE2))
-icons["audio-volume-high-warning-symbolic"] = svg(line(SPEAKER), line(WAVE1, "NeutralText"), line(WAVE2, "NeutralText"))
-icons["audio-volume-high-danger-symbolic"] = svg(line(SPEAKER), line(WAVE1, "NegativeText"), line(WAVE2, "NegativeText"))
+def arc_at(cx, cy, r, a0, a1):
+    """An arc around (cx, cy) from angle a0 to a1 (degrees, clockwise, 0 = right)."""
+    p0 = (cx + r * math.cos(math.radians(a0)), cy + r * math.sin(math.radians(a0)))
+    p1 = (cx + r * math.cos(math.radians(a1)), cy + r * math.sin(math.radians(a1)))
+    large = 1 if (a1 - a0) % 360 > 180 else 0
+    return f"M{f(p0[0])} {f(p0[1])} A{f(r)} {f(r)} 0 {large} 1 {f(p1[0])} {f(p1[1])}"
+
+
+# The shapes below follow the round-6 craft (Roland, 2026-11-14, the icon
+# pilot sheet): solid where a shape is a body, rounded corners, every stroke
+# 1.5 on the 22 grid, waves and arcs centred on what sends them.
+# Volume: a solid speaker with rounded corners and up to two waves.
+SPEAKER = ("M3 9.25 Q3 8.5 3.75 8.5 H6.25 L9.9 5.35 Q10.75 4.7 10.75 5.75 V16.25 Q10.75 17.3 9.9 16.65 L6.25 13.5 "
+           "H3.75 Q3 13.5 3 12.75 Z")
+WAVE1 = arc_at(10.75, 11, 3.75, -50, 50)
+WAVE2 = arc_at(10.75, 11, 7, -52, 52)
+icons["audio-volume-muted-symbolic"] = svg(solid(SPEAKER), line("M14 8.5 L19 13.5 M19 8.5 L14 13.5"))
+icons["audio-volume-low-symbolic"] = svg(solid(SPEAKER), line(WAVE1), line(WAVE2, a=DIM))
+icons["audio-volume-medium-symbolic"] = svg(solid(SPEAKER), line(WAVE1), line(WAVE2, a=0.65))
+icons["audio-volume-high-symbolic"] = svg(solid(SPEAKER), line(WAVE1), line(WAVE2))
+icons["audio-volume-high-warning-symbolic"] = svg(solid(SPEAKER), line(WAVE1, "NeutralText"), line(WAVE2, "NeutralText"))
+icons["audio-volume-high-danger-symbolic"] = svg(solid(SPEAKER), line(WAVE1, "NegativeText"), line(WAVE2, "NegativeText"))
 
 # Network. Wi-Fi: a dot and three arcs, lit by the signal; wired: a network
 # socket. A VPN adds a lock, a limited connection an exclamation mark.
-WX, WY = 11, 16.25
-
-
-def arc(r, a=45):
-    x0, x1 = WX - r * math.sin(math.radians(a)), WX + r * math.sin(math.radians(a))
-    y = WY - r * math.cos(math.radians(a))
-    return f"M{f(x0)} {f(y)} A{r} {r} 0 0 1 {f(x1)} {f(y)}"
+WX, WY = 11, 17.25
 
 
 def wifi(lit):
-    parts = [dot(WX, WY, 1.4, a=1 if lit >= 1 else DIM)]
-    for i, r in enumerate((4, 7.5, 11)):
-        parts.append(line(arc(r), a=1 if lit >= i + 2 else DIM))
+    parts = [dot(WX, 17, 1.4, a=1 if lit >= 1 else DIM)]
+    for i, r in enumerate((4.25, 7.5, 10.75)):
+        parts.append(line(arc_at(WX, WY, r, -135, -45), a=1 if lit >= i + 2 else DIM))
     return parts
 
 
 LOCK = (solid("M15.5 17 h5 a.6 .6 0 0 1 .6 .6 v3.3 a.6 .6 0 0 1 -.6 .6 h-5 a.6 .6 0 0 1 -.6 -.6 v-3.3 a.6 .6 0 0 1 .6 -.6 Z")
         + line("M16.6 17 V15.9 A1.4 1.4 0 0 1 19.4 15.9 V17", w=1.2))
 LIMITED = line("M19.5 13.8 V17.4", "NeutralText") + dot(19.5, 20, 0.9, "NeutralText")
-SOCKET = "M4.75 5.75 H17.25 V14.25 H14.25 V16.75 H7.75 V14.25 H4.75 Z"
-PINS = "M8.5 8.75 V10.25 M11 8.75 V10.25 M13.5 8.75 V10.25"
+SOCKET = ("M9.5 3.75 H12.5 A1.25 1.25 0 0 1 13.75 5 V7 A1.25 1.25 0 0 1 12.5 8.25 H9.5 A1.25 1.25 0 0 1 8.25 7 V5 "
+          "A1.25 1.25 0 0 1 9.5 3.75 Z M5 13.75 H8 A1.25 1.25 0 0 1 9.25 15 V17 A1.25 1.25 0 0 1 8 18.25 H5 "
+          "A1.25 1.25 0 0 1 3.75 17 V15 A1.25 1.25 0 0 1 5 13.75 Z M14 13.75 H17 A1.25 1.25 0 0 1 18.25 15 V17 "
+          "A1.25 1.25 0 0 1 17 18.25 H14 A1.25 1.25 0 0 1 12.75 17 V15 A1.25 1.25 0 0 1 14 13.75 Z")
+PINS = "M11 8.25 V11 M6.5 13.75 V11 H15.5 V13.75"
 for strength, lit in (("0", 0), ("20", 1), ("40", 2), ("60", 3), ("80", 4), ("100", 4)):
     for suffix, extra in (("", []), ("-locked", [LOCK]), ("-limited", [LIMITED])):
         icons[f"network-wireless-{strength}{suffix}-symbolic"] = svg(*wifi(lit), *extra)
@@ -112,9 +121,10 @@ icons["network-wireless-bluetooth-symbolic"] = svg(*wifi(4))
 # Battery: lying, as in the design, filled to its charge (red at 10 % and
 # below, amber at 20 %); charging adds a bolt in the glass colour. A power
 # profile other than the default adds a small dot.
-BODY = "M4.75 7.25 H14.75 A2 2 0 0 1 16.75 9.25 V12.75 A2 2 0 0 1 14.75 14.75 H4.75 A2 2 0 0 1 2.75 12.75 V9.25 A2 2 0 0 1 4.75 7.25 Z"
-NUB = "M17.9 9.5 H18.5 A.75 .75 0 0 1 19.25 10.25 V11.75 A.75 .75 0 0 1 18.5 12.5 H17.9 Z"
-BOLT = "M10.9 4.9 L6.6 11.5 H9.5 L8.5 17.1 L12.9 10.3 H10 Z"
+BODY = ("M5 6.75 H15.5 A2.25 2.25 0 0 1 17.75 9 V13 A2.25 2.25 0 0 1 15.5 15.25 H5 A2.25 2.25 0 0 1 2.75 13 V9 "
+        "A2.25 2.25 0 0 1 5 6.75 Z")
+NUB = "M19 9.5 A.75 .75 0 0 1 20.5 9.5 V12.5 A.75 .75 0 0 1 19 12.5 Z"
+BOLT = "M11.4 7.9 L7.9 11.6 H10.4 L9.6 14.1 L13.1 10.4 H10.6 Z"
 
 
 def battery(level, charging=False, profile=""):
@@ -122,10 +132,10 @@ def battery(level, charging=False, profile=""):
     if level > 0:
         w = max(1.5, 10.5 * level / 100)
         cls = "NegativeText" if level <= 10 and not charging else "NeutralText" if level <= 20 and not charging else "Text"
-        parts.append(solid(f"M4.5 9 H{f(4.5 + w - 0.75)} A.75 .75 0 0 1 {f(4.5 + w)} 9.75 V12.25 A.75 .75 0 0 1 "
-                           f"{f(4.5 + w - 0.75)} 13 H4.5 Z" if w > 1.5 else "M4.5 9 H6 V13 H4.5 Z", cls))
+        parts.append(solid(f"M6 9 H{f(5 + w - 1)} A1 1 0 0 1 {f(5 + w)} 10 V12 A1 1 0 0 1 {f(5 + w - 1)} 13 H6 "
+                           "A1 1 0 0 1 5 12 V10 A1 1 0 0 1 6 9 Z" if w > 2 else "M5 9 H6.5 V13 H5 Z", cls,
+                           a=DIM if charging else 1.0))
     if charging:
-        parts.append(line(BOLT, "Background", w=2.2))
         parts.append(solid(BOLT, "Highlight"))
     if profile:
         parts.append(dot(19.25, 4.75, 1.75, "PositiveText" if profile == "powersave" else "NeutralText"))
@@ -141,17 +151,17 @@ icons["battery-full-symbolic"] = battery(100)
 icons["battery-missing-symbolic"] = svg(line(BODY, a=DIM), solid(NUB, a=DIM), cross(9.75, 11, 1.75))
 
 # Power profile: a gauge, its needle low, in the middle or high.
-GX, GY, GR = 11, 12.75, 7.5
+GX, GY, GR = 11, 12.5, 7.5
 
 
 def gauge(angle):
-    a0, a1 = math.radians(210), math.radians(-30)
+    a0, a1 = math.radians(215), math.radians(-35)
     p0 = (GX + GR * math.cos(a0), GY - GR * math.sin(a0))
     p1 = (GX + GR * math.cos(a1), GY - GR * math.sin(a1))
     n = math.radians(angle)
-    tip = (GX + 5 * math.cos(n), GY - 5 * math.sin(n))
+    tip = (GX + 5.75 * math.cos(n), GY - 5.75 * math.sin(n))
     return svg(line(f"M{f(p0[0])} {f(p0[1])} A{GR} {GR} 0 1 1 {f(p1[0])} {f(p1[1])}"),
-               line(f"M{GX} {GY} L{f(tip[0])} {f(tip[1])}"), dot(GX, GY, 1.6))
+               line(f"M{GX} {GY} L{f(tip[0])} {f(tip[1])}"), dot(GX, GY, 1.5))
 
 
 icons["battery-profile-powersave-symbolic"] = gauge(155)
@@ -160,26 +170,39 @@ icons["battery-profile-performance-symbolic"] = gauge(25)
 icons["speedometer-symbolic"] = gauge(90)
 
 # Brightness: the sun; night light: the moon.
-RAYS = " ".join(f"M{f(11 + 6 * math.cos(math.radians(a)))} {f(11 - 6 * math.sin(math.radians(a)))} "
-                f"L{f(11 + 8 * math.cos(math.radians(a)))} {f(11 - 8 * math.sin(math.radians(a)))}" for a in range(0, 360, 45))
-SUN = [line("M14.5 11 A3.5 3.5 0 1 1 7.5 11 A3.5 3.5 0 1 1 14.5 11 Z"), line(RAYS)]
-MOON = "M17.44 11.86 A6.5 6.5 0 1 1 10.14 4.56 A5.2 5.2 0 0 0 17.44 11.86 Z"
+RAYS = " ".join(f"M{f(11 + 5.75 * math.cos(math.radians(a)))} {f(11 + 5.75 * math.sin(math.radians(a)))} "
+                f"L{f(11 + 7.75 * math.cos(math.radians(a)))} {f(11 + 7.75 * math.sin(math.radians(a)))}" for a in range(-90, 270, 45))
+SUN = [line("M14.25 11 A3.25 3.25 0 1 1 7.75 11 A3.25 3.25 0 1 1 14.25 11 Z"), line(RAYS)]
+
+
+def _crescent():
+    x1, y1, r1, x2, y2, r2 = 10.75, 11.25, 6.75, 14.5, 7.5, 5.25
+    dx, dy = x2 - x1, y2 - y1
+    d = math.hypot(dx, dy)
+    a = (r1 * r1 - r2 * r2 + d * d) / (2 * d)
+    h = math.sqrt(r1 * r1 - a * a)
+    xm, ym = x1 + a * dx / d, y1 + a * dy / d
+    p, q = (xm + h * dy / d, ym - h * dx / d), (xm - h * dy / d, ym + h * dx / d)
+    return f"M{f(p[0])} {f(p[1])} A{r1} {r1} 0 1 0 {f(q[0])} {f(q[1])} A{r2} {r2} 0 0 1 {f(p[0])} {f(p[1])} Z"
+
+
+MOON = _crescent() + " M16.75 3.25 V5.75 M15.5 4.5 H18"
 icons["brightness-high-symbolic"] = svg(*SUN)
 icons["redshift-status-day-symbolic"] = svg(*SUN)
 icons["redshift-status-on-symbolic"] = svg(line(MOON))
 icons["redshift-status-off-symbolic"] = svg(line(MOON, a=DIM))
 
 # Bluetooth: the rune; connected adds two dots.
-RUNE = "M7.25 7.75 L14.25 14.25 L11 17.75 V4.25 L14.25 7.75 L7.25 14.25"
+RUNE = "M6.75 7.75 L15.25 14.5 L11 18 V4 L15.25 7.5 L6.75 14.25"
 icons["network-bluetooth-symbolic"] = svg(line(RUNE))
 icons["network-bluetooth-activated-symbolic"] = svg(line(RUNE), dot(5, 11, 1.1, "Highlight"), dot(17, 11, 1.1, "Highlight"))
 icons["network-bluetooth-inactive-symbolic"] = svg(line(RUNE, a=DIM))
 
 # Notifications: the bell; new ones add a dot in the glass colour.
-BELL = "M5.75 15.25 H16.25 L15 13.4 V10 A4 4 0 0 0 7 10 V13.4 Z"
-CLAPPER = "M9.5 17.75 A1.6 1.6 0 0 0 12.5 17.75"
-icons["notification-inactive-symbolic"] = svg(line(BELL), line(CLAPPER), line("M11 4.25 V5.75"))
-icons["notification-active-symbolic"] = svg(line(BELL), line(CLAPPER), line("M11 4.25 V5.75"), dot(16.5, 5.5, 2.4, "Highlight"))
+BELL = "M5.75 15.25 C6.9 14 7.25 12.75 7.25 10.5 C7.25 7.6 8.9 5.5 11 5.5 C13.1 5.5 14.75 7.6 14.75 10.5 C14.75 12.75 15.1 14 16.25 15.25 Z"
+CLAPPER = "M9.25 17.75 Q11 19.25 12.75 17.75"
+icons["notification-inactive-symbolic"] = svg(line(BELL), line(CLAPPER), line("M11 3.75 V5.5"))
+icons["notification-active-symbolic"] = svg(line(BELL), line(CLAPPER), line("M11 3.75 V5.5"), dot(16.5, 5.5, 2.4, "Highlight"))
 icons["notifications-disabled-symbolic"] = svg(line(BELL, a=DIM), line(CLAPPER, a=DIM), line("M4.25 4.25 L17.75 17.75"))
 
 # Show desktop: a small screen, not the full-size frame of Breeze.
@@ -190,16 +213,17 @@ icons["user-desktop-symbolic"] = svg(line("M6 5.75 H16 A1.5 1.5 0 0 1 17.5 7.25 
 # Icons that come and go after login (Roland, 2026-11-13: "vágólap és
 # értesítések ikonja pl", "meg a logitech egér akku állapota is").
 # Clipboard: a board and its clip.
-icons["klipper-symbolic"] = svg(line("M7.75 5.25 H6.25 A1.5 1.5 0 0 0 4.75 6.75 V17.25 A1.5 1.5 0 0 0 6.25 18.75 H15.75 "
-                                     "A1.5 1.5 0 0 0 17.25 17.25 V6.75 A1.5 1.5 0 0 0 15.75 5.25 H14.25"),
-                                line("M9 3.75 H13 A.75 .75 0 0 1 13.75 4.5 V6 A.75 .75 0 0 1 13 6.75 H9 A.75 .75 0 0 1 8.25 6 "
-                                     "V4.5 A.75 .75 0 0 1 9 3.75 Z"),
-                                line("M8 10.75 H14 M8 14 H12.5"))
+icons["klipper-symbolic"] = svg(line("M7.25 5.25 H14.75 A2 2 0 0 1 16.75 7.25 V16.75 A2 2 0 0 1 14.75 18.75 H7.25 "
+                                     "A2 2 0 0 1 5.25 16.75 V7.25 A2 2 0 0 1 7.25 5.25 Z"),
+                                solid("M9.25 3.5 H12.75 A1 1 0 0 1 13.75 4.5 V6 A1 1 0 0 1 12.75 7 H9.25 A1 1 0 0 1 8.25 6 "
+                                      "V4.5 A1 1 0 0 1 9.25 3.5 Z"),
+                                line("M8.5 11 H13.5 M8.5 14.5 H12"))
 
 # Removable devices: the stick, the disk, the card, the disc; the widget's
 # own icon a disk with the eject mark.
-STICK = [line("M8.25 9.25 H13.75 A1 1 0 0 1 14.75 10.25 V17.75 A1.5 1.5 0 0 1 13.25 19.25 H8.75 A1.5 1.5 0 0 1 7.25 17.75 "
-              "V10.25 A1 1 0 0 1 8.25 9.25 Z"), line("M8.75 9.25 V3.75 H13.25 V9.25"), line("M10 6 V6.5 M12 6 V6.5")]
+STICK = [line("M8.5 9.25 H13.5 A1.75 1.75 0 0 1 15.25 11 V17 A1.75 1.75 0 0 1 13.5 18.75 H8.5 A1.75 1.75 0 0 1 6.75 17 "
+              "V11 A1.75 1.75 0 0 1 8.5 9.25 Z"),
+         line("M8.75 9.25 V4.25 Q8.75 3.75 9.25 3.75 H12.75 Q13.25 3.75 13.25 4.25 V9.25"), line("M10 6 H10.01 M12 6 H12.01")]
 DISK = [line("M5.25 6.25 H16.75 A1.5 1.5 0 0 1 18.25 7.75 V14.25 A1.5 1.5 0 0 1 16.75 15.75 H5.25 A1.5 1.5 0 0 1 3.75 14.25 "
              "V7.75 A1.5 1.5 0 0 1 5.25 6.25 Z"), dot(14.75, 12.25, 1.1), line("M6.5 12.25 H10")]
 CARD = [line("M6.75 3.75 H12.25 L15.25 6.75 V17.25 A1.5 1.5 0 0 1 13.75 18.75 H6.75 A1.5 1.5 0 0 1 5.25 17.25 V5.25 "
