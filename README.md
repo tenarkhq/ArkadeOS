@@ -12,7 +12,7 @@ A clean KDE Plasma desktop, one image for NVIDIA, AMD and Intel graphics, Steam 
 ## Why ArkadeOS
 
 - **Built for games only.** No background indexing, no services you don't need. The kernel, scheduler and power settings are tuned for low latency and high frame rates.
-- **KDE Plasma as KDE made it.** The Breeze look, light and dark, one taskbar at the bottom, menus in the windows, quick search on Meta+Space, window snapping, Alt+Tab previews, clipboard history.
+- **KDE Plasma in ArkadeOS Glass.** Our own sky-blue glass look, light and dark: one glass taskbar at the bottom with the pinned apps in the middle, ArkadeOS's own app and tray icons. Menus in the windows, quick search on Meta+Space, window snapping, Alt+Tab previews, clipboard history.
 - **Can't be broken by an update.** The whole system is one image. A bad update? Reboot and pick the previous one.
 - **One image for every gaming graphics card.** NVIDIA, AMD and Intel: the NVIDIA driver is built in and only runs where an NVIDIA card is. See [Supported graphics cards](#supported-graphics-cards).
 
@@ -35,7 +35,7 @@ A clean KDE Plasma desktop, one image for NVIDIA, AMD and Intel graphics, Steam 
 | 💻 | MSI (msi-ec, MControlCenter), Lenovo Legion (LenovoLegionLinux); battery care at 80% | implemented |
 | 🌈 | RGB that follows the power profile (OpenRGB, ASUS Aura) | implemented |
 | 🖱️ | Logitech and Razer mice, ASUS ROG keyboards, monitor control, LACT for the graphics card | implemented |
-| 🖥️ | KDE Plasma 6 with Breeze, light and dark switching by the time of day, one taskbar | implemented |
+| 🖥️ | KDE Plasma 6 in ArkadeOS Glass: own glass look, wallpapers, app and tray icons, System Settings and Portal in the same look; light and dark switching by the time of day, one taskbar | implemented |
 | 📌 | Anything pinned on the taskbar stays there: Steam games, Windows programs, Chrome web apps | implemented |
 | 🧩 | ArkadeOS Portal: pick apps at first login, add or remove anything later | implemented |
 | 🤖 | Optional AI tools: Claude and Codex, desktop apps and command line | implemented |
@@ -53,7 +53,7 @@ A clean KDE Plasma desktop, one image for NVIDIA, AMD and Intel graphics, Steam 
 | ![ArkadeOS Portal at the first login: tick what you want](art/screenshots/portal.png) | ![Login screen](art/screenshots/login.png) |
 | ArkadeOS Portal at the first login: tick what you want, change it any time | Login screen |
 
-Taken automatically from the 12 November 2026 build in a virtual machine (1280×800 screen).
+Taken automatically from the 14 November 2026 build in a virtual machine (1280×800 screen).
 
 ## Supported graphics cards
 
@@ -99,15 +99,15 @@ The ArkadeOS Portal does the same from a window, and also switches the channel (
 
 ## Project status
 
-*Updated 12 November 2026.*
+*Updated 14 November 2026.*
 
 **Built on Fedora 45 since 12 November 2026:** Bazzite's Fedora 45 base with kernel 7.3, KDE Plasma 6.8, Mesa 26.2 and NVIDIA driver 620. The stable channel gets it three days later. An update that changes only ArkadeOS's own files downloads about 7 MB of the 6 GB image.
 
-**Every build is tested automatically.** Each change to `main` builds the image and boots it in a virtual machine that logs in, opens the apps, switches the looks and profiles, starts a Windows program under Proton, updates and rolls back. A separate test installs ArkadeOS from the ISO onto an encrypted disk and boots the installed system. Latest results (12 November 2026):
+**Every build is tested automatically.** Each change to `main` builds the image and boots it in a virtual machine that logs in, opens the apps, switches the looks and profiles, starts a Windows program under Proton, updates and rolls back. A separate test installs ArkadeOS from the ISO onto an encrypted disk and boots the installed system. Latest results (14 November 2026):
 
 | Test | Checks | Result |
 |---|---|---|
-| `arkadeos` image in a VM | 191 | ✅ all pass |
+| `arkadeos` image in a VM | 226 | ✅ all pass |
 | Optional apps from the Portal | 18 | ✅ all pass |
 | Update from the previous build | 12 | ✅ all pass |
 | Install from the ISO (encryption, TPM unlock, Intel RST, download progress) | 42 | ✅ all pass (9 November) |
