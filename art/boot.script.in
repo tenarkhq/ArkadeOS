@@ -10,6 +10,10 @@
 # Every sprite was rendered from the drawing; this moves them with its timing.
 # The system's own prompts (disk password, update progress) take the word's
 # place under the mark.
+#
+# In Plymouth's script a name inside a function means the global of that name
+# when one exists, so every function brings in its own helpers as local.
+# (round 8: an ease() writing the global i hung the refresh loop).
 
 Window.SetBackgroundTopColor(0, 0, 0);
 Window.SetBackgroundBottomColor(0, 0, 0);
@@ -26,28 +30,28 @@ fun X(x) { return OX + (x - DCX) * SC; }
 fun Y(y) { return OY + (y - DCY) * SC; }
 
 fun frac(x) {
-    i = Math.Int(x);
+    local.i = Math.Int(x);
     if (x < i) i = i - 1;
     return x - i;
 }
 
 # A sprite image scaled to this screen.
 fun load(name) {
-    img = Image(name + ".png");
-    k = SC / (RENDER * spr[name].d);
-    w = Math.Max(1, Math.Int(img.GetWidth() * k + 0.5));
-    h = Math.Max(1, Math.Int(img.GetHeight() * k + 0.5));
+    local.img = Image(name + ".png");
+    local.k = SC / (RENDER * spr[name].d);
+    local.w = Math.Max(1, Math.Int(img.GetWidth() * k + 0.5));
+    local.h = Math.Max(1, Math.Int(img.GetHeight() * k + 0.5));
     return img.Scale(w, h);
 }
 
 # Place a sprite so its image's centre is at design point (x, y).
 fun at(sprite, x, y, z) {
-    img = sprite.GetImage();
+    local.img = sprite.GetImage();
     sprite.SetPosition(Math.Int(X(x) - img.GetWidth() / 2 + 0.5), Math.Int(Y(y) - img.GetHeight() / 2 + 0.5), z);
 }
 
 fun layer(name, z) {
-    s = Sprite(load(name));
+    local.s = Sprite(load(name));
     at(s, spr[name].x, spr[name].y, z);
     s.SetOpacity(0);
     return s;
@@ -56,7 +60,8 @@ fun layer(name, z) {
 #----------------------------------------- easing: the drawing's cubic Béziers, tabled
 
 fun table(n) {
-    x1 = bez[n][0]; y1 = bez[n][1]; x2 = bez[n][2]; y2 = bez[n][3];
+    local.x1 = bez[n][0]; local.y1 = bez[n][1]; local.x2 = bez[n][2]; local.y2 = bez[n][3];
+    local.i = 0; local.j = 0; local.x = 0; local.lo = 0; local.hi = 0; local.m = 0; local.bx = 0;
     for (i = 0; i <= 32; i++) {
         x = i / 32;
         lo = 0; hi = 1;
@@ -76,15 +81,17 @@ fun ease(n, p) {
     if (p <= 0) return 0;
     if (p >= 1) return 1;
     if (n == "linear") return p;
-    q = p * 32;
-    i = Math.Int(q);
-    f = q - i;
+    local.q = p * 32;
+    local.i = Math.Int(q);
+    local.f = q - i;
     return tab[n][i] * (1 - f) + tab[n][i + 1] * f;
 }
 
 # A layer's opacity at time t (the drawing's keyframes).
 fun gatev(name, t) {
-    n = gate[name].n;
+    local.n = gate[name].n;
+    local.i = 0;
+    local.p = 0;
     if (t <= gate[name][0].t) return gate[name][0].v;
     for (i = 0; i < n - 1; i++) {
         if (t < gate[name][i + 1].t) {
@@ -166,14 +173,18 @@ if (Plymouth.GetMode() == "shutdown" || Plymouth.GetMode() == "reboot") t = 3.3;
 
 # The nearest of a list of rendered scales.
 fun nearest(list, n, s) {
-    b = 0;
+    local.b = 0;
+    local.i = 0;
     for (i = 1; i < n; i++) if (Math.Abs(list[i] - s) < Math.Abs(list[b] - s)) b = i;
     return b;
 }
 
 # A two- or three-key track (flash, shock waves, flares): scale in .s, opacity in .o.
 fun track(kind, i, t) {
-    if (kind == "flash") { n = 3; } else if (kind == "shock") { n = 2; } else { n = 3; }
+    local.n = 3; local.j = 0; local.e = 0;
+    local.kt[0] = 0; local.ks[0] = 0; local.ko[0] = 0; local.ke[0] = 0;
+    local.r.s = 0; local.r.o = 0;
+    if (kind == "shock") n = 2;
     for (j = 0; j < n; j++) {
         if (kind == "flash") { kt[j] = flash[j].t; ks[j] = flash[j].s; ko[j] = flash[j].o; ke[j] = flash[j].e; }
         else if (kind == "shock") { kt[j] = shock[i][j].t; ks[j] = shock[i][j].s; ko[j] = shock[i][j].o; ke[j] = shock[i][j].e; }
@@ -193,6 +204,9 @@ fun track(kind, i, t) {
 }
 
 fun refresh() {
+    local.g = 0; local.a = 0; local.i = 0; local.j = 0; local.k = 0; local.u = 0; local.p = 0;
+    local.r = 0; local.o = 0; local.b = 0; local.off = 0; local.s = 0; local.q = 0; local.e = 0;
+    local.l = 0; local.gs = 0; local.go = 0; local.ts = 1; local.to = 1; local.f = 0; local.top = 0;
     global.t += 1 / 50;
 
     amb.SetOpacity(gatev("amb", t));
@@ -304,6 +318,8 @@ fun refresh() {
         else if (t < l + 0.45) { e = ease("ease-in", (t - l - 0.1) / 0.35); gs = mix(2.4, 1, e); go = 1; }
         else { gs = 1; go = 1; }
         p = frac((t - glint[k].tw) / TWINKLE);
+        ts = 1;
+        to = 1;
         for (j = 0; j < 3; j++) {
             if (p >= twk[j].p && p < twk[j + 1].p) {
                 e = ease("ease-in-out", (p - twk[j].p) / (twk[j + 1].p - twk[j].p));
@@ -383,14 +399,16 @@ fun dialog(text, opacity) {
     lock.SetOpacity(opacity);
 }
 
+# The dots are globals, so they stay on the screen after this returns.
 fun bullets(count) {
-    bx = ex + entry_image.GetHeight();
+    local.bx = ex + entry_image.GetHeight();
+    local.b = 0;
     for (b = 0; b < bullet_count || b < count; b++) {
-        if (!bullet[b]) {
-            bullet[b] = Sprite(bullet_image);
-            bullet[b].SetPosition(bx + b * bullet_image.GetWidth() * 1.15, ey + entry_image.GetHeight() / 2 - bullet_image.GetHeight() / 2, 101);
+        if (!global.bullet[b]) {
+            global.bullet[b] = Sprite(bullet_image);
+            global.bullet[b].SetPosition(bx + b * bullet_image.GetWidth() * 1.15, ey + entry_image.GetHeight() / 2 - bullet_image.GetHeight() / 2, 101);
         }
-        if (b < count) bullet[b].SetOpacity(1); else bullet[b].SetOpacity(0);
+        if (b < count) global.bullet[b].SetOpacity(1); else global.bullet[b].SetOpacity(0);
     }
     global.bullet_count = Math.Max(bullet_count, count);
 }
@@ -433,7 +451,7 @@ bar = Sprite();
 percent = Sprite();
 
 fun on_update(progress) {
-    p = Math.Clamp(progress / 100, 0, 1);
+    local.p = Math.Clamp(progress / 100, 0, 1);
     global.dialog_on = 1;
     bar_back.SetOpacity(1);
     if (p > 0) {
