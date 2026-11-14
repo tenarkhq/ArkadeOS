@@ -92,11 +92,13 @@ check "update steps ran for the user" 'test -d /home/arkade/.local/state/arkadeo
 # Breeze and one taskbar instead of WhiteSur, the top bar and the dock
 # (Roland, 2026-11-04): the dock's app icons move to the taskbar, Game Mode
 # leaves, the Portal joins. ArkadeOS Glass (T086, 2026-11-13): the taskbar
-# becomes the glass bar, the look the glass one. The last step waits for the
-# desktop, Plasma writes its file a little later. Dolphin shows its menu bar.
+# becomes the glass bar, the look the glass one, and every window one glass
+# with the Darkly style (009). The glass step waits for the desktop, Plasma
+# writes its file a little later. Dolphin shows its menu bar.
 for _ in $(seq 30); do
     ssh_vm 'test -e /home/arkade/.local/state/arkadeos/migrations/004-breeze-taskbar.sh &&
-        test -e /home/arkade/.local/state/arkadeos/migrations/008-glass.sh' && break
+        test -e /home/arkade/.local/state/arkadeos/migrations/008-glass.sh &&
+        test -e /home/arkade/.local/state/arkadeos/migrations/009-darkly.sh' && break
     sleep 5
 done
 sleep 15
