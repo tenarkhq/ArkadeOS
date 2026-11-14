@@ -304,9 +304,11 @@ check "Égkék wallpaper and the lit launcher mark" "f=${home}/plasma-org.kde.pl
 check "welcome screen: blurred Égkék, the Start mark, the word and the bar (round 8)" 'f=/usr/share/plasma/look-and-feel/org.arkadeos.light.desktop/contents/splash/Splash.qml &&
     grep -q ArkadeOS-Egkek ${f} && grep -q ARKADEOS ${f} && test -s /usr/share/icons/arkadeos-glass-dark/marks/l/arkadeos-logo.svg &&
     test -s /usr/share/wallpapers/ArkadeOS-Egkek/contents/images_dark/2560x1600.jxl'
-check "lock and login screens on Égkék with the glass card (round 8)" "${session} kreadconfig6 --file kscreenlockerrc --group Greeter --group Wallpaper --group org.kde.image --group General --key Image | grep -q ArkadeOS-Egkek &&
+check "lock and login screens on Égkék with the glass card and the glass password field (round 8)" "${session} kreadconfig6 --file kscreenlockerrc --group Greeter --group Wallpaper --group org.kde.image --group General --key Image | grep -q ArkadeOS-Egkek &&
     grep -q ArkadeOS-Egkek /usr/lib/plasmalogin/plasmalogin.conf.d/20-arkadeos.conf && ! grep -q '^prefer' /usr/lib64/qt6/qml/org/kde/breeze/components/qmldir &&
-    grep -q arkadeosCard /usr/lib64/qt6/qml/org/kde/breeze/components/SessionManagementScreen.qml"
+    grep -q arkadeosCard /usr/lib64/qt6/qml/org/kde/breeze/components/SessionManagementScreen.qml &&
+    grep -q arkadeosFieldGlass /usr/lib64/qt6/qml/org/kde/breeze/components/SessionManagementScreen.qml &&
+    test -s /usr/share/arkadeos/login/arkadeos-key-right.svg"
 # T010: Hungarian is complete, our own texts included.
 check "Hungarian language" "rpm -q hunspell-hu && test -f /usr/share/locale/hu/LC_MESSAGES/dolphin.mo &&
     grep -q 'Name\\[hu\\]' /usr/share/plasma/look-and-feel/org.arkadeos.light.desktop/metadata.json"

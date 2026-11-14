@@ -4,8 +4,9 @@
 # lock screen build on the same Breeze components: the clock, the user card
 # (SessionManagementScreen) and the round buttons (ActionButton). Patching
 # them here gives both screens the approved look: a thin clock, a glass card
-# behind the face and the password, glass circle buttons and the Start mark in
-# the top left corner. Their wallpaper is Égkék (kscreenlockerrc and
+# behind the face and the password, the password as a dark glass field with a
+# blue arrow key, glass circle buttons and the Start mark in the top left
+# corner. Their wallpaper is Égkék (kscreenlockerrc and
 # /usr/lib/plasmalogin/plasmalogin.conf.d/20-arkadeos.conf); the status icons
 # stay in Plasma's footer at the bottom.
 set -euo pipefail
@@ -62,6 +63,86 @@ card = """    // ArkadeOS Glass (T086 round 8): the glass card behind the user a
         source: "file:///usr/share/icons/arkadeos-glass-dark/marks/m/arkadeos-logo.svg"
     }
 
+    // The fields under the face (the password, and the user name where the
+    // login screen asks for it) are dark glass with a light rim, and the
+    // arrow button next to the password is a blue glass key with a white
+    // arrow (the approved render: rgba(10,20,32,.45), rim rgba(191,230,255,
+    // .28), placeholder #9fb7cc, key #6fb8ef to #2f78bd). The login screen's
+    // own QML is compiled into its greeter, so the fields are found here, in
+    // the screen both the login and the lock screen are built on.
+    // The field takes its height and text margins from its background
+    // (Plasma's TextField reads background.margins), so the glass brings
+    // the render's: 2.2 units high, the text 0.65 units from the rim.
+    Component {
+        id: arkadeosFieldGlass
+        Rectangle {
+            readonly property real gu: Kirigami.Units.gridUnit
+            readonly property QtObject margins: QtObject {
+                readonly property real left: Math.round(Kirigami.Units.gridUnit * 0.65)
+                readonly property real right: left
+                readonly property real top: Math.round(Kirigami.Units.gridUnit * 0.3)
+                readonly property real bottom: top
+            }
+            implicitWidth: gu * 8 + margins.left + margins.right
+            implicitHeight: Math.round(gu * 2.2)
+            radius: Math.round(height * 0.26)
+            color: Qt.rgba(10 / 255, 20 / 255, 32 / 255, 0.45)
+            border.width: 1
+            border.color: Qt.rgba(191 / 255, 230 / 255, 1, 0.28)
+        }
+    }
+    Component {
+        id: arkadeosKeyGlass
+        Rectangle {
+            radius: Math.round(height * 0.25)
+            opacity: parent && parent.down ? 0.8 : 1
+            gradient: Gradient {
+                GradientStop { position: 0; color: "#6fb8ef" }
+                GradientStop { position: 1; color: "#2f78bd" }
+            }
+        }
+    }
+    function arkadeosGlass(item) {
+        const kids = item.children;
+        let password = false;
+        for (let i = 0; i < kids.length; ++i) {
+            if (kids[i].echoMode === TextInput.Password) {
+                password = true;
+            }
+        }
+        for (let i = 0; i < kids.length; ++i) {
+            const c = kids[i];
+            if (c.echoMode !== undefined && c.placeholderTextColor !== undefined) {
+                c.background = arkadeosFieldGlass.createObject(c);
+                c.color = "#ffffff";
+                c.placeholderTextColor = "#9fb7cc";
+                c.Kirigami.Theme.inherit = false;
+                c.Kirigami.Theme.textColor = "#ffffff";
+            } else if (password && c.icon !== undefined && c.flat !== undefined) {
+                c.background = arkadeosKeyGlass.createObject(c);
+                // The render's arrow (a shaft and a head; Breeze only has a
+                // chevron); like the original, no icon when it shows text.
+                // (A file named like a theme icon, arrow-right.svg, would be
+                // swapped for that theme icon by the icon loader.)
+                const key = c;
+                const arrow = () => {
+                    key.icon.name = "";
+                    key.icon.source = key.text.length > 0 ? "" : "file:///usr/share/arkadeos/login/arkadeos-key-" + (key.LayoutMirroring.enabled ? "left" : "right") + ".svg";
+                };
+                arrow();
+                c.textChanged.connect(arrow);
+                c.icon.width = Math.round(Kirigami.Units.gridUnit);
+                c.icon.height = c.icon.width;
+                c.icon.color = "#ffffff";
+                c.Kirigami.Theme.inherit = false;
+                c.Kirigami.Theme.textColor = "#ffffff";
+            } else {
+                arkadeosGlass(c);
+            }
+        }
+    }
+    Component.onCompleted: arkadeosGlass(innerLayout)
+
     UserList {
 """
 patch("SessionManagementScreen.qml", [
@@ -99,4 +180,7 @@ patch("Clock.qml", [
 PY
 
 grep -q arkadeosCard "${components}/SessionManagementScreen.qml"
+grep -q arkadeosFieldGlass "${components}/SessionManagementScreen.qml"
 test -s /usr/share/icons/arkadeos-glass-dark/marks/m/arkadeos-logo.svg
+test -s /usr/share/arkadeos/login/arkadeos-key-right.svg
+test -s /usr/share/arkadeos/login/arkadeos-key-left.svg
