@@ -101,9 +101,13 @@ test -f /usr/share/union/styles/arkadeos-glass/contents/css/style.css
 test -f /usr/share/union/styles/breeze/contents/css/style.css
 for bin in systemsettings kcmshell6; do
     mv "/usr/bin/${bin}" "/usr/libexec/arkadeos/${bin}"
-    printf '%s\n' '#!/usr/bin/sh' \
+    # exec -a keeps the name it was started by: kinfocenter is a link to
+    # systemsettings and opens Info Center only under its own name.
+    printf '%s\n' '#!/usr/bin/bash' \
         "# ArkadeOS: ${bin} with the ArkadeOS Glass Union style (build_files/70-theme.sh)." \
         'export QT_QUICK_CONTROLS_STYLE=org.kde.union UNION_STYLE_NAME=arkadeos-glass' \
-        "exec /usr/libexec/arkadeos/${bin} \"\$@\"" > "/usr/bin/${bin}"
+        "exec -a \"\$0\" /usr/libexec/arkadeos/${bin} \"\$@\"" > "/usr/bin/${bin}"
     chmod 755 "/usr/bin/${bin}"
 done
+test "$(readlink -f /usr/bin/kinfocenter)" = /usr/bin/systemsettings
+grep -qF 'exec -a "$0" /usr/libexec/arkadeos/systemsettings "$@"' /usr/bin/systemsettings
