@@ -380,6 +380,12 @@ sleep 12
 shot app-filelight
 check "Filelight opens" "pgrep -u arkade -f '^/usr/bin/[f]ilelight' >/dev/null"
 ssh_vm "pkill -u arkade -f filelight" || true
+# The store (Bazaar, GTK 4) beside the glass system, for the Glass audit; it
+# loads Flathub's list first, so the picture comes late. Only a picture.
+ssh_vm "nohup ${session} bazaar-daemon >/dev/null 2>&1 &" || true
+sleep 40
+shot app-bazaar
+ssh_vm "pkill -u arkade -f 'bazaar'" || true
 # The lock screen (round 8): the Égkék wallpaper, the clock, the glass card
 # with the face and the password, the Start mark in the corner.
 ssh_vm "loginctl lock-sessions" || true
