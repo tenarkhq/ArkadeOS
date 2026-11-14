@@ -257,13 +257,19 @@ check "the tray icons are ArkadeOS Glass's own, the power switch's too" 'for t i
 # its launchers set it, and the style loads without errors.
 check "System Settings in the ArkadeOS Glass Union style" 'grep -q UNION_STYLE_NAME=arkadeos-glass /usr/bin/systemsettings /usr/bin/kcmshell6 &&
     test -x /usr/libexec/arkadeos/systemsettings && test -f /usr/share/union/styles/arkadeos-glass/metadata.json'
-# Its app icons (Roland, 2026-11-13, family A): the file manager, terminal
-# and System Settings over Breeze's in both themes, the Portal's in hicolor,
-# and the icons of System Settings' pages.
+# Its app icons in the craft of the round-6 marks (Roland, 2026-11-14): the
+# file manager, terminal and System Settings over Breeze's in both themes,
+# with their small size; the Start and Portal marks in their four optical
+# sizes, light and dark, the large dark ones in hicolor; and the icons of
+# System Settings' pages.
 check "the ArkadeOS Glass app icons" 'for t in arkadeos-glass arkadeos-glass-dark; do
     for n in org.kde.dolphin system-file-manager utilities-terminal org.kde.konsole preferences-system systemsettings; do
         test -f /usr/share/icons/${t}/apps/scalable/${n}.svg || { echo "missing ${t} ${n}"; exit 1; }; done; done &&
-    grep -q "url(#well)" /usr/share/icons/hicolor/scalable/apps/arkadeos-portal.svg &&
+    test -f /usr/share/icons/arkadeos-glass/apps/small/org.kde.dolphin.svg &&
+    for t in arkadeos-glass arkadeos-glass-dark; do for z in s m l xl; do
+        for n in arkadeos-launcher-glow arkadeos-launcher arkadeos-logo arkadeos-portal; do
+            test -f /usr/share/icons/${t}/marks/${z}/${n}.svg || { echo "missing ${t} ${z} ${n}"; exit 1; }; done; done; done &&
+    grep -q "url(#gfClip)" /usr/share/icons/hicolor/scalable/apps/arkadeos-portal.svg &&
     for n in preferences-desktop preferences-desktop-mouse preferences-desktop-keyboard preferences-desktop-sound \
         preferences-desktop-display preferences-system-bluetooth preferences-system-network preferences-desktop-theme-global; do
         test -f /usr/share/icons/arkadeos-glass/apps/scalable/${n}.svg || { echo "missing ${n}"; exit 1; }; done'

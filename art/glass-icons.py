@@ -13,6 +13,8 @@ icon is Breeze's. The names are the ones the Plasma 6.8 tray widgets ask for
 variant of each, so that no Breeze icon of the same kind shows up between
 ours. The colours follow the colour scheme (Plasma recolours the
 ColorScheme-* classes): white on the dark glass, dark on the light one.
+The index also lists the marks (glass-marks.py: their own folder in each
+theme, light and dark material) and the small app icons (glass-app-icons.py).
 Usage: glass-icons.py <icons folder>"""
 import math
 import os
@@ -280,7 +282,58 @@ Inherits={base},hicolor
 Example=audio-volume-high-symbolic
 FollowsColorScheme=true
 DisplayDepth=32
-Directories=status/22,status/22@2x,status/22@3x,apps/scalable,apps/scalable@2x,apps/scalable@3x
+Directories=marks/s,marks/m,marks/l,marks/xl,apps/small,apps/small@2x,apps/small@3x,status/22,status/22@2x,status/22@3x,apps/scalable,apps/scalable@2x,apps/scalable@3x
+
+[marks/s]
+Size=32
+Context=Applications
+Type=Scalable
+MinSize=8
+MaxSize=32
+
+[marks/m]
+Size=48
+Context=Applications
+Type=Scalable
+MinSize=33
+MaxSize=63
+
+[marks/l]
+Size=96
+Context=Applications
+Type=Scalable
+MinSize=64
+MaxSize=159
+
+[marks/xl]
+Size=256
+Context=Applications
+Type=Scalable
+MinSize=160
+MaxSize=1024
+
+[apps/small]
+Size=32
+Context=Applications
+Type=Scalable
+MinSize=8
+MaxSize=32
+
+[apps/small@2x]
+Size=32
+Scale=2
+Context=Applications
+Type=Scalable
+MinSize=8
+MaxSize=32
+
+[apps/small@3x]
+Size=32
+Scale=3
+Context=Applications
+Type=Scalable
+MinSize=8
+MaxSize=32
 
 [status/22]
 Size=22
