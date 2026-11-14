@@ -1,0 +1,43 @@
+/* ArkadeOS Glass for GTK4 and libadwaita apps (Glass audit 4, Roland,
+   2026-11-14: "minden glass aknát javítsunk"). Copied at each login into
+   ~/.config/gtk-4.0/arkadeos-glass.css by session-setup, so image updates
+   reach it; Flatpak apps read it through a read-only override.
+   The colours come from KDE (colors.css, written by kde-gtk-config from the
+   ArkadeOS Glass colour scheme), so the day/night switch restyles the apps
+   too. Header bar, sidebars and the window take the KDE windows' sky-blue
+   glass at the same strength (55 %) over the blur behind; lists, text and
+   cards keep their own solid colours. */
+@import 'colors.css';
+
+:root {
+  --headerbar-bg-color: alpha(@theme_titlebar_background_breeze, 0.55);
+  --headerbar-backdrop-color: alpha(@theme_titlebar_background_backdrop_breeze, 0.55);
+  --sidebar-bg-color: alpha(@theme_titlebar_background_breeze, 0.55);
+  --sidebar-backdrop-color: alpha(@theme_titlebar_background_backdrop_breeze, 0.55);
+  --secondary-sidebar-bg-color: alpha(@theme_titlebar_background_breeze, 0.45);
+  --secondary-sidebar-backdrop-color: alpha(@theme_titlebar_background_backdrop_breeze, 0.45);
+  --window-bg-color: alpha(@theme_titlebar_background_breeze, 0.55);
+}
+
+/* The ArkadeOS Glass window buttons: soft rounded squares, the close
+   button red. */
+windowcontrols > button {
+  min-width: 24px;
+  min-height: 24px;
+  padding: 0;
+  margin: 0 2px;
+  border-radius: 7px;
+  box-shadow: none;
+  background: alpha(@theme_titlebar_foreground_breeze, 0.12);
+  color: @theme_titlebar_foreground_breeze;
+}
+windowcontrols > button:hover {
+  background: alpha(@theme_titlebar_foreground_breeze, 0.22);
+}
+windowcontrols > button.close {
+  background: linear-gradient(to bottom, #f0606f, #d63a4e);
+  color: #ffffff;
+}
+windowcontrols > button.close:hover {
+  background: linear-gradient(to bottom, #ff7d8a, #e0485b);
+}

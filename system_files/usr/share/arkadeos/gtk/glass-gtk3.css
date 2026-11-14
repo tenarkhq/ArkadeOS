@@ -1,0 +1,48 @@
+/* ArkadeOS Glass for GTK3 apps (Glass audit 5, Roland, 2026-11-14:
+   "minden glass aknát javítsunk"). Copied at each login into
+   ~/.config/gtk-3.0/arkadeos-glass.css by session-setup, so image updates
+   reach it; Flatpak apps read it through a read-only override.
+   Colours come from KDE (colors.css, kde-gtk-config), so the day/night
+   switch restyles the apps too. The header bar takes the KDE windows'
+   sky-blue glass (55 %) over the blur; its window buttons are the ArkadeOS
+   Glass ones (soft rounded squares, the close button red) instead of the
+   Breeze GTK marks. */
+@import 'colors.css';
+
+headerbar,
+.titlebar:not(headerbar) {
+  background-color: alpha(@theme_titlebar_background_breeze, 0.55);
+  background-image: none;
+  box-shadow: none;
+}
+headerbar:backdrop,
+.titlebar:not(headerbar):backdrop {
+  background-color: alpha(@theme_titlebar_background_backdrop_breeze, 0.55);
+}
+
+headerbar button.titlebutton,
+.titlebar button.titlebutton {
+  min-width: 24px;
+  min-height: 24px;
+  padding: 0;
+  margin: 0 2px;
+  border: none;
+  border-radius: 7px;
+  box-shadow: none;
+  background-image: none;
+  background-color: alpha(@theme_titlebar_foreground_breeze, 0.12);
+  color: @theme_titlebar_foreground_breeze;
+}
+headerbar button.titlebutton:hover,
+.titlebar button.titlebutton:hover {
+  background-color: alpha(@theme_titlebar_foreground_breeze, 0.22);
+}
+headerbar button.titlebutton.close,
+.titlebar button.titlebutton.close {
+  background-image: linear-gradient(to bottom, #f0606f, #d63a4e);
+  color: #ffffff;
+}
+headerbar button.titlebutton.close:hover,
+.titlebar button.titlebutton.close:hover {
+  background-image: linear-gradient(to bottom, #ff7d8a, #e0485b);
+}

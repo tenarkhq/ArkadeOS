@@ -228,6 +228,10 @@ check "menu bar, toolbars, tab bars and Dolphin's sidebar see-through (Darkly)" 
         v=\$(${session} kreadconfig6 --file darklyrc --group Style --key \$k); test -n \"\$v\" && test \"\$v\" -lt 100 || exit 1; done"
 check "Bazzite Updater gone, Bazzite leftovers out of the menu (Glass audit 9)" "! rpm -q bazzite-updater >/dev/null && for a in bazzite-documentation discourse webapp-manager nvidia-settings yad-icon-browser; do
         f=/usr/share/applications/\$a.desktop; test ! -f \$f || grep -qx NoDisplay=true \$f || exit 1; done"
+check "GTK3 and GTK4 apps in ArkadeOS Glass (Glass audit 4, 5)" "for v in 3 4; do
+        cmp -s /usr/share/arkadeos/gtk/glass-gtk\$v.css ${home}/gtk-\$v.0/arkadeos-glass.css &&
+        grep -qxF \"@import 'arkadeos-glass.css';\" ${home}/gtk-\$v.0/gtk.css || exit 1; done &&
+    flatpak override --system --show | grep -q 'xdg-config/gtk-4.0:ro'"
 check "the glass blur runs (Better Blur DX for this KWin), KWin's own blur off" "${session} busctl --user call org.kde.KWin /Effects org.kde.kwin.Effects isEffectLoaded s better_blur_dx | grep -qx 'b true' &&
     ${session} busctl --user call org.kde.KWin /Effects org.kde.kwin.Effects isEffectLoaded s blur | grep -qx 'b false'"
 check "day/night switch on" "test \"\$(${session} kreadconfig6 --group KDE --key AutomaticLookAndFeel)\" = true"

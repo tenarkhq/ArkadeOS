@@ -44,4 +44,7 @@ done
 # widget style, in their KDE runtime and would fall back to Fusion: they keep
 # Breeze, which the runtime has (T086).
 flatpak override --system --env=QT_STYLE_OVERRIDE=Breeze
+# The Flathub GTK apps read the ArkadeOS Glass stylesheets and KDE's colours
+# from the user's GTK folders, read-only (Glass audit 4 and 5).
+flatpak override --system --filesystem=xdg-config/gtk-3.0:ro --filesystem=xdg-config/gtk-4.0:ro
 exit 0
