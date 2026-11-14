@@ -895,6 +895,30 @@ for app in org.mozilla.firefox:firefox com.google.Chrome:chrome com.discordapp.D
     check "${app#*:} starts" "pgrep -u arkade -fi '/app/.*${app#*:}' || pgrep -u arkade -xi '${app#*:}'"
     ssh_vm "cat /tmp/${app%%:*}.log; ${session} flatpak ps" > "${out}/app-${app#*:}.log" 2>&1 || true
 done
+# Glass audit 6: what the other apps put in the tray, by name (IconName,
+# IconThemePath: our theme can draw it) or as a ready picture (IconPixmap:
+# it cannot). VLC and Steam (-silent: straight to the tray; its first start
+# downloads the client) join the apps above; nothing here fails the test.
+ssh_vm "nohup ${session} flatpak run org.videolan.VLC > /tmp/vlc.log 2>&1 &"
+ssh_vm "nohup ${session} steam -silent > /tmp/steam.log 2>&1 &"
+for _ in $(seq 24); do
+    ssh_vm "${session} busctl --user get-property org.kde.StatusNotifierWatcher /StatusNotifierWatcher org.kde.StatusNotifierWatcher RegisteredStatusNotifierItems" 2>/dev/null |
+        grep -q -i steam && break
+    ssh_vm "for i in \$(${session} busctl --user get-property org.kde.StatusNotifierWatcher /StatusNotifierWatcher org.kde.StatusNotifierWatcher RegisteredStatusNotifierItems | grep -oE '\"[^\"]+\"' | tr -d '\"'); do
+            ${session} busctl --user get-property \"\${i%%/*}\" \"/\${i#*/}\" org.kde.StatusNotifierItem Id; done" 2>/dev/null | grep -q -i steam && break
+    sleep 10
+done
+ssh_vm 'loginctl unlock-sessions' || true
+sleep 3
+ssh_vm "for i in \$(${session} busctl --user get-property org.kde.StatusNotifierWatcher /StatusNotifierWatcher org.kde.StatusNotifierWatcher RegisteredStatusNotifierItems | grep -oE '\"[^\"]+\"' | tr -d '\"'); do
+        echo \"== \${i}\"; for p in Id Title IconName IconThemePath AttentionIconName OverlayIconName Status; do
+            printf '%s ' \"\${p}\"; ${session} busctl --user get-property \"\${i%%/*}\" \"/\${i#*/}\" org.kde.StatusNotifierItem \"\${p}\" 2>&1; done
+        printf 'IconPixmap '; ${session} busctl --user get-property \"\${i%%/*}\" \"/\${i#*/}\" org.kde.StatusNotifierItem IconPixmap 2>&1 | cut -c1-60; done;
+    tail -20 /tmp/steam.log; tail -5 /tmp/vlc.log" > "${out}/tray-apps.txt" 2>&1 || true
+shot tray-apps
+# Steam and VLC go again, so that the checks and pictures below see what
+# they saw before.
+ssh_vm "pkill -u arkade -f 'steamwebhelper|ubuntu12_32/steam|steam -silent'; pkill -u arkade -f '/app/bin/vlc'" || true
 sleep 10
 # T068: all of these apps' windows can be pinned on the dock too.
 check "every app window has a dock entry" "${session} /usr/libexec/arkadeos/dock-names --check"
