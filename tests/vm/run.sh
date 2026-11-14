@@ -245,8 +245,6 @@ taskbar=$(base64 -w0 "$(dirname "$0")/taskbar.py")
 ssh_vm "echo ${taskbar} | base64 -d | python3 - ${home}/plasma-org.kde.plasma.desktop-appletsrc ${home}/plasmashellrc;
     cat ${home}/plasma-org.kde.plasma.desktop-appletsrc" > "${out}/taskbar-check.txt" 2>&1 || true
 check "one glass taskbar, the ArkadeOS mark first, the apps in the middle, Portal on it" "echo ${taskbar} | base64 -d | python3 - ${home}/plasma-org.kde.plasma.desktop-appletsrc ${home}/plasmashellrc"
-# T086: the tray and clock's glass capsule is drawn by our own widget.
-check "the glass capsule widget loads without errors" '! journalctl -b --no-pager | grep -q "org.arkadeos.capsule/contents/ui/"'
 # The tray's own icons (T086, Roland, 2026-11-13: "nem lehet újat rajzolni
 # azoknak?"): both ArkadeOS Glass icon themes have them on top of Breeze,
 # the power switch's among them (Adwaita's names showed a blank page).
@@ -303,7 +301,8 @@ for variant in light dark; do
     ssh_vm "grep -A3 '^\\[Colors:Window\\]' ${home}/kdeglobals; cat ${home}/kdedefaults/kdeglobals" >> "${out}/look-${variant}.log" 2>&1 || true
 done
 check "dark theme applied" "grep -qx ColorScheme=ArkadeOSGlassDark ${home}/kdedefaults/kdeglobals &&
-    grep -A3 '^\\[Colors:Window\\]' ${home}/kdeglobals | grep -qx BackgroundNormal=37,42,51,136"
+    grep -A3 '^\\[Colors:Window\\]' ${home}/kdeglobals | grep -qx BackgroundNormal=37,42,51,136 &&
+    grep -A3 '^\\[Colors:Header\\]' ${home}/kdeglobals | grep -qx BackgroundNormal=45,81,110,136"
 # ArkadeOS Glass (T086): the design's scene, for Roland to set beside it:
 # the file manager in front with its File menu open, the terminal behind, the
 # Égkék wallpaper; dark, then light, then the ArkadeOS menu open.

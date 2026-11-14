@@ -59,9 +59,9 @@ for look, (base, hu, active, inactive, smoke) in LOOKS.items():
             # 2026-11-14: "nem csak egy fejléccel"), but in a neutral smoke,
             # the approved design's pane colour (#252a33 dark, #f3f5f8
             # light), not sky blue: "mitől kék az üveg ott annyira? ... ez
-            # lett jóváhagyva". The sky-blue glass is the frame: title bar,
-            # menu bar and toolbars (Header above). Sidebars, status bar and
-            # Plasma's popups take this smoke, the wallpaper's colour showing
+            # lett jóváhagyva". The sky-blue glass is the frame: title bar
+            # and menu bar (Header above). Toolbars (darkly.sh), sidebars,
+            # status bar and Plasma's popups take this smoke, the wallpaper's colour showing
             # through; views (file lists, text) keep their solid colour.
             line = f"{key}={smoke}"
         elif group == "[WM]" and key == "activeBackground":

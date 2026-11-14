@@ -4,7 +4,8 @@
 # style of every KDE window in ArkadeOS Glass. A fork of Breeze (through
 # Lightly) that draws a window's background, sidebars, menu bar and toolbars
 # see-through where the colour scheme says so, over the blur behind it
-# (Better Blur DX); file lists and text stay solid. Colours come from the
+# (Better Blur DX); file lists and text stay solid. One change of ours: the
+# toolbars take the window's colour, not the title area's (below). Colours come from the
 # colour scheme, so the day/night switch restyles open windows too (Kvantum
 # could not, T006). Built here from the pinned upstream release against the
 # image's own Qt and Frameworks, in a throwaway stage; only the style and its
@@ -21,6 +22,24 @@ dnf -y -q install git cmake extra-cmake-modules gcc-c++ qt6-qtbase-devel qt6-qtb
     kdecoration-devel kf6-kcolorscheme-devel >/dev/null
 git clone -q --depth 1 --branch "${tag}" https://github.com/Bali10050/Darkly /tmp/darkly
 test "$(git -C /tmp/darkly rev-parse HEAD)" = "${commit}"
+# ArkadeOS Glass (Roland, 2026-11-14, the approved design: "az átlátszóság
+# az elvárás", "homogén konzisztens megjelenést"): only the title bar and the
+# menu bar wear the sky-blue glass; the toolbars wear the window's own
+# see-through neutral smoke, like the sidebars and the status bar. Upstream
+# paints the toolbars in the title area's colour; this one line changes that.
+python3 - /tmp/darkly/kstyle/darklystyle.cpp <<'PY'
+import sys
+path = sys.argv[1]
+text = open(path).read()
+old = """    // menubar and toolbar background should match for consistency
+    QColor opacityBackground(
+        _toolsAreaManager->palette().color((widget->isActiveWindow() || _matchInactiveTitleBar) ? QPalette::Active : QPalette::Inactive, QPalette::Window));"""
+new = """    // ArkadeOS: the toolbar in the window's own colour, not the title area's
+    QColor opacityBackground(
+        widget->window()->palette().color((widget->isActiveWindow() || _matchInactiveTitleBar) ? QPalette::Active : QPalette::Inactive, QPalette::Window));"""
+assert text.count(old) == 1, "Darkly's toolbar background moved: check the ArkadeOS patch"
+open(path, "w").write(text.replace(old, new))
+PY
 cmake -S /tmp/darkly -B /tmp/darkly/build -DCMAKE_INSTALL_PREFIX=/usr -DCMAKE_BUILD_TYPE=Release \
     -DBUILD_QT5=OFF -DBUILD_QT6=ON -DWITH_DECORATIONS=OFF -DBUILD_TESTING=OFF >/dev/null
 cmake --build /tmp/darkly/build -j"$(nproc)" >/dev/null
