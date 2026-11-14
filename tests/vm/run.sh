@@ -221,6 +221,11 @@ check "ArkadeOS Glass in the ArkadeOS global theme" "grep -qE '^org\.arkadeos\.(
     grep -qE '^name=arkadeos-glass-(light|dark)$' ${home}/kdedefaults/plasmarc &&
     grep -qE '^Theme=arkadeos-glass(-dark)?$' ${home}/kdedefaults/kdeglobals &&
     ! ls -d /usr/share/icons/WhiteSur* /usr/share/themes/WhiteSur* /usr/share/plasma/desktoptheme/WhiteSur* 2>/dev/null"
+# Roland, 2026-11-14: the see-through sidebar of the first run was right, the
+# solid menu bar and toolbar were not. Darkly paints those bars solid unless
+# its own opacities say otherwise, whatever the colour scheme's alpha.
+check "menu bar, toolbars, tab bars and Dolphin's sidebar see-through (Darkly)" "for k in MenuBarOpacity ToolBarOpacity TabBarOpacity DolphinSidebarOpacity; do
+        v=\$(${session} kreadconfig6 --file darklyrc --group Style --key \$k); test -n \"\$v\" && test \"\$v\" -lt 100 || exit 1; done"
 check "the glass blur runs (Better Blur DX for this KWin), KWin's own blur off" "${session} busctl --user call org.kde.KWin /Effects org.kde.kwin.Effects isEffectLoaded s better_blur_dx | grep -qx 'b true' &&
     ${session} busctl --user call org.kde.KWin /Effects org.kde.kwin.Effects isEffectLoaded s blur | grep -qx 'b false'"
 check "day/night switch on" "test \"\$(${session} kreadconfig6 --group KDE --key AutomaticLookAndFeel)\" = true"

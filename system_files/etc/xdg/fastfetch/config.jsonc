@@ -5,15 +5,15 @@
     "logo": {
         "type": "file",
         "source": "/usr/share/arkadeos/fastfetch/logo.txt",
-        "color": { "1": "97", "2": "91" },
+        "color": { "1": "97", "2": "94" },
         "padding": { "top": 1, "right": 3 }
     },
     "display": {
         "separator": "  ",
-        "color": { "keys": "91" }
+        "color": { "keys": "94" }
     },
     "modules": [
-        { "type": "title", "key": " ", "color": { "user": "97", "at": "37", "host": "91" } },
+        { "type": "title", "key": " ", "color": { "user": "97", "at": "37", "host": "94" } },
         "break",
         { "type": "os", "key": " 󰣛", "format": "{pretty-name}" },
         { "type": "command", "key": " 󱋩", "text": "jq -r '\"\\(.[\"image-name\"]):\\(.[\"image-branch\"])\"' /usr/share/ublue-os/image-info.json" },
