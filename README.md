@@ -12,7 +12,7 @@ A clean KDE Plasma desktop, one image for NVIDIA, AMD and Intel graphics, Steam 
 ## Why ArkadeOS
 
 - **Built for games only.** No background indexing, no services you don't need. The kernel, scheduler and power settings are tuned for low latency and high frame rates.
-- **KDE Plasma in ArkadeOS Glass.** Our own sky-blue glass look, light and dark: one glass taskbar at the bottom with the pinned apps in the middle, ArkadeOS's own app and tray icons. Menus in the windows, quick search on Meta+Space, window snapping, Alt+Tab previews, clipboard history.
+- **KDE Plasma in ArkadeOS Glass.** Our own sky-blue glass look, light and dark, from the boot animation to the desktop: one glass taskbar at the bottom with the pinned apps in the middle, ArkadeOS's own app and tray icons. Menus in the windows, quick search on Meta+Space, window snapping, Alt+Tab previews, clipboard history.
 - **Can't be broken by an update.** The whole system is one image. A bad update? Reboot and pick the previous one.
 - **One image for every gaming graphics card.** NVIDIA, AMD and Intel: the NVIDIA driver is built in and only runs where an NVIDIA card is. See [Supported graphics cards](#supported-graphics-cards).
 
@@ -35,7 +35,8 @@ A clean KDE Plasma desktop, one image for NVIDIA, AMD and Intel graphics, Steam 
 | 💻 | MSI (msi-ec, MControlCenter), Lenovo Legion (LenovoLegionLinux); battery care at 80% | implemented |
 | 🌈 | RGB that follows the power profile (OpenRGB, ASUS Aura) | implemented |
 | 🖱️ | Logitech and Razer mice, ASUS ROG keyboards, monitor control, LACT for the graphics card | implemented |
-| 🖥️ | KDE Plasma 6 in ArkadeOS Glass: own glass look, wallpapers, app and tray icons, System Settings and Portal in the same look; light and dark switching by the time of day, one taskbar | implemented |
+| 🖥️ | KDE Plasma 6 in ArkadeOS Glass: own glass look, wallpapers, app, folder and tray icons, System Settings and Portal in the same look; light and dark switching by the time of day, one taskbar | implemented |
+| ✨ | Boot animation of the ArkadeOS mark (also asking for the disk password), login, lock and welcome screens in the same glass | implemented |
 | 📌 | Anything pinned on the taskbar stays there: Steam games, Windows programs, Chrome web apps | implemented |
 | 🧩 | ArkadeOS Portal: pick apps at first login, add or remove anything later | implemented |
 | 🤖 | Optional AI tools: Claude and Codex, desktop apps and command line | implemented |
@@ -50,10 +51,14 @@ A clean KDE Plasma desktop, one image for NVIDIA, AMD and Intel graphics, Steam 
 |---|---|
 | ![Light look](art/screenshots/desktop-light.png) | ![Quick Settings: ArkadeOS Light, Dark or Automatic](art/screenshots/settings.png) |
 | Light look | Quick Settings: light, dark or automatic |
-| ![ArkadeOS Portal at the first login: tick what you want](art/screenshots/portal.png) | ![Login screen](art/screenshots/login.png) |
-| ArkadeOS Portal at the first login: tick what you want, change it any time | Login screen |
+| ![Boot animation asking for the disk password](art/screenshots/boot.png) | ![Welcome screen while the desktop loads](art/screenshots/welcome.png) |
+| Boot animation, here asking for the disk password | Welcome screen while the desktop loads |
+| ![Login screen](art/screenshots/login.png) | ![Lock screen](art/screenshots/lock.png) |
+| Login screen | Lock screen |
+| ![ArkadeOS Portal at the first login: tick what you want](art/screenshots/portal.png) | ![Start menu](art/screenshots/launcher.png) |
+| ArkadeOS Portal at the first login: tick what you want, change it any time | Start menu |
 
-Taken automatically from the 14 November 2026 build in a virtual machine (1280×800 screen).
+Taken automatically from the 14 November 2026 build in a virtual machine (1280×800 screen); the boot animation from the installer test.
 
 ## Supported graphics cards
 
