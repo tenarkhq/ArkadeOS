@@ -36,14 +36,14 @@ sed -i 's#wallpapers/Fedora/#wallpapers/ArkadeOS-Lock/#' /usr/share/kde-settings
 
 # ArkadeOS Glass (T086, Roland, 2026-11-13): the sky-blue glass look. Its
 # colour schemes are Breeze's, with the title area (menu bar and toolbar,
-# under the glass frame) see-through in the frame's glass and the accent in
-# the glass colour; its Plasma styles are Breeze's own with the glass
+# under the glass frame) see-through in the frame's glass, the window body in
+# a see-through neutral smoke and the accent in the glass colour; its Plasma styles are Breeze's own with the glass
 # taskbar and its lit task lines (art/glass-plasma.py).
 python3 - <<'PY'
 import re
-LOOKS = {"Dark": ("BreezeDark", "Sötét", "45,81,110,136", "30,53,72,133"),
-         "Light": ("BreezeLight", "Világos", "192,222,246,147", "215,234,249,146")}
-for look, (base, hu, active, inactive) in LOOKS.items():
+LOOKS = {"Dark": ("BreezeDark", "Sötét", "45,81,110,136", "30,53,72,133", "37,42,51,136"),
+         "Light": ("BreezeLight", "Világos", "192,222,246,147", "215,234,249,146", "243,245,248,147")}
+for look, (base, hu, active, inactive, smoke) in LOOKS.items():
     text = open(f"/usr/share/color-schemes/{base}.colors").read().replace("61,174,233", "96,170,232")
     out, group = [], None
     for line in text.splitlines():
@@ -55,12 +55,15 @@ for look, (base, hu, active, inactive) in LOOKS.items():
         elif group == "[Colors:Header][Inactive]" and key in ("BackgroundNormal", "BackgroundAlternate"):
             line = f"{key}={inactive}"
         elif group == "[Colors:Window]" and key in ("BackgroundNormal", "BackgroundAlternate"):
-            # The window itself is the same glass as its title area (Darkly,
-            # Roland 2026-11-14: "nem csak egy fejléccel", then "az eszköztár
-            # és a menüsorok továbbra sem azok, nem homogén a UI"): title bar,
-            # menu bar, toolbars, sidebars and status bar one see-through sky
-            # blue; views (file lists, text) keep their solid colour.
-            line = f"{key}={active}"
+            # The window itself is see-through too (Darkly, Roland
+            # 2026-11-14: "nem csak egy fejléccel"), but in a neutral smoke,
+            # the approved design's pane colour (#252a33 dark, #f3f5f8
+            # light), not sky blue: "mitől kék az üveg ott annyira? ... ez
+            # lett jóváhagyva". The sky-blue glass is the frame: title bar,
+            # menu bar and toolbars (Header above). Sidebars, status bar and
+            # Plasma's popups take this smoke, the wallpaper's colour showing
+            # through; views (file lists, text) keep their solid colour.
+            line = f"{key}={smoke}"
         elif group == "[WM]" and key == "activeBackground":
             line = f"{key}={active}"
         elif group == "[WM]" and key == "inactiveBackground":
@@ -75,7 +78,7 @@ for look, (base, hu, active, inactive) in LOOKS.items():
     open(f"/usr/share/color-schemes/ArkadeOSGlass{look}.colors", "w").write("\n".join(out) + "\n")
 PY
 grep -q '^BackgroundNormal=45,81,110,136$' /usr/share/color-schemes/ArkadeOSGlassDark.colors
-grep -A3 '^\[Colors:Window\]$' /usr/share/color-schemes/ArkadeOSGlassDark.colors | grep -qx 'BackgroundNormal=45,81,110,136'
+grep -A3 '^\[Colors:Window\]$' /usr/share/color-schemes/ArkadeOSGlassDark.colors | grep -qx 'BackgroundNormal=37,42,51,136'
 for look in dark light; do
     d=/usr/share/plasma/desktoptheme/arkadeos-glass-${look}
     cp -a /usr/share/plasma/desktoptheme/default "${d}"

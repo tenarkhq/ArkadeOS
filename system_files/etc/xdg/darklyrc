@@ -6,7 +6,9 @@
 # Dolphin's sidebar at their own opacity, solid by default (100), whatever the
 # colour scheme's alpha; all four take the title bar's glass strength here
 # (the title area is 53 % dark, 58 % light), over the blur behind (Better
-# Blur DX, kwinrc). The colour scheme gives them the title area's sky blue.
+# Blur DX, kwinrc). The menu bar and the toolbars take the title area's sky
+# blue (the colour scheme's Header colours), the sidebar a neutral smoke (its
+# Window colours), as in the approved design.
 # File lists and text areas stay solid so they read well.
 [Style]
 CornerRadius=8
