@@ -261,7 +261,7 @@ check "System Settings in the ArkadeOS Glass Union style" 'grep -q UNION_STYLE_N
 # file manager, terminal and System Settings over Breeze's in both themes,
 # with their small size; the Start and Portal marks in their four optical
 # sizes, light and dark, the large dark ones in hicolor; and the icons of
-# System Settings' pages.
+# System Settings' pages in both sizes, without the old cast shadow.
 check "the ArkadeOS Glass app icons" 'for t in arkadeos-glass arkadeos-glass-dark; do
     for n in org.kde.dolphin system-file-manager utilities-terminal org.kde.konsole preferences-system systemsettings; do
         test -f /usr/share/icons/${t}/apps/scalable/${n}.svg || { echo "missing ${t} ${n}"; exit 1; }; done; done &&
@@ -272,7 +272,8 @@ check "the ArkadeOS Glass app icons" 'for t in arkadeos-glass arkadeos-glass-dar
     grep -q "url(#gfClip)" /usr/share/icons/hicolor/scalable/apps/arkadeos-portal.svg &&
     for n in preferences-desktop preferences-desktop-mouse preferences-desktop-keyboard preferences-desktop-sound \
         preferences-desktop-display preferences-system-bluetooth preferences-system-network preferences-desktop-theme-global; do
-        test -f /usr/share/icons/arkadeos-glass/apps/scalable/${n}.svg || { echo "missing ${n}"; exit 1; }; done'
+        for z in scalable small; do f=/usr/share/icons/arkadeos-glass/apps/${z}/${n}.svg
+            test -f ${f} && grep -q glass_craft ${f} && ! grep -q "url(#sh)" ${f} || { echo "not in the craft: ${z} ${n}"; exit 1; }; done; done'
 # T009: ArkadeOS name, boot screen, wallpaper, launcher logo, lock screen.
 check "ArkadeOS name" "grep -qx 'PRETTY_NAME=\"ArkadeOS\"' /usr/lib/os-release"
 check "ArkadeOS version: the Fedora it is built on, then the build" '. /usr/lib/os-release; [[ "${VERSION}" =~ ^${VERSION_ID}\.[0-9]{8}(\.[0-9]+)?$ ]]'
