@@ -44,7 +44,9 @@ card = """    // ArkadeOS Glass (T086 round 8): the glass card behind the user a
         anchors.horizontalCenter: parent.horizontalCenter
         y: parent.height / 2 - gu * 10.5
         width: Math.min(parent.width - gu * 2, gu * 20)
-        height: gu * 15.5
+        // Down to just under the fields: the lock screen's sit lower than
+        // the login screen's, and a message above them pushes them down.
+        height: Math.max(gu * 15.5, prompts.y + innerLayout.parent.y + innerLayout.y + innerLayout.height + gu * 0.9 - y)
         radius: gu * 1.1
         color: Qt.rgba(45 / 255, 81 / 255, 110 / 255, 0.42)
         border.width: 1
