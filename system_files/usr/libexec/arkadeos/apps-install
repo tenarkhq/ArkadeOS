@@ -40,4 +40,8 @@ for app in com.google.Chrome org.chromium.Chromium com.brave.Browser com.microso
     flatpak override --system \
         --filesystem=~/.local/share/applications --filesystem=~/.local/share/icons "${app}"
 done
+# The Flathub Qt apps (qBittorrent, VLC) have no Darkly, the ArkadeOS Glass
+# widget style, in their KDE runtime and would fall back to Fusion: they keep
+# Breeze, which the runtime has (T086).
+flatpak override --system --env=QT_STYLE_OVERRIDE=Breeze
 exit 0

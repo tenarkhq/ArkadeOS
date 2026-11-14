@@ -292,7 +292,7 @@ for variant in light dark; do
     ssh_vm "grep -A3 '^\\[Colors:Window\\]' ${home}/kdeglobals; cat ${home}/kdedefaults/kdeglobals" >> "${out}/look-${variant}.log" 2>&1 || true
 done
 check "dark theme applied" "grep -qx ColorScheme=ArkadeOSGlassDark ${home}/kdedefaults/kdeglobals &&
-    grep -A3 '^\\[Colors:Window\\]' ${home}/kdeglobals | grep -qx BackgroundNormal=32,35,38"
+    grep -A3 '^\\[Colors:Window\\]' ${home}/kdeglobals | grep -qx BackgroundNormal=32,35,38,205"
 # ArkadeOS Glass (T086): the design's scene, for Roland to set beside it:
 # the file manager in front with its File menu open, the terminal behind, the
 # Égkék wallpaper; dark, then light, then the ArkadeOS menu open.
@@ -801,6 +801,8 @@ for app in org.mozilla.firefox com.google.Chrome com.discordapp.Discord com.gith
     org.videolan.VLC com.vysp3r.ProtonPlus org.qbittorrent.qBittorrent; do
     check "${app} installed" "flatpak info --system ${app}"
 done
+# T086: the Flathub Qt apps keep Breeze (their runtime has no Darkly).
+check "Flatpak Qt apps in Breeze, not Fusion" 'flatpak override --system --show | grep -qx QT_STYLE_OVERRIDE=Breeze'
 # T067: Chrome may put web apps in the menu, and they stay pinned on the dock.
 check "Chrome may make web app shortcuts" 'flatpak override --system --show com.google.Chrome | grep -q "~/.local/share/applications" &&
     test -d /home/arkade/.local/share/applications -a -d /home/arkade/.local/share/icons'
