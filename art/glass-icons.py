@@ -1,6 +1,6 @@
 """ArkadeOS Glass tray icons (T086, Roland, 2026-11-13: "a jobb alsó sarokban
 lévő ikonok is máshogy néznek ki. nem lehet újat rajzolni azoknak az
-appoknak?"): the status icons of the taskbar's glass capsule, drawn in one
+appoknak?"): the status icons of the taskbar's tray, drawn in one
 hand, as in the design (https://claude.ai/artifact/A9QNLgyxWb3rFxzpJJBJs8):
 thin round strokes, 1.5 px on a 22 px grid. Volume, Wi-Fi and wired network,
 battery, power profile, brightness and night light, Bluetooth, notifications

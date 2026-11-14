@@ -2,8 +2,9 @@
 // PlasmaShell.evaluateScript (T086, Roland, 2026-11-13): the ArkadeOS taskbar
 // becomes the glass bar a new user gets (the layout of org.arkadeos.light):
 // flush with the screen's edge, the ArkadeOS mark lit as the menu, the apps
-// in the middle close together, the tray and clock in a glass capsule (the
-// tray's own spacing: glass-tray.js, once the bar is up). Only a bar with
+// in the middle close together, the tray and clock as bare icons (the
+// tray's own spacing: glass-tray.js, once the bar is up; the glass capsule
+// once behind them went on 2026-11-14, 010-no-capsule.sh). Only a bar with
 // ArkadeOS's own widgets is rebuilt, keeping its app icons and their
 // settings; on one the user changed, only the edge and the menu's mark
 // change. The desktop's wallpaper becomes Égkék where it
@@ -60,7 +61,6 @@ panels().forEach(function (panel) {
     clock.writeConfig("autoFontAndSize", false)
     clock.writeConfig("fontSize", 10)
     bar.addWidget("org.kde.plasma.showdesktop")
-    bar.addWidget("org.arkadeos.capsule")
 })
 desktops().forEach(function (d) {
     d.currentConfigGroup = ["Wallpaper", "org.kde.image", "General"]

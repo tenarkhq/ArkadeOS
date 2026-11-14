@@ -2,7 +2,7 @@
 bottom and no other panel of ours: the ArkadeOS menu (kickoff, the lit Ark
 mark of ArkadeOS Glass, T086) first, the apps in the middle between two
 spacers and close together, the power switch, tray (its icons a little
-closer), clock and show-desktop in the glass capsule; flush with the
+closer), clock and show-desktop, bare (no capsule); flush with the
 screen's edge; no top bar (app menu), app grid or trash. Game Mode is not
 among the apps, the Portal is. Runs in the VM: python3 - <appletsrc>
 [plasmashellrc]."""
@@ -29,7 +29,7 @@ order = order or sorted(ids, key=int)
 plugins = [applets[(bar, i)] for i in order]
 want = ["org.kde.plasma.kickoff", "org.kde.plasma.panelspacer", "org.kde.plasma.icontasks", "org.kde.plasma.panelspacer",
         "org.arkadeos.power", "org.kde.plasma.systemtray", "org.kde.plasma.digitalclock",
-        "org.kde.plasma.showdesktop", "org.arkadeos.capsule"]
+        "org.kde.plasma.showdesktop"]
 assert plugins == want, f"taskbar: {plugins}"
 menu = order[0]
 icon = c.get(f"Containments][{bar}][Applets][{menu}][Configuration][General", "icon", fallback="")
