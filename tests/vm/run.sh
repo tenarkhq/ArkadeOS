@@ -357,7 +357,8 @@ check "Finder-like sidebar: Games in it, Remote and Recent hidden" "grep -qE 'hr
     grep -q '<GroupState-Remote-IsHidden>true' ${home%/.config}/.local/share/user-places.xbel &&
     grep -q '<GroupState-RecentlySaved-IsHidden>true' ${home%/.config}/.local/share/user-places.xbel"
 ssh_vm "${session} systemctl --user status --no-pager arkadeos-session-setup.path arkadeos-session-setup.service;
-    ${session} journalctl --user -b -u arkadeos-session-setup --no-pager | tail -60;     grep -h ColorScheme ${home}/kdeglobals ${home}/kdedefaults/kdeglobals; ls -la ${home%/.config}/.local/share/user-places.xbel ${home%/.config}/.local/state/arkadeos" > "${out}/session-setup.txt" 2>&1 || true
+    ${session} journalctl --user -b -u arkadeos-session-setup --no-pager | tail -60;     grep -h ColorScheme ${home}/kdeglobals ${home}/kdedefaults/kdeglobals;
+    for v in 3 4; do echo \"== gtk-\$v.0/gtk.css\"; cat -A ${home}/gtk-\$v.0/gtk.css; done; ls -la ${home%/.config}/.local/share/user-places.xbel ${home%/.config}/.local/state/arkadeos" > "${out}/session-setup.txt" 2>&1 || true
 # Every ArkadeOS menu entry has its icon (the Battle.net one came from
 # WhiteSur's icons until 11-04).
 check "every ArkadeOS menu entry has its icon" 'for f in /usr/share/applications/org.arkadeos.*.desktop; do

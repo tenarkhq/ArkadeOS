@@ -68,8 +68,17 @@ for v in 3 4; do
     [[ -f "${src}" ]] || continue
     mkdir -p "${dst}"
     cmp -s "${src}" "${dst}/arkadeos-glass.css" || cp "${src}" "${dst}/arkadeos-glass.css"
-    grep -qxF "@import 'arkadeos-glass.css';" "${dst}/gtk.css" 2>/dev/null ||
-        printf '%s\n' "@import 'arkadeos-glass.css';" >> "${dst}/gtk.css"
+    css="${dst}/gtk.css"
+    # kde-gtk-config rewrites gtk.css without a final newline, so an import
+    # added after it landed on its line ("@import 'colors.css';@import
+    # 'arkadeos-glass.css';") and was added again at the next run: that copy
+    # goes, ours stands on its own line.
+    grep -q ".@import 'arkadeos-glass.css';" "${css}" 2>/dev/null &&
+        sed -i "s/\(.\)@import 'arkadeos-glass.css';/\1/" "${css}"
+    if ! grep -qxF "@import 'arkadeos-glass.css';" "${css}" 2>/dev/null; then
+        [[ -s "${css}" && -n "$(tail -c1 "${css}")" ]] && printf '\n' >> "${css}"
+        printf '%s\n' "@import 'arkadeos-glass.css';" >> "${css}"
+    fi
 done
 
 # The folders browsers put web apps in (T067): Flatpak only lets Chrome reach
