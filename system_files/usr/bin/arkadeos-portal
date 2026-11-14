@@ -1357,6 +1357,14 @@ def style_sheet(palette):
 #pane {{ background: {window.name()}; border-radius: 6px; }}
 #scroll, #scrollBody {{ background: transparent; }}
 #scroll > QWidget > QWidget {{ background: transparent; }}
+#pane QScrollBar:vertical {{ background: {window.name()}; border: none; width: 10px; margin: 0; }}
+#pane QScrollBar:horizontal {{ background: {window.name()}; border: none; height: 10px; margin: 0; }}
+#pane QScrollBar::handle {{ background: {rgba(text, .25)}; border-radius: 3px; margin: 3px 2px; }}
+#pane QScrollBar::handle:vertical {{ min-height: 32px; }}
+#pane QScrollBar::handle:horizontal {{ min-width: 32px; }}
+#pane QScrollBar::handle:hover {{ background: {rgba(text, .42)}; }}
+#pane QScrollBar::add-line, #pane QScrollBar::sub-line {{ width: 0; height: 0; border: none; background: none; }}
+#pane QScrollBar::add-page, #pane QScrollBar::sub-page {{ background: none; }}
 #pageTitle {{ font-size: 21px; font-weight: 700; }}
 #pageSub, #muted, #cardNote, #footNote {{ color: {muted}; }}
 #groupTitle {{ color: {muted}; font-size: 11px; font-weight: 700; letter-spacing: 1px; padding-top: 4px; }}
