@@ -230,8 +230,7 @@ check "Bazzite Updater gone, Bazzite leftovers out of the menu (Glass audit 9)" 
         f=/usr/share/applications/\$a.desktop; test ! -f \$f || grep -qx NoDisplay=true \$f || exit 1; done"
 check "GTK3 and GTK4 apps in ArkadeOS Glass (Glass audit 4, 5)" "for v in 3 4; do
         cmp -s /usr/share/arkadeos/gtk/glass-gtk\$v.css ${home}/gtk-\$v.0/arkadeos-glass.css &&
-        grep -qxF \"@import 'arkadeos-glass.css';\" ${home}/gtk-\$v.0/gtk.css || exit 1; done &&
-    flatpak override --system --show | grep -q 'xdg-config/gtk-4.0:ro'"
+        grep -qxF \"@import 'arkadeos-glass.css';\" ${home}/gtk-\$v.0/gtk.css || exit 1; done"
 check "the glass blur runs (Better Blur DX for this KWin), KWin's own blur off" "${session} busctl --user call org.kde.KWin /Effects org.kde.kwin.Effects isEffectLoaded s better_blur_dx | grep -qx 'b true' &&
     ${session} busctl --user call org.kde.KWin /Effects org.kde.kwin.Effects isEffectLoaded s blur | grep -qx 'b false'"
 check "day/night switch on" "test \"\$(${session} kreadconfig6 --group KDE --key AutomaticLookAndFeel)\" = true"
@@ -820,6 +819,8 @@ for app in org.mozilla.firefox com.google.Chrome com.discordapp.Discord com.gith
 done
 # T086: the Flathub Qt apps keep Breeze (their runtime has no Darkly).
 check "Flatpak Qt apps in Breeze, not Fusion" 'flatpak override --system --show | grep -qx QT_STYLE_OVERRIDE=Breeze'
+# Glass audit 4, 5: Flatpak GTK apps read the stylesheets session-setup copies.
+check "Flatpak GTK apps see the ArkadeOS Glass stylesheets" "flatpak override --system --show | grep -q 'xdg-config/gtk-4.0:ro'"
 # T067: Chrome may put web apps in the menu, and they stay pinned on the dock.
 check "Chrome may make web app shortcuts" 'flatpak override --system --show com.google.Chrome | grep -q "~/.local/share/applications" &&
     test -d /home/arkade/.local/share/applications -a -d /home/arkade/.local/share/icons'
