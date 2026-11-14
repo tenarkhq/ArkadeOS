@@ -41,13 +41,14 @@ assert "org.arkadeos.Portal.desktop" in launchers, launchers
 # The app icons close together (Small spacing; Roland, 2026-11-13).
 spacing = c.get(f"Containments][{bar}][Applets][{tasks}][Configuration][General", "iconSpacing", fallback="")
 assert spacing == "0", f"icon spacing: {spacing!r}"
-# The tray's icons a little closer (Small spacing) on its inner containment,
-# which the tray widget names (Roland, 2026-11-13).
+# The tray's icons a little closer (Small spacing; Roland, 2026-11-13), in
+# the tray widget's own General group (Plasma 6.8), or on the inner
+# containment an older Plasma's tray widget names.
 tray = order[5]
 inner = (c.get(f"Containments][{bar}][Applets][{tray}][Configuration", "SystrayContainmentId", fallback="")
          or c.get(f"Containments][{bar}][Applets][{tray}", "SystrayContainmentId", fallback=""))
-assert inner, "the tray has no inner containment"
-tray_spacing = c.get(f"Containments][{inner}][General", "iconSpacing", fallback="")
+group = f"Containments][{inner}][General" if inner else f"Containments][{bar}][Applets][{tray}][General"
+tray_spacing = c.get(group, "iconSpacing", fallback="")
 assert tray_spacing == "1", f"tray icon spacing: {tray_spacing!r}"
 # The clock at the tray's text size, the time alone (T086, Roland,
 # 2026-11-13); the date, when turned on, beside it.

@@ -21,8 +21,9 @@ js=$(cat /usr/share/arkadeos/glass-taskbar.js)
 tray=$(cat /usr/share/arkadeos/glass-tray.js)
 for _ in $(seq 30); do
     if busctl --user call org.kde.plasmashell /PlasmaShell org.kde.PlasmaShell evaluateScript s "${js}" &>/dev/null; then
-        # The tray's spacing, once its inner containment is there (glass-tray.js
-        # says "wait" until then); without it the bar still counts as done.
+        # The tray's spacing (glass-tray.js says "wait" while an older
+        # Plasma's inner tray is not there yet); without it the bar still
+        # counts as done.
         for _ in $(seq 15); do
             out=$(busctl --user call org.kde.plasmashell /PlasmaShell org.kde.PlasmaShell evaluateScript s "${tray}" 2>/dev/null) &&
                 [[ "${out}" != *wait* ]] && break

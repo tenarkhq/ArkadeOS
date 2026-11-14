@@ -39,7 +39,11 @@ tasks.writeConfig("iconSpacing", 0)
 panel.addWidget("org.kde.plasma.panelspacer")
 
 panel.addWidget("org.arkadeos.power")
-panel.addWidget("org.kde.plasma.systemtray")
+// The tray's icons a little closer, Small spacing (Roland, 2026-11-13: "picit
+// sűrűbben de ne nagyon"); Plasma 6.8 keeps it in the tray widget's General.
+var tray = panel.addWidget("org.kde.plasma.systemtray")
+tray.currentConfigGroup = ["General"]
+tray.writeConfig("iconSpacing", 1)
 // The clock at the size of the tray's text, not filling the bar, the time
 // alone (Roland, 2026-11-13): the date is on top of the calendar a click
 // opens, and in the clock's tooltip; turned on, it stands beside the time.

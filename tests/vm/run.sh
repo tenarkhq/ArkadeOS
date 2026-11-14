@@ -145,7 +145,11 @@ ssh_vm "echo '== runtime folder'; ls -la /run/user/${uid}/; echo '== listening s
     echo '== desktop environment'; tr '\\0' '\\n' < /proc/\$(pgrep -u arkade -x plasmashell | head -1)/environ | grep -E '^(WAYLAND|DISPLAY|XAUTH|XDG_|QT_|KDE_|DESKTOP)' | sort;
     echo '== compositors'; ps -eo user:12,pid,lstart,args | grep -E '[k]win_wayland|[X]wayland|[p]lasmalogin|[s]tartplasma' | cut -c1-220;
     echo '== sessions'; loginctl list-sessions --no-legend" > "${out}/session-env.txt" 2>&1 || true
-session="runuser -u arkade -- env HOME=/home/arkade USER=arkade XDG_RUNTIME_DIR=/run/user/${uid} WAYLAND_DISPLAY=${wayland:-wayland-0} QT_QPA_PLATFORM=wayland XDG_CURRENT_DESKTOP=KDE KDE_FULL_SESSION=true KDE_SESSION_VERSION=6 XDG_SESSION_TYPE=wayland DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/${uid}/bus"
+# The look's settings (icon theme, colours, widget style) are in the
+# session's own settings folder (kdedefaults), named by the desktop's
+# XDG_CONFIG_DIRS: the programs started here see them as a menu would.
+dirs=$(ssh_vm "grep -z ^XDG_CONFIG_DIRS= /proc/\$(pgrep -u arkade -x plasmashell | head -1)/environ | tr -d '\\0' | cut -d= -f2" || true)
+session="runuser -u arkade -- env HOME=/home/arkade USER=arkade XDG_RUNTIME_DIR=/run/user/${uid} XDG_CONFIG_DIRS=${dirs:-/etc/xdg} WAYLAND_DISPLAY=${wayland:-wayland-0} QT_QPA_PLATFORM=wayland XDG_CURRENT_DESKTOP=KDE KDE_FULL_SESSION=true KDE_SESSION_VERSION=6 XDG_SESSION_TYPE=wayland DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/${uid}/bus"
 failed=0
 while read -r app; do
     [[ -z "${app}" || "${app}" == \#* ]] && continue

@@ -68,12 +68,16 @@ step "logging in to the desktop"
 # Test-only user with automatic login, no screen lock (the dialogs below must
 # stay in front), and sudo and polkit without a password in place of the
 # password prompts the installers show; the disk never leaves the test job.
+# The first login's choice screen is tested in run.sh: here it is marked
+# done, so a late one never takes the keys meant for a dialog below.
 ssh_vm 'useradd -m -G wheel arkade &&
     echo "arkade ALL=(ALL) NOPASSWD: ALL" > /etc/sudoers.d/00-vm-test &&
     printf "polkit.addRule(function(action, subject) { if (subject.user == \"arkade\") return polkit.Result.YES; });\n" > /etc/polkit-1/rules.d/00-vm-test.rules &&
     mkdir -p /home/arkade/.config &&
     printf "[Daemon]\nAutolock=false\nLockOnResume=false\n" > /home/arkade/.config/kscreenlockerrc &&
-    chown -R arkade: /home/arkade/.config &&
+    mkdir -p /home/arkade/.local/state/arkadeos &&
+    touch /home/arkade/.local/state/arkadeos/portal-first-run &&
+    chown -R arkade: /home/arkade/.config /home/arkade/.local &&
     mkdir -p /etc/plasmalogin.conf.d &&
     printf "[Autologin]\nUser=arkade\nSession=plasma.desktop\n" > /etc/plasmalogin.conf.d/00-vm-test.conf &&
     systemctl restart plasmalogin'
@@ -146,7 +150,8 @@ shot proton-choose
 key home; sleep 1; key spc; sleep 1; key ret
 sleep 3
 shot proton-chosen
-ssh_vm "${user} arkadeos-store ea --check; cat /tmp/choose.log" > "${out}/proton-chosen.txt" 2>&1 || true
+ssh_vm "${user} arkadeos-store ea --check; cat /tmp/choose.log; echo '== windows'; ps -u arkade -o lstart,args | grep -E '[k]dialog|[a]rkadeos-portal';
+    echo '== Portal at login'; journalctl -b --no-pager -o short-iso _UID=${uid} | grep -iE 'PortalFirstRun|arkadeos-portal' | tail -5" > "${out}/proton-chosen.txt" 2>&1 || true
 check "Proton picked for a store" "${user} arkadeos-store ea --check | grep -qx 'proton=/home/arkade/.local/share/Steam/compatibilitytools.d/${other}'"
 
 # T019: the AI tools.
