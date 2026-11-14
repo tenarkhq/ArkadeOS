@@ -306,7 +306,7 @@ Inherits={base},hicolor
 Example=audio-volume-high-symbolic
 FollowsColorScheme=true
 DisplayDepth=32
-Directories=marks/s,marks/m,marks/l,marks/xl,apps/small,apps/small@2x,apps/small@3x,status/22,status/22@2x,status/22@3x,apps/scalable,apps/scalable@2x,apps/scalable@3x
+Directories=marks/s,marks/m,marks/l,marks/xl,places/small,places/small@2x,places/small@3x,apps/small,apps/small@2x,apps/small@3x,status/22,status/22@2x,status/22@3x,apps/scalable,apps/scalable@2x,apps/scalable@3x
 
 [marks/s]
 Size=32
@@ -335,6 +335,29 @@ Context=Applications
 Type=Scalable
 MinSize=160
 MaxSize=1024
+
+[places/small]
+Size=32
+Context=Places
+Type=Scalable
+MinSize=8
+MaxSize=32
+
+[places/small@2x]
+Size=32
+Scale=2
+Context=Places
+Type=Scalable
+MinSize=8
+MaxSize=32
+
+[places/small@3x]
+Size=32
+Scale=3
+Context=Places
+Type=Scalable
+MinSize=8
+MaxSize=32
 
 [apps/small]
 Size=32
@@ -425,5 +448,22 @@ os.makedirs(dark, exist_ok=True)
 for sub in ("status", "apps"):
     if not os.path.islink(os.path.join(dark, sub)):
         os.symlink(f"../arkadeos-glass/{sub}", os.path.join(dark, sub))
+# The folders of the Places sidebar and the small file views in colour, as in
+# the approved render (Glass audit 2): Breeze's own colour folders drawn for
+# 32 px, taken for every size up to 32 instead of its line pictograms.
+PLACES = ["user-home", "user-desktop", "folder", "folder-open", "folder-documents", "folder-download", "folder-downloads",
+          "folder-music", "folder-pictures", "folder-videos", "folder-games", "folder-publicshare", "folder-templates",
+          "folder-network", "network-workgroup", "folder-root", "user-trash", "user-trash-full"]
+for theme, base in ((light, "breeze"), (dark, "breeze-dark")):
+    small = os.path.join(theme, "places", "small")
+    os.makedirs(small, exist_ok=True)
+    for n in PLACES:
+        link = os.path.join(small, n + ".svg")
+        if os.path.lexists(link):
+            os.remove(link)
+        os.symlink(f"../../../{base}/places/32/{n}.svg", link)
+    for scale in ("small@2x", "small@3x"):
+        if not os.path.islink(os.path.join(theme, "places", scale)):
+            os.symlink("small", os.path.join(theme, "places", scale))
 open(os.path.join(dark, "index.theme"), "w").write(THEME.format(name="ArkadeOS Glass Dark", base="breeze-dark", base_name="Breeze Dark"))
 print(len(icons), "icons")

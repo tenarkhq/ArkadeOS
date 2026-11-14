@@ -18,6 +18,10 @@ for f in /usr/share/applications/org.kde.plasma-systemmonitor.desktop /usr/share
     grep -qx 'X-KDE-Shortcuts=Meta+Esc,Ctrl+Shift+Esc' "${f}"
 done
 
+# The Places folders of the ArkadeOS Glass themes are Breeze's colour folders
+# (art/glass-icons.py, Glass audit 2): every one of those links must resolve.
+test -z "$(find /usr/share/icons/arkadeos-glass/places /usr/share/icons/arkadeos-glass-dark/places -xtype l)"
+
 # Ark logo on the launcher (T009): our icons in hicolor went in after the
 # cache was built; the ArkadeOS Glass tray icons (T086) have their own themes.
 for theme in hicolor arkadeos-glass arkadeos-glass-dark; do

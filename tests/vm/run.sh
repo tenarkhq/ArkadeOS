@@ -274,6 +274,11 @@ check "the ArkadeOS Glass app icons" 'for t in arkadeos-glass arkadeos-glass-dar
         preferences-desktop-display preferences-system-bluetooth preferences-system-network preferences-desktop-theme-global; do
         for z in scalable small; do f=/usr/share/icons/arkadeos-glass/apps/${z}/${n}.svg
             test -f ${f} && grep -q glass_craft ${f} && ! grep -q "url(#sh)" ${f} || { echo "not in the craft: ${z} ${n}"; exit 1; }; done; done'
+# The Places sidebar's folders in colour, as in the approved render (Glass
+# audit 2): Breeze's 32 px colour folders for every size up to 32.
+check "Places folders in colour (Glass audit 2)" 'for t in arkadeos-glass arkadeos-glass-dark; do
+    for n in user-home folder-documents folder-download folder-games user-trash; do
+        grep -q ColorScheme-Accent /usr/share/icons/${t}/places/small/${n}.svg || [[ ${n} == user-trash ]] && test -e /usr/share/icons/${t}/places/small/${n}.svg || exit 1; done; done'
 # T009: ArkadeOS name, boot screen, wallpaper, launcher logo, lock screen.
 check "ArkadeOS name" "grep -qx 'PRETTY_NAME=\"ArkadeOS\"' /usr/lib/os-release"
 check "ArkadeOS version: the Fedora it is built on, then the build" '. /usr/lib/os-release; [[ "${VERSION}" =~ ^${VERSION_ID}\.[0-9]{8}(\.[0-9]+)?$ ]]'

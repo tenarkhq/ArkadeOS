@@ -5,7 +5,7 @@ Inherits=breeze,hicolor
 Example=audio-volume-high-symbolic
 FollowsColorScheme=true
 DisplayDepth=32
-Directories=marks/s,marks/m,marks/l,marks/xl,apps/small,apps/small@2x,apps/small@3x,status/22,status/22@2x,status/22@3x,apps/scalable,apps/scalable@2x,apps/scalable@3x
+Directories=marks/s,marks/m,marks/l,marks/xl,places/small,places/small@2x,places/small@3x,apps/small,apps/small@2x,apps/small@3x,status/22,status/22@2x,status/22@3x,apps/scalable,apps/scalable@2x,apps/scalable@3x
 
 [marks/s]
 Size=32
@@ -34,6 +34,29 @@ Context=Applications
 Type=Scalable
 MinSize=160
 MaxSize=1024
+
+[places/small]
+Size=32
+Context=Places
+Type=Scalable
+MinSize=8
+MaxSize=32
+
+[places/small@2x]
+Size=32
+Scale=2
+Context=Places
+Type=Scalable
+MinSize=8
+MaxSize=32
+
+[places/small@3x]
+Size=32
+Scale=3
+Context=Places
+Type=Scalable
+MinSize=8
+MaxSize=32
 
 [apps/small]
 Size=32
