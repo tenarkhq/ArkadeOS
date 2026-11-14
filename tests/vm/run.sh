@@ -292,7 +292,7 @@ for variant in light dark; do
     ssh_vm "grep -A3 '^\\[Colors:Window\\]' ${home}/kdeglobals; cat ${home}/kdedefaults/kdeglobals" >> "${out}/look-${variant}.log" 2>&1 || true
 done
 check "dark theme applied" "grep -qx ColorScheme=ArkadeOSGlassDark ${home}/kdedefaults/kdeglobals &&
-    grep -A3 '^\\[Colors:Window\\]' ${home}/kdeglobals | grep -qx BackgroundNormal=32,35,38,205"
+    grep -A3 '^\\[Colors:Window\\]' ${home}/kdeglobals | grep -qx BackgroundNormal=45,81,110,136"
 # ArkadeOS Glass (T086): the design's scene, for Roland to set beside it:
 # the file manager in front with its File menu open, the terminal behind, the
 # Égkék wallpaper; dark, then light, then the ArkadeOS menu open.

@@ -1,14 +1,13 @@
 # ArkadeOS Glass (T086, Roland, 2026-11-14: "nem csak egy fejléccel ... de ez
-# igaz minden ablakra"): every KDE window is glass with the Darkly style.
-# The window's own background is see-through by the colour scheme (its Window
-# colour carries the glass alpha) and the title bar's alpha runs on into the
-# menu bar and toolbars; Better Blur DX blurs the desktop behind (kwinrc).
-# Dolphin's sidebar is more see-through than the window, like the System
-# Settings sidebar; file lists and text areas stay solid so they read well.
+# igaz minden ablakra", then "nem homogén a UI"): every KDE window is one
+# glass with the Darkly style. The colour scheme gives the window the same
+# see-through sky blue as its title area, so the title bar, menu bar,
+# toolbars, sidebars and status bar are one surface over the blur behind
+# (Better Blur DX, kwinrc); file lists and text areas stay solid so they read
+# well. Dolphin's sidebar takes the window's own glass (Darkly's default).
 [Style]
 CornerRadius=8
 MenuOpacity=82
-DolphinSidebarOpacity=55
 DolphinViewOpacity=100
 TransparentDolphinView=false
 OpaqueInactiveWindows=false
