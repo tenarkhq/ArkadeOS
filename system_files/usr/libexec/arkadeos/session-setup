@@ -32,6 +32,33 @@ places() {
 }
 places || echo "session-setup: sidebar waits for the places file" >&2
 
+# Chrome follows the system colours with its own setting (Glass audit 7,
+# Roland, 2026-11-14: only what survives app updates, no change to the app):
+# "Use GTK" set once per user, before Chrome runs, so its tab strip takes the
+# ArkadeOS Glass colours from the GTK stylesheet below; the user can change
+# it in Chrome's appearance settings and it stays.
+chrome_done="${XDG_STATE_HOME:-${HOME}/.local/state}/arkadeos/chrome-system-colours"
+chrome_prefs="${HOME}/.var/app/com.google.Chrome/config/google-chrome/Default/Preferences"
+if [[ ! -e "${chrome_done}" ]] && has_app com.google.Chrome.desktop &&
+    ! pgrep -u "$(id -u)" -f '/app/extra/chrome' >/dev/null; then
+    mkdir -p "$(dirname "${chrome_prefs}")"
+    if python3 -I - "${chrome_prefs}" <<'PY'
+import json, os, sys
+p = sys.argv[1]
+d = {}
+if os.path.exists(p):
+    with open(p) as f:
+        d = json.load(f)
+d.setdefault("extensions", {}).setdefault("theme", {})["system_theme"] = 1
+with open(p + ".arkadeos", "w") as f:
+    json.dump(d, f)
+os.replace(p + ".arkadeos", p)
+PY
+    then
+        mkdir -p "$(dirname "${chrome_done}")" && touch "${chrome_done}"
+    fi
+fi
+
 # ArkadeOS Glass for the GTK3 and GTK4 apps (Glass audit 4 and 5): the image's
 # stylesheets, kept current at every login, imported last in gtk.css so they
 # come after kde-gtk-config's colours and window buttons.

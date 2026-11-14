@@ -834,6 +834,13 @@ check "no Firefox telemetry" 'grep -q "toolkit.telemetry.enabled\", false" /var/
 # T059: GPU Screen Recorder only from the Portal, not there by default.
 check "GPU Screen Recorder not installed by default" '! flatpak info --system com.dec05eba.gpu_screen_recorder'
 # The screen locks after five idle minutes; the app shots need the desktop.
+# Glass audit 7: Chrome follows the system colours ("Use GTK"), set once by
+# session-setup before Chrome first runs.
+for _ in $(seq 12); do
+    ssh_vm 'test -e /home/arkade/.local/state/arkadeos/chrome-system-colours' && break
+    sleep 5
+done
+check "Chrome follows the ArkadeOS Glass colours (Use GTK)" "grep -q '\"system_theme\": *1' /home/arkade/.var/app/com.google.Chrome/config/google-chrome/Default/Preferences"
 ssh_vm 'loginctl unlock-sessions' || true
 for app in org.mozilla.firefox:firefox com.google.Chrome:chrome com.discordapp.Discord:discord \
     org.qbittorrent.qBittorrent:qbittorrent; do
