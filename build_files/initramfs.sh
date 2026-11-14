@@ -1,5 +1,5 @@
 #!/usr/bin/bash
-# Makes the initramfs with the ArkadeOS boot screen in it (T009, T082) under
+# Makes the initramfs with the ArkadeOS boot screen in it (T009, T082, T086) under
 # OUT, in a side stage of the build: the Containerfile copies it in as a
 # layer of its own. Only the packages layer and the boot screen's files reach
 # this stage, so the 240 MB file comes out the same bytes until one of them
@@ -17,8 +17,6 @@ out=$1
 # machine that checks files out group-writable made another initramfs.
 cp -a --no-preserve=mode,ownership "$(dirname "$0")/system_files/." /
 "$(dirname "$0")/os-release.sh"
-theme=/usr/share/plymouth/themes/arkadeos
-cp /usr/share/plymouth/themes/spinner/{bullet,entry,lock}.png "${theme}/"
 plymouth-set-default-theme arkadeos
 
 kver=$(ls /usr/lib/modules)
@@ -28,7 +26,7 @@ dracut --no-hostonly --kver "${kver}" --reproducible --zstd --add ostree -f "${i
 chmod 0600 "${img}"
 lsinitrd "${img}" > /tmp/initrd.txt
 grep -c themes/arkadeos/arkadeos.script /tmp/initrd.txt
-grep -c themes/arkadeos/hot-7-white.png /tmp/initrd.txt
+grep -c themes/arkadeos/piece5-6.png /tmp/initrd.txt
 grep -c plymouth/script.so /tmp/initrd.txt
 settle
 sha256sum "${img}"

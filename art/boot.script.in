@@ -1,160 +1,394 @@
-# ArkadeOS boot screen (T082, Fénycsíkok). Written by art/boot-sprites.js from
-# art/boot.script.in; change those, not this file.
+# ArkadeOS boot screen (round 8b, approved 2026-11-14). Written by
+# art/boot-sprites.js from art/boot.script.in and the drawing in
+# art/boot_scene.py; change those, not this file.
 #
-# Four streaks in the Ark colours race through the ArkadeOS wordmark, each
-# lighting the letters in its colour, the last in white; then a white streak
-# runs through it until the desktop comes. The wordmark is 18.75% of the
-# screen's width (480 px of 2560), on true black. No words of our own, so it
-# reads the same in every language (T010); the system's own prompts (disk
-# password, update progress) show below the wordmark.
+# Sparks rush in from the dark, the six crystal bezel pieces of the Start mark
+# fly in and lock with a glint each, the gem ignites with a flash, a flare and
+# two hexagonal shock waves, the rays shoot out and the ARKADEOS word comes up.
+# Until the desktop comes a light runs round the mark's 36 ticks (the loading
+# sign), a sheen sweeps the bezel, slow beams turn behind it, motes drift out.
+# Every sprite was rendered from the drawing; this moves them with its timing.
+# The system's own prompts (disk password, update progress) take the word's
+# place under the mark.
 
 Window.SetBackgroundTopColor(0, 0, 0);
 Window.SetBackgroundBottomColor(0, 0, 0);
 
 #@SPRITES@
 
-W = Window.GetWidth();
-H = Window.GetHeight();
-k = W / 3840;          # the sprites are drawn for a 3840 px wide screen
-U = S4K * k;           # px per wordmark unit on this screen
-ox = Window.GetX() + W / 2 - 305 * U / 2;
-oy = Window.GetY() + H * 0.45 - 52 * U / 2 - 16 * U;
+SW = Window.GetWidth();
+SH = Window.GetHeight();
+SC = Math.Min(SW / DW, SH / DH);     # screen px per design unit
+OX = Window.GetX() + SW / 2;
+OY = Window.GetY() + SH * 0.46;
 
-colors[0] = "rose"; colors[1] = "amber"; colors[2] = "green"; colors[3] = "lavender"; colors[4] = "white";
-start[0] = 0; start[1] = 0.22; start[2] = 0.44; start[3] = 0.66; start[4] = 0.88;
-center[0] = 20; center[1] = 55; center[2] = 85; center[3] = 120;
-center[4] = 158; center[5] = 195; center[6] = 245; center[7] = 290;
-RUN = 0.55;            # one streak's run through the wordmark, seconds
-CHASE = 1.9;           # the white streak's laps start here
-LAP = 2;
+fun X(x) { return OX + (x - DCX) * SC; }
+fun Y(y) { return OY + (y - DCY) * SC; }
 
+fun frac(x) {
+    i = Math.Int(x);
+    if (x < i) i = i - 1;
+    return x - i;
+}
+
+# A sprite image scaled to this screen.
 fun load(name) {
     img = Image(name + ".png");
-    return img.Scale(Math.Int(img.GetWidth() * k + 0.5), Math.Int(img.GetHeight() * k + 0.5));
+    k = SC / (RENDER * spr[name].d);
+    w = Math.Max(1, Math.Int(img.GetWidth() * k + 0.5));
+    h = Math.Max(1, Math.Int(img.GetHeight() * k + 0.5));
+    return img.Scale(w, h);
 }
 
-fun place(sprite, x, y, m, z) {
-    sprite.SetPosition(ox + (x - m) * U, oy + (y - m) * U, z);
+# Place a sprite so its image's centre is at design point (x, y).
+fun at(sprite, x, y, z) {
+    img = sprite.GetImage();
+    sprite.SetPosition(Math.Int(X(x) - img.GetWidth() / 2 + 0.5), Math.Int(Y(y) - img.GetHeight() / 2 + 0.5), z);
 }
 
-for (i = 0; i < 8; i++) {
-    letter[i].dim = Sprite(load("dim-" + i));
-    place(letter[i].dim, box[i].x, box[i].y, margin.dim, 10);
-    letter[i].dim.SetOpacity(0.045);
-    for (c = 0; c < 5; c++) {
-        letter[i].base[c] = Sprite(load("base-" + i + "-" + colors[c]));
-        place(letter[i].base[c], box[i].x, box[i].y, margin.base, 11);
-        letter[i].base[c].SetOpacity(0);
-        letter[i].hot[c] = Sprite(load("hot-" + i + "-" + colors[c]));
-        place(letter[i].hot[c], box[i].x, box[i].y, margin.hot, 12);
-        letter[i].hot[c].SetOpacity(0);
+fun layer(name, z) {
+    s = Sprite(load(name));
+    at(s, spr[name].x, spr[name].y, z);
+    s.SetOpacity(0);
+    return s;
+}
+
+#----------------------------------------- easing: the drawing's cubic Béziers, tabled
+
+fun table(n) {
+    x1 = bez[n][0]; y1 = bez[n][1]; x2 = bez[n][2]; y2 = bez[n][3];
+    for (i = 0; i <= 32; i++) {
+        x = i / 32;
+        lo = 0; hi = 1;
+        for (j = 0; j < 16; j++) {
+            m = (lo + hi) / 2;
+            bx = 3 * (1 - m) * (1 - m) * m * x1 + 3 * (1 - m) * m * m * x2 + m * m * m;
+            if (bx < x) lo = m; else hi = m;
+        }
+        m = (lo + hi) / 2;
+        global.tab[n][i] = 3 * (1 - m) * (1 - m) * m * y1 + 3 * (1 - m) * m * m * y2 + m * m * m;
     }
 }
-for (c = 0; c < 5; c++) {
-    streak[c] = Sprite(load("streak-" + colors[c]));
-    streak[c].SetOpacity(0);
-}
-chase = Sprite(load("chase"));
-chase.SetOpacity(0);
+names[0] = "ease-out"; names[1] = "ease-in"; names[2] = "ease-in-out"; names[3] = "out"; names[4] = "in"; names[5] = "pop"; names[6] = "wave";
+for (n = 0; n < 7; n++) table(names[n]);
 
-fun inout(q) {
-    if (q < 0) return 0;
-    if (q > 1) return 1;
-    if (q < 0.5) return 4 * q * q * q;
-    p = -2 * q + 2;
-    return 1 - p * p * p / 2;
+fun ease(n, p) {
+    if (p <= 0) return 0;
+    if (p >= 1) return 1;
+    if (n == "linear") return p;
+    q = p * 32;
+    i = Math.Int(q);
+    f = q - i;
+    return tab[n][i] * (1 - f) + tab[n][i + 1] * f;
 }
 
-# A streak's head, in wordmark units, at time t.
-fun head(c, t) { return -80 + inout((t - start[c]) / RUN) * 470; }
-fun lap_head(t) {
-    l = (t - CHASE) / LAP;
-    return -60 + (l - Math.Int(l)) * 430;
+# A layer's opacity at time t (the drawing's keyframes).
+fun gatev(name, t) {
+    n = gate[name].n;
+    if (t <= gate[name][0].t) return gate[name][0].v;
+    for (i = 0; i < n - 1; i++) {
+        if (t < gate[name][i + 1].t) {
+            p = (t - gate[name][i].t) / (gate[name][i + 1].t - gate[name][i].t);
+            return gate[name][i].v + (gate[name][i + 1].v - gate[name][i].v) * ease(gate[name][i].e, p);
+        }
+    }
+    return gate[name][n - 1].v;
 }
 
-# Shutdown and restart skip the opening: the white streak only.
+fun mix(a, b, e) { return a + (b - a) * e; }
+
+#----------------------------------------- the sprites
+
+amb = layer("amb", 1);
+beam_a = layer("beams-0", 2);
+beam_b = layer("beams-1", 2);
+for (i = 0; i < 12; i++) beam_img[i] = load("beams-" + i);
+beam_i = -1;
+
+for (i = 0; i < 3; i++) dot_img[i] = load("dot-" + i);
+for (i = 0; i < MOTES; i++) {
+    mote_s[i] = Sprite(dot_img[mote[i].dot]);
+    mote_s[i].SetOpacity(0);
+}
+for (i = 0; i < SPARKS; i++) {
+    spark_img[i][0] = load("spark" + i + "-0");
+    spark_img[i][1] = load("spark" + i + "-1");
+    spark_s[i] = Sprite(spark_img[i][0]);
+    spark_s[i].SetOpacity(0);
+    spark_cos[i] = Math.Cos(spark[i].a * Math.Pi / 180);
+    spark_sin[i] = Math.Sin(spark[i].a * Math.Pi / 180);
+}
+for (i = 0; i < MOTES; i++) {
+    mote_cos[i] = Math.Cos(mote[i].a * Math.Pi / 180);
+    mote_sin[i] = Math.Sin(mote[i].a * Math.Pi / 180);
+}
+
+halo = layer("halo", 10);
+chamber = layer("chamber", 11);
+bloom = layer("bloom", 12);
+ticks = layer("ticks", 13);
+for (i = 0; i < TICKS; i++) tick_s[i] = layer("tick-" + i, 14);
+for (i = 0; i < RAYS_N; i++) ray_img[i] = load("rays-" + i);
+rays = layer("rays-0", 15);
+ray_i = -1;
+for (k = 0; k < 6; k++) {
+    for (s = 0; s < PIECE_STEPS; s++) piece_img[k][s] = load("piece" + k + "-" + s);
+    piece_s[k] = Sprite(piece_img[k][0]);
+    piece_s[k].SetOpacity(0);
+}
+ridge = layer("ridge", 17);
+for (i = 0; i < SHEEN_N; i++) sheen_img[i] = load("sheen-" + i);
+sheen = layer("sheen-0", 18);
+for (i = 0; i < GEM_N; i++) gem_img[i] = load("gem-" + i);
+gem = layer("gem-0", 19);
+for (i = 0; i < GLINT_N; i++) glint_img[i] = load("glint-" + i);
+for (k = 0; k < 6; k++) {
+    glint_s[k] = Sprite(glint_img[0]);
+    glint_s[k].SetOpacity(0);
+}
+flash_base = load("flash");
+flash_s = Sprite(flash_base);
+flash_s.SetOpacity(0);
+for (i = 0; i < 2; i++) {
+    for (j = 0; j < SHOCK_N; j++) shock_img[i][j] = load("shock" + i + "-" + j);
+    shock_s[i] = Sprite(shock_img[i][0]);
+    shock_s[i].SetOpacity(0);
+    flare_base[i] = load("flare" + i);
+    flare_s[i] = Sprite(flare_base[i]);
+    flare_s[i].SetOpacity(0);
+}
+word = layer("word", 24);
+dialog_on = 0;
+
+# Shutdown and restart skip the opening: the mark is lit and loading.
 t = 0;
-if (Plymouth.GetMode() == "shutdown" || Plymouth.GetMode() == "reboot") t = CHASE;
+if (Plymouth.GetMode() == "shutdown" || Plymouth.GetMode() == "reboot") t = 3.3;
+
+# The nearest of a list of rendered scales.
+fun nearest(list, n, s) {
+    b = 0;
+    for (i = 1; i < n; i++) if (Math.Abs(list[i] - s) < Math.Abs(list[b] - s)) b = i;
+    return b;
+}
+
+# A two- or three-key track (flash, shock waves, flares): scale in .s, opacity in .o.
+fun track(kind, i, t) {
+    if (kind == "flash") { n = 3; } else if (kind == "shock") { n = 2; } else { n = 3; }
+    for (j = 0; j < n; j++) {
+        if (kind == "flash") { kt[j] = flash[j].t; ks[j] = flash[j].s; ko[j] = flash[j].o; ke[j] = flash[j].e; }
+        else if (kind == "shock") { kt[j] = shock[i][j].t; ks[j] = shock[i][j].s; ko[j] = shock[i][j].o; ke[j] = shock[i][j].e; }
+        else { kt[j] = flare[i][j].t; ks[j] = flare[i][j].s; ko[j] = flare[i][j].o; ke[j] = flare[i][j].e; }
+    }
+    r.s = ks[0]; r.o = 0;
+    if (t < kt[0] || t >= kt[n - 1]) return r;
+    for (j = 0; j < n - 1; j++) {
+        if (t < kt[j + 1]) {
+            e = ease(ke[j], (t - kt[j]) / (kt[j + 1] - kt[j]));
+            r.s = mix(ks[j], ks[j + 1], e);
+            r.o = mix(ko[j], ko[j + 1], e);
+            return r;
+        }
+    }
+    return r;
+}
 
 fun refresh() {
     global.t += 1 / 50;
-    for (i = 0; i < 8; i++) {
-        lit = -1;
-        glow = 0;
-        if (t < CHASE) {
-            for (c = 0; c < 5; c++) {
-                x = head(c, t);
-                if (x > center[i]) { lit = c; glow = Math.Max(0, 1 - (x - center[i]) / 120); }
-            }
-        } else {
-            lit = 4;
-            glow = Math.Max(0, 1 - Math.Abs(lap_head(t) - center[i]) / 45);
-        }
-        for (c = 0; c < 5; c++) {
-            if (c == lit) {
-                letter[i].base[c].SetOpacity(0.82 + 0.18 * glow);
-                letter[i].hot[c].SetOpacity(glow * 0.75);
-            } else {
-                letter[i].base[c].SetOpacity(0);
-                letter[i].hot[c].SetOpacity(0);
-            }
-        }
-        if (lit < 0) letter[i].dim.SetOpacity(0.045); else letter[i].dim.SetOpacity(0);
+
+    amb.SetOpacity(gatev("amb", t));
+
+    # beams: a turn in SPIN s; six-fold, so 60 degrees in 12 steps, cross-faded
+    g = gatev("beams", t);
+    a = frac(t / SPIN * 6) * 12;
+    i = Math.Int(a);
+    if (i != beam_i) {
+        beam_a.SetImage(beam_img[i]);
+        beam_b.SetImage(beam_img[(i + 1) % 12]);
+        global.beam_i = i;
     }
-    for (c = 0; c < 5; c++) {
-        q = (t - start[c]) / RUN;
-        if (q < 0 || q > 1.05) streak[c].SetOpacity(0);
+    beam_a.SetOpacity(g * (1 - (a - i)));
+    beam_b.SetOpacity(g * (a - i));
+
+    # sparks rushing in
+    for (i = 0; i < SPARKS; i++) {
+        u = t - spark[i].d;
+        if (u < 0 || u > spark[i].dur + 0.06) spark_s[i].SetOpacity(0);
         else {
-            place(streak[c], head(c, t) - 146, 20 + c * 9, margin.streak, 20);
-            streak[c].SetOpacity(1);
+            p = Math.Min(1, u / spark[i].dur);
+            if (p < 0.7 && u < spark[i].dur) spark_s[i].SetImage(spark_img[i][0]); else spark_s[i].SetImage(spark_img[i][1]);
+            r = spark[i].r0 + (spark[i].r1 - spark[i].r0) * p;
+            at(spark_s[i], DCX + spark_cos[i] * r, DCY + spark_sin[i] * r, 4);
+            if (u < 0.1) o = u / 0.1; else if (u < spark[i].dur) o = 1; else o = 1 - (u - spark[i].dur) / 0.06;
+            spark_s[i].SetOpacity(o);
         }
     }
-    if (t > CHASE) {
-        place(chase, lap_head(t) - 116, 70, margin.streak, 20);
-        chase.SetOpacity(1);
+
+    # motes drifting out while loading
+    g = gatev("motes", t);
+    for (i = 0; i < MOTES; i++) {
+        if (g <= 0) mote_s[i].SetOpacity(0);
+        else {
+            p = frac((t - mote[i].d) / mote[i].dur);
+            r = mote[i].r0 + (mote[i].r1 - mote[i].r0) * p;
+            at(mote_s[i], DCX + mote_cos[i] * r, DCY + mote_sin[i] * r, 3);
+            if (p < 0.15) o = mote[i].o * p / 0.15; else o = mote[i].o * (1 - (p - 0.15) / 0.85);
+            mote_s[i].SetOpacity(o * g);
+        }
+    }
+
+    halo.SetOpacity(gatev("halo", t));
+    chamber.SetOpacity(gatev("chamber", t));
+    ticks.SetOpacity(gatev("ticks", t));
+    ridge.SetOpacity(gatev("ridge", t));
+
+    # the core's bloom breathes
+    p = frac(t / BREATHE);
+    if (p < 0.5) b = mix(BREATHE_LOW, 1, ease("ease-in-out", p / 0.5)); else b = mix(1, BREATHE_LOW, ease("ease-in-out", (p - 0.5) / 0.5));
+    bloom.SetOpacity(gatev("bloom", t) * b);
+
+    # the light running round the ticks
+    g = gatev("lit", t);
+    for (i = 0; i < TICKS; i++) {
+        if (g <= 0) tick_s[i].SetOpacity(0);
+        else {
+            p = frac((t - i / TICKS * CHASE) / CHASE);
+            if (p < TAIL) o = 1 - ease("ease-in-out", p / TAIL); else o = 0;
+            tick_s[i].SetOpacity(o * g);
+        }
+    }
+
+    # rays, frame by frame
+    if (t < RAYS_FROM) rays.SetOpacity(0);
+    else {
+        i = Math.Min(RAYS_N - 1, Math.Int((t - RAYS_FROM) * RAYS_FPS + 0.5));
+        if (i != ray_i) { rays.SetImage(ray_img[i]); global.ray_i = i; }
+        rays.SetOpacity(1);
+    }
+
+    # the bezel pieces fly in and lock
+    for (k = 0; k < 6; k++) {
+        if (t < piece[k].t0) piece_s[k].SetOpacity(0);
+        else {
+            off = 1 - ease("out", (t - piece[k].t0) / (piece[k].t1 - piece[k].t0));
+            s = Math.Min(PIECE_STEPS - 1, Math.Int(piece[k].rot * off / PIECE_DEG + 0.5));
+            piece_s[k].SetImage(piece_img[k][s]);
+            at(piece_s[k], piece[k].x + piece[k].dx * off, piece[k].y + piece[k].dy * off, 16);
+            piece_s[k].SetOpacity(ease("out", (t - piece[k].t0) / piece[k].fade));
+        }
+    }
+
+    # the sheen sweeping the bezel
+    g = gatev("sheen", t);
+    if (g <= 0) sheen.SetOpacity(0);
+    else {
+        p = frac(t / SWEEP);
+        if (p < SWEEP_MOVING) q = ease("ease-in-out", p / SWEEP_MOVING); else q = 1;
+        sheen.SetImage(sheen_img[Math.Int(q * (SHEEN_N - 1) + 0.5)]);
+        sheen.SetOpacity(g);
+    }
+
+    # the gem ignites
+    if (t < GEM_FROM) gem.SetOpacity(0);
+    else {
+        e = ease("pop", (t - GEM_FROM) / (GEM_TO - GEM_FROM));
+        gem.SetImage(gem_img[nearest(gem_scale, GEM_N, e)]);
+        at(gem, spr["gem-0"].x, spr["gem-0"].y, 19);
+        gem.SetOpacity(Math.Clamp(e, 0, 1));
+    }
+
+    # glints: a flash as each piece locks, then twinkling
+    for (k = 0; k < 6; k++) {
+        l = glint[k].lit;
+        if (t < l - 0.02) { gs = 0; go = 0; }
+        else if (t < l + 0.1) { e = ease("ease-out", (t - l + 0.02) / 0.12); gs = 2.4 * e; go = e; }
+        else if (t < l + 0.45) { e = ease("ease-in", (t - l - 0.1) / 0.35); gs = mix(2.4, 1, e); go = 1; }
+        else { gs = 1; go = 1; }
+        p = frac((t - glint[k].tw) / TWINKLE);
+        for (j = 0; j < 3; j++) {
+            if (p >= twk[j].p && p < twk[j + 1].p) {
+                e = ease("ease-in-out", (p - twk[j].p) / (twk[j + 1].p - twk[j].p));
+                ts = mix(twk[j].s, twk[j + 1].s, e);
+                to = mix(twk[j].o, twk[j + 1].o, e);
+            }
+        }
+        s = gs * ts;
+        if (s < 0.1) glint_s[k].SetOpacity(0);
+        else {
+            glint_s[k].SetImage(glint_img[nearest(glint_scale, GLINT_N, s)]);
+            at(glint_s[k], glint[k].x, glint[k].y, 20);
+            glint_s[k].SetOpacity(go * to);
+        }
+    }
+
+    # ignition: flash, shock waves, flares
+    f = track("flash", 0, t);
+    if (f.o <= 0) flash_s.SetOpacity(0);
+    else {
+        flash_s.SetImage(flash_base.Scale(Math.Max(1, Math.Int(flash_base.GetWidth() * f.s / 2.6)), Math.Max(1, Math.Int(flash_base.GetHeight() * f.s / 2.6))));
+        at(flash_s, spr["flash"].x, spr["flash"].y, 21);
+        flash_s.SetOpacity(f.o);
+    }
+    for (i = 0; i < 2; i++) {
+        f = track("shock", i, t);
+        if (f.o <= 0) shock_s[i].SetOpacity(0);
+        else {
+            top = shock[i][1].s;
+            shock_s[i].SetImage(shock_img[i][Math.Int((f.s - 1) / (top - 1) * (SHOCK_N - 1) + 0.5)]);
+            at(shock_s[i], DCX, DCY, 22);
+            shock_s[i].SetOpacity(f.o);
+        }
+        f = track("flare", i, t);
+        if (f.o <= 0 || f.s < 0.01) flare_s[i].SetOpacity(0);
+        else {
+            flare_s[i].SetImage(flare_base[i].Scale(Math.Max(1, Math.Int(flare_base[i].GetWidth() * f.s)), flare_base[i].GetHeight()));
+            at(flare_s[i], spr["flare" + i].x, spr["flare" + i].y, 23);
+            flare_s[i].SetOpacity(f.o);
+        }
+    }
+
+    # the word, unless a prompt stands in its place
+    if (dialog_on) word.SetOpacity(0);
+    else {
+        e = ease("out", (t - WORD_FROM) / (WORD_TO - WORD_FROM));
+        at(word, spr["word"].x, spr["word"].y + WORD_RISE * (1 - e), 24);
+        word.SetOpacity(WORD_OPACITY * e);
     }
 }
 Plymouth.SetRefreshFunction(refresh);
 
-#----------------------------------------- Below the wordmark: prompts and progress
+#----------------------------------------- under the mark: prompts and progress
 
-below = oy + 16 * U + 52 * U + H * 0.08;   # under the wordmark, centred
-font = "Inter " + Math.Int(Math.Max(11, H / 90));
-
-fun centred(sprite, image, y, z) {
-    sprite.SetImage(image);
-    sprite.SetPosition(Window.GetX() + W / 2 - image.GetWidth() / 2, y, z);
-}
-
+font = "Inter " + Math.Int(Math.Max(11, SH / 80));
+entry_image = load("entry");
+lock_image = load("lock");
+bullet_image = load("bullet");
+entry = Sprite(entry_image);
+lock = Sprite(lock_image);
 prompt = Sprite();
 answer = Sprite();
-lock = Sprite();
-entry = Sprite();
-entry_image = Image("entry.png");
-lock_image = Image("lock.png");
-bullet_image = Image("bullet.png");
+entry.SetOpacity(0);
+lock.SetOpacity(0);
 bullet_count = 0;
+ex = X(spr["entry"].x) - entry_image.GetWidth() / 2;
+ey = Y(spr["entry"].y) - entry_image.GetHeight() / 2;
 
 fun dialog(text, opacity) {
-    centred(prompt, Image.Text(text, 0.96, 0.96, 0.97, 1, font), below, 100);
-    entry.SetImage(entry_image);
-    lock.SetImage(lock_image);
-    ex = Window.GetX() + W / 2 - (entry_image.GetWidth() + lock_image.GetWidth()) / 2 + lock_image.GetWidth();
-    ey = below + prompt.GetImage().GetHeight() + H * 0.015;
+    global.dialog_on = opacity > 0;
     entry.SetPosition(ex, ey, 100);
-    lock.SetPosition(ex - lock_image.GetWidth(), ey + entry_image.GetHeight() / 2 - lock_image.GetHeight() / 2, 100);
-    global.ex = ex;
-    global.ey = ey;
+    lock.SetPosition(ex + entry_image.GetHeight() / 2 - lock_image.GetWidth() / 2, ey + entry_image.GetHeight() / 2 - lock_image.GetHeight() / 2, 101);
+    prompt.SetImage(Image.Text(text, 0.62, 0.70, 0.77, 1, font));
+    prompt.SetPosition(Window.GetX() + SW / 2 - prompt.GetImage().GetWidth() / 2, ey + entry_image.GetHeight() + SH * 0.012, 100);
     prompt.SetOpacity(opacity);
     entry.SetOpacity(opacity);
     lock.SetOpacity(opacity);
 }
 
 fun bullets(count) {
+    bx = ex + entry_image.GetHeight();
     for (b = 0; b < bullet_count || b < count; b++) {
         if (!bullet[b]) {
             bullet[b] = Sprite(bullet_image);
-            bullet[b].SetPosition(ex + 8 + b * bullet_image.GetWidth(), ey + entry_image.GetHeight() / 2 - bullet_image.GetHeight() / 2, 101);
+            bullet[b].SetPosition(bx + b * bullet_image.GetWidth() * 1.15, ey + entry_image.GetHeight() / 2 - bullet_image.GetHeight() / 2, 101);
         }
         if (b < count) bullet[b].SetOpacity(1); else bullet[b].SetOpacity(0);
     }
@@ -172,11 +406,12 @@ fun on_question(text, typed) {
     dialog(text, 1);
     bullets(0);
     answer.SetImage(Image.Text(typed + " ", 0.96, 0.96, 0.97, 1, font));
-    answer.SetPosition(ex + 8, ey + entry_image.GetHeight() / 2 - answer.GetImage().GetHeight() / 2, 101);
+    answer.SetPosition(ex + entry_image.GetHeight(), ey + entry_image.GetHeight() / 2 - answer.GetImage().GetHeight() / 2, 101);
     answer.SetOpacity(1);
 }
 
 fun on_normal() {
+    global.dialog_on = 0;
     prompt.SetOpacity(0);
     entry.SetOpacity(0);
     lock.SetOpacity(0);
@@ -188,32 +423,34 @@ Plymouth.SetDisplayPasswordFunction(on_password);
 Plymouth.SetDisplayQuestionFunction(on_question);
 Plymouth.SetDisplayNormalFunction(on_normal);
 
-# Updates applied while starting (firmware, offline upgrades): a thin bar and
-# the percentage under the wordmark.
-bar_back = Sprite();
+# Updates applied while starting (firmware, offline upgrades): a thin glass bar
+# and the percentage in the word's place.
+bar_back = Sprite(load("bar-back"));
+at(bar_back, spr["bar-back"].x, spr["bar-back"].y, 90);
+bar_back.SetOpacity(0);
+bar_front = load("bar");
 bar = Sprite();
 percent = Sprite();
-bar_w = 305 * U;
-bar_back.SetImage(Image("bar-back.png").Scale(bar_w, Math.Max(2, Math.Int(3 * k * 2))));
-bar_back.SetPosition(ox, below, 90);
-bar_back.SetOpacity(0);
-bar_front = Image("bar.png");
 
 fun on_update(progress) {
     p = Math.Clamp(progress / 100, 0, 1);
+    global.dialog_on = 1;
     bar_back.SetOpacity(1);
     if (p > 0) {
-        bar.SetImage(bar_front.Scale(Math.Max(1, Math.Int(bar_w * p)), Math.Max(2, Math.Int(3 * k * 2))));
-        bar.SetPosition(ox, below, 91);
+        bar.SetImage(bar_front.Scale(Math.Max(1, Math.Int(bar_front.GetWidth() * p)), bar_front.GetHeight()));
+        bar.SetPosition(bar_back.GetX(), bar_back.GetY(), 91);
         bar.SetOpacity(1);
     }
-    centred(percent, Image.Text(Math.Int(progress) + " %", 0.96, 0.96, 0.97, 1, font), below + H * 0.02, 90);
+    percent.SetImage(Image.Text(Math.Int(progress) + " %", 0.62, 0.70, 0.77, 1, font));
+    percent.SetPosition(Window.GetX() + SW / 2 - percent.GetImage().GetWidth() / 2, bar_back.GetY() + SH * 0.015, 90);
+    percent.SetOpacity(1);
 }
 Plymouth.SetSystemUpdateFunction(on_update);
 
 message = Sprite();
 fun on_message(text) {
-    centred(message, Image.Text(text, 0.75, 0.75, 0.78, 1, font), H * 0.88, 100);
+    message.SetImage(Image.Text(text, 0.62, 0.70, 0.77, 1, font));
+    message.SetPosition(Window.GetX() + SW / 2 - message.GetImage().GetWidth() / 2, Window.GetY() + SH * 0.88, 100);
     message.SetOpacity(1);
 }
 fun on_hide_message(text) { message.SetOpacity(0); }
