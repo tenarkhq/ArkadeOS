@@ -215,7 +215,8 @@ step "look"
 # Plasma style; applied at first login, day/night switch on; WhiteSur gone.
 check "ArkadeOS Glass in the ArkadeOS global theme" "grep -qE '^org\.arkadeos\.(light|dark)\.desktop' ${home}/kdedefaults/package &&
     grep -qE '^ColorScheme=ArkadeOSGlass(Light|Dark)$' ${home}/kdedefaults/kdeglobals &&
-    grep -qx widgetStyle=Breeze ${home}/kdedefaults/kdeglobals &&
+    grep -qx widgetStyle=Darkly ${home}/kdedefaults/kdeglobals &&
+    test -f /usr/lib64/qt6/plugins/styles/darkly6.so &&
     grep -qE '^theme=__aurorae__svg__ArkadeOS-Glass-(Light|Dark)$' ${home}/kdedefaults/kwinrc &&
     grep -qE '^name=arkadeos-glass-(light|dark)$' ${home}/kdedefaults/plasmarc &&
     grep -qE '^Theme=arkadeos-glass(-dark)?$' ${home}/kdedefaults/kdeglobals &&

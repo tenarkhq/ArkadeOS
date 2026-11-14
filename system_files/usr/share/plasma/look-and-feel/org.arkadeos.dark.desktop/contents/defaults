@@ -8,7 +8,7 @@ ColorScheme=ArkadeOSGlassDark
 Theme=arkadeos-glass-dark
 
 [kdeglobals][KDE]
-widgetStyle=Breeze
+widgetStyle=Darkly
 
 [kwinrc][org.kde.kdecoration2]
 library=org.kde.kwin.aurorae

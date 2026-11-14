@@ -68,10 +68,21 @@ RUN --mount=type=bind,source=build_files/better-blur.sh,target=/ctx/better-blur.
     --mount=type=tmpfs,dst=/tmp \
     /ctx/better-blur.sh /out
 
+# Darkly (T086): the widget style of ArkadeOS Glass windows, built for the
+# image's own Qt and Frameworks; only the style and its settings page leave
+# the stage.
+FROM packages AS darkly
+RUN --mount=type=bind,source=build_files/darkly.sh,target=/ctx/darkly.sh \
+    --mount=type=bind,source=build_files/stage.sh,target=/ctx/stage.sh \
+    --mount=type=cache,dst=/var/cache \
+    --mount=type=tmpfs,dst=/tmp \
+    /ctx/darkly.sh /out
+
 FROM packages
 COPY --from=proton /out/ /
 COPY --from=initramfs /out/ /
 COPY --from=blur /out/ /
+COPY --from=darkly /out/ /
 
 ARG IMAGE_NAME=arkadeos
 ARG IMAGE_VENDOR=tenarkhq

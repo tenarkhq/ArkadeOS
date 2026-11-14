@@ -48,8 +48,8 @@ while read -r f; do
         # The look: theme, icons, wallpapers, taskbar, app style.
         build_files/70-theme.sh | build_files/75-layout.sh | tests/vm/taskbar.py | tests/vm/glass-windows.kwinrulesrc | \
         build_files/solid.sh | build_files/patches/* | \
-        build_files/better-blur.sh | system_files/usr/share/aurorae/* | system_files/usr/share/arkadeos/glass-* | \
-        system_files/etc/xdg/breezerc | \
+        build_files/better-blur.sh | build_files/darkly.sh | system_files/usr/share/aurorae/* | system_files/usr/share/arkadeos/glass-* | \
+        system_files/etc/xdg/breezerc | system_files/etc/xdg/darklyrc | \
         system_files/usr/share/plasma/* | system_files/usr/share/icons/* | \
         system_files/usr/share/wallpapers/* | system_files/usr/share/plymouth/* | \
         system_files/usr/libexec/arkadeos/session-setup | system_files/usr/libexec/arkadeos/places-setup | \
