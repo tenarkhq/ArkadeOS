@@ -36,6 +36,10 @@ remove=(
     open-vm-tools-desktop
     # Bazzite's welcome window; the ArkadeOS Portal does its job (T037)
     bazzite-portal
+    # Bazzite's updater: the same update (uupd) as the ArkadeOS automatic
+    # update and the Portal, plus Bazzite news and a Rebase menu that would
+    # turn the machine into a plain Bazzite image (Glass audit 9, 2026-11-14)
+    bazzite-updater
     # Cockpit's server-admin pages (no web server on a gaming machine)
     cockpit-bridge
     cockpit-files

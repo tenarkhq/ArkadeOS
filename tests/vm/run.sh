@@ -226,7 +226,7 @@ check "ArkadeOS Glass in the ArkadeOS global theme" "grep -qE '^org\.arkadeos\.(
 # its own opacities say otherwise, whatever the colour scheme's alpha.
 check "menu bar, toolbars, tab bars and Dolphin's sidebar see-through (Darkly)" "for k in MenuBarOpacity ToolBarOpacity TabBarOpacity DolphinSidebarOpacity; do
         v=\$(${session} kreadconfig6 --file darklyrc --group Style --key \$k); test -n \"\$v\" && test \"\$v\" -lt 100 || exit 1; done"
-check "Bazzite leftovers out of the menu (Glass audit 9)" "for a in io.github.rfrench3.bazzite-updater bazzite-documentation discourse webapp-manager nvidia-settings yad-icon-browser; do
+check "Bazzite Updater gone, Bazzite leftovers out of the menu (Glass audit 9)" "! rpm -q bazzite-updater >/dev/null && for a in bazzite-documentation discourse webapp-manager nvidia-settings yad-icon-browser; do
         f=/usr/share/applications/\$a.desktop; test ! -f \$f || grep -qx NoDisplay=true \$f || exit 1; done"
 check "the glass blur runs (Better Blur DX for this KWin), KWin's own blur off" "${session} busctl --user call org.kde.KWin /Effects org.kde.kwin.Effects isEffectLoaded s better_blur_dx | grep -qx 'b true' &&
     ${session} busctl --user call org.kde.KWin /Effects org.kde.kwin.Effects isEffectLoaded s blur | grep -qx 'b false'"

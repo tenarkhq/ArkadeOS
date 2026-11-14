@@ -28,11 +28,20 @@ for recipe in 40-nvidia.just:toggle-nvk 82-bazzite-cockpit.just:cockpit; do
 done
 
 # Glass audit, finding 9 (Roland, 2026-11-14: "minden glass aknát
-# javítsunk"): Bazzite's leftovers leave the menu, the programs stay. Their
-# own updater beside the ArkadeOS update, Bazzite's documentation and forum
-# pages, the Mint web app manager beside our "New web app", the NVIDIA X
-# settings that do nothing on Wayland, and yad's icon browser.
-for app in io.github.rfrench3.bazzite-updater bazzite-documentation discourse webapp-manager nvidia-settings yad-icon-browser; do
+# javítsunk"; on the Bazzite Updater: "ez kell nekünk? ... mit updatelünk
+# itt?"). The Bazzite Updater runs the same update (uupd) as the ArkadeOS
+# automatic update and the Portal, shows Bazzite's news, and its Rebase menu
+# would turn the machine into a plain Bazzite image: packages/remove.sh takes
+# it out, and its ujust recipe that puts it into Steam leaves the lists. The
+# other leftovers leave the menu, the programs stay: Bazzite's documentation
+# and forum pages, the Mint web app manager beside our "New web app", the
+# NVIDIA X settings that do nothing on Wayland, and yad's icon browser.
+if rpm -q bazzite-updater >/dev/null; then exit 1; fi
+just=/usr/share/ublue-os/just/93-bazzite-update.just
+if grep -qE '^add-updater-to-steam:' "${just}" 2>/dev/null; then
+    sed -i -E '/^add-updater-to-steam:/i [private]' "${just}"
+fi
+for app in bazzite-documentation discourse webapp-manager nvidia-settings yad-icon-browser; do
     f=/usr/share/applications/${app}.desktop
     [[ -f "${f}" ]] || continue
     sed -i -e '/^NoDisplay=/d' -e '0,/^\[Desktop Entry\]/s//[Desktop Entry]\nNoDisplay=true/' "${f}"
