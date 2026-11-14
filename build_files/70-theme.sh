@@ -117,9 +117,49 @@ for bin in systemsettings kcmshell6; do
     # systemsettings and opens Info Center only under its own name.
     printf '%s\n' '#!/usr/bin/bash' \
         "# ArkadeOS: ${bin} with the ArkadeOS Glass Union style (build_files/70-theme.sh)." \
-        'export QT_QUICK_CONTROLS_STYLE=org.kde.union UNION_STYLE_NAME=arkadeos-glass' \
+        'export QT_QUICK_CONTROLS_STYLE=org.kde.union UNION_STYLE_NAME=arkadeos-glass QML_IMPORT_PATH=/usr/share/arkadeos/union-qml${QML_IMPORT_PATH:+:${QML_IMPORT_PATH}}' \
         "exec -a \"\$0\" /usr/libexec/arkadeos/${bin} \"\$@\"" > "/usr/bin/${bin}"
     chmod 755 "/usr/bin/${bin}"
 done
 test "$(readlink -f /usr/bin/kinfocenter)" = /usr/bin/systemsettings
 grep -qF 'exec -a "$0" /usr/libexec/arkadeos/systemsettings "$@"' /usr/bin/systemsettings
+# Selected rows in those windows (Roland, 2026-11-14: "javíthatod"): Union
+# draws our soft glass pill, but Kirigami's title and subtitle take the
+# selection's white text colour from the colour scheme, unreadable on the
+# pale pill in the light look. System Settings loads its own copy of
+# Kirigami's delegates (QML_IMPORT_PATH above) whose titles keep the normal
+# text colour when selected, as the stylesheet's own labels do; other apps
+# keep Kirigami's.
+qml=/usr/share/arkadeos/union-qml
+src=/usr/lib64/qt6/qml/org/kde/kirigami/delegates
+dst="${qml}/org/kde/kirigami/delegates"
+mkdir -p "${dst}"
+for f in "${src}"/*; do
+    case "${f}" in
+        *.so) ln -s "${f}" "${dst}/" ;;
+        *) cp -a "${f}" "${dst}/" ;;
+    esac
+done
+sed -i '/^prefer /d' "${dst}/qmldir"
+DST="${dst}" python3 - <<'PY'
+import os
+d = os.environ["DST"]
+def patch(name, pairs):
+    p = os.path.join(d, name)
+    s = open(p).read()
+    for old, new in pairs:
+        assert s.count(old) == 1, (name, old)
+        s = s.replace(old, new, 1)
+    open(p, "w").write(s)
+patch("TitleSubtitle.qml", [
+    ("property color color: selected ? Platform.Theme.highlightedTextColor : Platform.Theme.textColor",
+     "property color color: Platform.Theme.textColor"),
+    ("property color subtitleColor: selected\n        ? Platform.Theme.highlightedTextColor\n        : Platform.ColorUtils.linearInterpolation",
+     "property color subtitleColor: Platform.ColorUtils.linearInterpolation"),
+])
+patch("IconTitleSubtitle.qml", [
+    ("        selected: root.selected\n        color: root.icon.color", "        selected: false\n        color: root.icon.color"),
+])
+PY
+if grep -q '^prefer' "${dst}/qmldir"; then exit 1; fi
+grep -q 'QML_IMPORT_PATH=/usr/share/arkadeos/union-qml' /usr/bin/systemsettings

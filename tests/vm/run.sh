@@ -262,6 +262,9 @@ check "the tray icons are ArkadeOS Glass's own, the power switch's too" 'for t i
 # its launchers set it, and the style loads without errors.
 check "System Settings in the ArkadeOS Glass Union style" 'grep -q UNION_STYLE_NAME=arkadeos-glass /usr/bin/systemsettings /usr/bin/kcmshell6 &&
     test -x /usr/libexec/arkadeos/systemsettings && test -f /usr/share/union/styles/arkadeos-glass/metadata.json'
+check "System Settings: selected rows keep readable text on the soft selection" 'grep -q QML_IMPORT_PATH=/usr/share/arkadeos/union-qml /usr/bin/systemsettings /usr/bin/kcmshell6 &&
+    d=/usr/share/arkadeos/union-qml/org/kde/kirigami/delegates && grep -q "property color color: Platform.Theme.textColor$" ${d}/TitleSubtitle.qml &&
+    ! grep -q "^prefer" ${d}/qmldir && test -e ${d}/libKirigamiDelegatesplugin.so'
 # Its app icons in the craft of the round-6 marks (Roland, 2026-11-14): the
 # file manager, terminal and System Settings over Breeze's in both themes,
 # with their small size; the Start and Portal marks in their four optical

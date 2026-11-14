@@ -14,7 +14,7 @@ components=/usr/lib64/qt6/qml/org/kde/breeze/components
 # The module prefers its compiled-in copies; without the prefer line Qt loads
 # the files on disk, which are the patched ones below.
 sed -i '/^prefer /d' "${components}/qmldir"
-! grep -q '^prefer' "${components}/qmldir"
+if grep -q '^prefer' "${components}/qmldir"; then exit 1; fi
 
 COMPONENTS="${components}" python3 - <<'PY'
 import os
