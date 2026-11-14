@@ -44,9 +44,22 @@ card = """    // ArkadeOS Glass (T086 round 8): the glass card behind the user a
         anchors.horizontalCenter: parent.horizontalCenter
         y: parent.height / 2 - gu * 10.5
         width: Math.min(parent.width - gu * 2, gu * 20)
-        // Down to just under the fields: the lock screen's sit lower than
-        // the login screen's, and a message above them pushes them down.
-        height: Math.max(gu * 15.5, prompts.y + innerLayout.parent.y + innerLayout.y + innerLayout.height + gu * 0.9 - y)
+        // Down to just under the password field: the lock screen's sits
+        // lower than the login screen's, and a message above it pushes it
+        // down. (Not under the whole block: the lock screen keeps hidden
+        // fingerprint and smartcard lines in it.)
+        height: {
+            let h = gu * 15.5;
+            const f = root.arkadeosPassword;
+            if (f && f.visible) {
+                let bottom = f.height;
+                for (let it = f; it && it !== root; it = it.parent) {
+                    bottom += it.y;
+                }
+                h = Math.max(h, bottom + gu * 0.9 - y);
+            }
+            return h;
+        }
         radius: gu * 1.1
         color: Qt.rgba(45 / 255, 81 / 255, 110 / 255, 0.42)
         border.width: 1
@@ -104,6 +117,7 @@ card = """    // ArkadeOS Glass (T086 round 8): the glass card behind the user a
             }
         }
     }
+    property Item arkadeosPassword: null
     function arkadeosGlass(item) {
         const kids = item.children;
         let password = false;
@@ -116,6 +130,9 @@ card = """    // ArkadeOS Glass (T086 round 8): the glass card behind the user a
             const c = kids[i];
             if (c.echoMode !== undefined && c.placeholderTextColor !== undefined) {
                 c.background = arkadeosFieldGlass.createObject(c);
+                if (c.echoMode === TextInput.Password) {
+                    root.arkadeosPassword = c;
+                }
                 c.color = "#ffffff";
                 c.placeholderTextColor = "#9fb7cc";
                 c.Kirigami.Theme.inherit = false;
