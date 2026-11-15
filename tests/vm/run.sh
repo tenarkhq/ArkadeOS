@@ -912,26 +912,33 @@ done
 # IconThemePath: our theme can draw it) or as a ready picture (IconPixmap:
 # it cannot). VLC and Steam (-silent: straight to the tray; its first start
 # downloads the client) join the apps above; nothing here fails the test.
-ssh_vm "nohup ${session} flatpak run org.videolan.VLC > /tmp/vlc.log 2>&1 &"
+# qBittorrent waits behind its first-start notice: accepted here, and asked
+# by name (its own setting, off by default: by default it sends its picture).
+ssh_vm "pkill -u arkade -f qbittorrent; sleep 2; c=/home/arkade/.var/app/org.qbittorrent.qBittorrent/config/qBittorrent;
+    runuser -u arkade -- mkdir -p \${c}; printf '[LegalNotice]\\nAccepted=true\\n\\n[Preferences]\\nAdvanced\\\\useSystemIconTheme=true\\n' >> \${c}/qBittorrent.conf;
+    chown arkade: \${c}/qBittorrent.conf" || true
+ssh_vm "nohup ${session} flatpak run org.qbittorrent.qBittorrent > /tmp/qbt2.log 2>&1 &"
+# VLC's window needs X (its sandbox has no Wayland), or it starts without one.
+xdisplay=$(ssh_vm "tr '\\0' '\\n' < /proc/\$(pgrep -u arkade -x plasmashell | head -1)/environ | sed -n 's/^DISPLAY=//p'" || true)
+ssh_vm "nohup ${session} env DISPLAY=${xdisplay:-:0} QT_QPA_PLATFORM=xcb flatpak run org.videolan.VLC > /tmp/vlc.log 2>&1 &"
 ssh_vm "nohup ${session} steam -silent > /tmp/steam.log 2>&1 &"
-for _ in $(seq 24); do
-    ssh_vm "${session} busctl --user get-property org.kde.StatusNotifierWatcher /StatusNotifierWatcher org.kde.StatusNotifierWatcher RegisteredStatusNotifierItems" 2>/dev/null |
-        grep -q -i steam && break
+for _ in $(seq 48); do
     ssh_vm "for i in \$(${session} busctl --user get-property org.kde.StatusNotifierWatcher /StatusNotifierWatcher org.kde.StatusNotifierWatcher RegisteredStatusNotifierItems | grep -oE '\"[^\"]+\"' | tr -d '\"'); do
             ${session} busctl --user get-property \"\${i%%/*}\" \"/\${i#*/}\" org.kde.StatusNotifierItem Id; done" 2>/dev/null | grep -q -i steam && break
     sleep 10
 done
+key shift
 ssh_vm 'loginctl unlock-sessions' || true
 sleep 3
 ssh_vm "for i in \$(${session} busctl --user get-property org.kde.StatusNotifierWatcher /StatusNotifierWatcher org.kde.StatusNotifierWatcher RegisteredStatusNotifierItems | grep -oE '\"[^\"]+\"' | tr -d '\"'); do
         echo \"== \${i}\"; for p in Id Title IconName IconThemePath AttentionIconName OverlayIconName Status; do
             printf '%s ' \"\${p}\"; ${session} busctl --user get-property \"\${i%%/*}\" \"/\${i#*/}\" org.kde.StatusNotifierItem \"\${p}\" 2>&1; done
         printf 'IconPixmap '; ${session} busctl --user get-property \"\${i%%/*}\" \"/\${i#*/}\" org.kde.StatusNotifierItem IconPixmap 2>&1 | cut -c1-60; done;
-    tail -20 /tmp/steam.log; tail -5 /tmp/vlc.log" > "${out}/tray-apps.txt" 2>&1 || true
+    tail -20 /tmp/steam.log; tail -20 /home/arkade/.local/share/Steam/logs/bootstrap_log.txt; tail -8 /tmp/vlc.log; tail -8 /tmp/qbt2.log" > "${out}/tray-apps.txt" 2>&1 || true
 shot tray-apps
 # Steam and VLC go again, so that the checks and pictures below see what
 # they saw before.
-ssh_vm "pkill -u arkade -f 'steamwebhelper|ubuntu12_32/steam|steam -silent'; pkill -u arkade -f '/app/bin/vlc'" || true
+ssh_vm "pkill -u arkade -f 'steamwebhelper|ubuntu12_32/steam|steam -silent'; pkill -u arkade -f '/app/bin/vlc'; pkill -u arkade -f qbittorrent" || true
 sleep 10
 # T068: all of these apps' windows can be pinned on the dock too.
 check "every app window has a dock entry" "${session} /usr/libexec/arkadeos/dock-names --check"
