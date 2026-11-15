@@ -291,13 +291,28 @@ icons["com.github.wwmm.easyeffects-symbolic"] = svg(
     dot(5, 11, 2.3), dot(11, 7, 2.3), dot(17, 13, 2.3))
 
 # Solaar, the Logitech receiver's app: its own icon a mouse, red when the
-# receiver needs attention; the battery levels are the set above (it asks
-# for the symbolic ones, arkadeos-solaar.service), "charged" when full on
-# the charger.
+# receiver needs attention; the battery levels are the set above under
+# Adwaita's names (it asks for the symbolic ones, arkadeos-solaar.service),
+# "charged" when full on the charger.
 icons["solaar-init"] = svg(moved("translate(2.5 0)", *MOUSE))
 icons["solaar-attention"] = svg(moved("translate(2.5 0)", *MOUSE), dot(17.25, 5, 2.2, "NegativeText"))
 icons["battery-100-charged-symbolic"] = svg(line(BODY), solid(NUB), solid(
     "M4.5 9 H14.25 A.75 .75 0 0 1 15 9.75 V12.25 A.75 .75 0 0 1 14.25 13 H4.5 Z", "Highlight"))
+# Solaar and other GTK tray apps choose their battery names from GTK's icon
+# theme, which always has Adwaita behind it, so they ask for Adwaita's names
+# (battery-level-90-symbolic), not Breeze's (battery-090-symbolic). This
+# theme lacked them and Plasma fell back to Breeze's coloured "battery" app
+# icon, the one coloured icon in the glass tray (Roland, 2026-11-15, Solaar's
+# mouse battery: "szerinted ez nem üt el?"). Both name sets draw the same.
+for level in range(0, 101, 10):
+    icons[f"battery-level-{level}-symbolic"] = battery(level)
+    icons[f"battery-level-{level}-charging-symbolic"] = battery(level, True)
+    icons[f"battery-level-{level}-plugged-in-symbolic"] = battery(level, True)
+icons["battery-level-100-charged-symbolic"] = icons["battery-100-charged-symbolic"]
+icons["battery-full-charged-symbolic"] = icons["battery-100-charged-symbolic"]
+for word, level in (("full", 100), ("good", 70), ("low", 30), ("caution", 10), ("empty", 0)):
+    icons[f"battery-{word}-symbolic"] = battery(level)
+    icons[f"battery-{word}-charging-symbolic"] = battery(level, True)
 
 # Steam (Glass audit 6): its tray asks for "steam_tray_mono" by name (the
 # client's steamui.so, through ayatana-appindicator, with its own public/

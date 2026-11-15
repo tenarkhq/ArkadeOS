@@ -280,10 +280,13 @@ check "early update steps run before the desktop starts, gone widgets leave the 
 # The tray's own icons (T086, Roland, 2026-11-13: "nem lehet újat rajzolni
 # azoknak?"): both ArkadeOS Glass icon themes have them on top of Breeze,
 # the power switch's among them (Adwaita's names showed a blank page).
+# GTK tray apps such as Solaar ask for Adwaita's battery names; without them
+# Plasma showed Breeze's coloured battery icon in the tray (2026-11-15).
 check "the tray icons are ArkadeOS Glass's own, the power switch's too" 'for t in arkadeos-glass arkadeos-glass-dark; do
     grep -qx FollowsColorScheme=true /usr/share/icons/${t}/index.theme || exit 1
     for n in audio-volume-high-symbolic network-wireless-80-symbolic network-wired-activated-symbolic battery-050-charging-symbolic \
         brightness-high-symbolic network-bluetooth-symbolic notification-inactive-symbolic user-desktop-symbolic steam_tray_mono \
+        battery-level-90-symbolic battery-level-50-charging-symbolic battery-level-100-charged-symbolic battery-good-symbolic battery-caution-charging-symbolic \
         $(grep -oE "\"[a-z0-9-]+-symbolic\"" /usr/share/plasma/plasmoids/org.arkadeos.power/contents/ui/main.qml | tr -d "\"" | sort -u); do
         test -f /usr/share/icons/${t}/status/22/${n}.svg || { echo "missing ${t} ${n}"; exit 1; }; done; done'
 # System Settings with the ArkadeOS Glass Union style (Roland, 2026-11-13):
