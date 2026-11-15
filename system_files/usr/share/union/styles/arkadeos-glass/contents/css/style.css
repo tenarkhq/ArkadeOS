@@ -31,6 +31,11 @@
     --card-hover-color: mix(var(--card-background-color), var(--highlight-color), 0.08);
 
     --switch-indicator-active-background-color: mix(var(--window-background-color), var(--window-text-color), 0.22);
+    /* The switch's knob light in both looks: in the dark one it took the
+       button colour and all but vanished on the sidebar (Roland's System
+       Settings screenshot, 2026-11-15). */
+    --switch-handle-active-background-color: mix(var(--window-background-color), rgba(255, 255, 255, 1), 0.92);
+    --switch-handle-active-border-color: modify-color(var(--window-text-color) set-alpha 0.25);
 }
 
 itemdelegate,
