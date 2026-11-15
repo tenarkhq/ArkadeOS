@@ -30,7 +30,7 @@ from PySide6.QtCore import (
 )
 from PySide6.QtGui import QColor, QIcon, QKeySequence, QPainter, QPalette, QShortcut
 from PySide6.QtWidgets import (
-    QApplication, QButtonGroup, QCheckBox, QComboBox, QFrame, QGraphicsDropShadowEffect, QGridLayout,
+    QApplication, QBoxLayout, QButtonGroup, QCheckBox, QComboBox, QFrame, QGraphicsDropShadowEffect, QGridLayout,
     QHBoxLayout, QHeaderView, QLabel, QLineEdit, QMessageBox, QPlainTextEdit, QProgressBar, QPushButton,
     QScrollArea, QStackedWidget, QTableWidget, QToolButton, QVBoxLayout, QWidget,
 )
@@ -763,12 +763,17 @@ class SystemTab(QWidget):
         self.headline = QLabel()
         self.headline.setObjectName("headline")
         self.headline.setTextFormat(Qt.RichText)
+        self.headline.setWordWrap(True)
         u.addWidget(self.headline)
         # Running, waiting for the reboot, previous, and the newest one the
         # channel has (Roland, 2026-11-12: looked up when the Portal opens).
         self.version = QLabel()
         self.version.setObjectName("versions")
         self.version.setTextFormat(Qt.RichText)
+        # Long lines wrap: unwrapped, the newest version's line made the page
+        # wider than a 1070-px window and cut the right column off (Roland,
+        # 2026-11-15).
+        self.version.setWordWrap(True)
         self.status_lines, self.latest_line, self.latest_newer = [], "", False
         self.looking, self.again, self.looked = False, False, 0.0
         self.staged = ""
@@ -886,12 +891,25 @@ class SystemTab(QWidget):
         side.addWidget(desktop)
         side.addStretch()
         columns.addLayout(side, 1)
+        self.columns, self.updates_card, self.side = columns, updates, side
 
         self.running = False
         self.refresh()
         self.timer = QTimer(self)
         self.timer.timeout.connect(self.poll)
         self.timer.start(2000)
+
+    def resizeEvent(self, event):
+        """Two columns while both fit beside each other, one under the other in a
+        narrow window, so nothing is cut off at the right edge."""
+        super().resizeEvent(event)
+        if not hasattr(self, "columns"):
+            return
+        need = (self.updates_card.minimumSizeHint().width() + self.side.minimumSize().width()
+                + 22 * 2 + 12 + 16)
+        direction = QBoxLayout.LeftToRight if self.width() >= need else QBoxLayout.TopToBottom
+        if self.columns.direction() != direction:
+            self.columns.setDirection(direction)
 
     @staticmethod
     def heading(icon, text):
