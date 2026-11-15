@@ -1225,6 +1225,12 @@ reboot_vm() {
     ssh_vm "timeout 600 systemctl is-system-running --wait" || true
 }
 check "daily updates on (system and apps)" 'systemctl is-enabled -q uupd.timer && systemctl is-active -q uupd.timer'
+# Update now without a password for the machine's admins in their session
+# (Roland, 2026-11-15), only the update: another unit still asks.
+check "Update now starts without a password, only the update" 'p=$(pgrep -u arkade -x plasmashell | head -1) &&
+    pkcheck --action-id org.freedesktop.systemd1.manage-units --process ${p} --detail unit uupd.service --detail verb start &&
+    ! pkcheck --action-id org.freedesktop.systemd1.manage-units --process ${p} --detail unit sshd.service --detail verb start &&
+    ! grep -q "pkexec systemctl start" /usr/bin/arkadeos-update'
 check "home snapshots" 'snapper -c home list | grep -q "ArkadeOS: first snapshot" &&
     btrfs subvolume show /home/arkade/Games'
 # One snapshot a day, and the user's cache out of them: a subvolume of its

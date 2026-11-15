@@ -105,7 +105,8 @@ case "${1:-status}" in
         fi
         ;;
     now)
-        exec pkexec systemctl start --no-block uupd.service
+        # Without a password for the machine's admins (50-arkadeos-update.rules).
+        exec systemctl start --no-block uupd.service
         ;;
     rollback)
         if [[ -z "$(version rollback)" ]]; then
