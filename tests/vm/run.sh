@@ -667,6 +667,11 @@ check "game watcher running" 'systemctl --user -M arkade@ is-active arkadeos-gam
 # 2026-11-12); on battery Plasma's own idle sleep stays.
 check "no sleep by itself on the charger" "${session} kreadconfig6 --file powerdevilrc --group AC --group SuspendAndShutdown --key AutoSuspendAction | grep -qx 0 &&
     test -z \"\$(${session} kreadconfig6 --file powerdevilrc --group Battery --group SuspendAndShutdown --key AutoSuspendAction)\""
+# The screen never dims by itself; on the charger it turns off after 30
+# minutes (Roland, 2026-11-15).
+check "no dimming, screen off after 30 minutes on the charger" "for g in AC Battery LowBattery; do
+        ${session} kreadconfig6 --file powerdevilrc --group \${g} --group Display --key DimDisplayWhenIdle | grep -qx false || exit 1; done &&
+    ${session} kreadconfig6 --file powerdevilrc --group AC --group Display --key TurnOffDisplayIdleTimeoutSec | grep -qx 1800"
 # On the charger Akku goes back to Balanced (Roland, 2026-11-13: Akku on the
 # charger after a restart). The VM is on the charger; stand-ins for a
 # laptop's battery, and for a desktop's wireless mouse, whose Quiet stays.

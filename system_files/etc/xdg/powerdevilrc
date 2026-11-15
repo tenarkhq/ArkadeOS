@@ -5,3 +5,19 @@
 # for a user.
 [AC][SuspendAndShutdown]
 AutoSuspendAction=0
+
+# The screen never dims by itself, on the charger or on battery (Roland,
+# 2026-11-15: "a defaultbol kapcsoljuk ki ezt a szart. NEM KELL"; on his
+# laptop the brightness also did not come back after it). On the charger the
+# screen turns off after 30 minutes without input ("a monitor kikapcs egy
+# gépen ha nem akkun van akkor 30p"); on battery Plasma's own time stays.
+[AC][Display]
+DimDisplayWhenIdle=false
+TurnOffDisplayWhenIdle=true
+TurnOffDisplayIdleTimeoutSec=1800
+
+[Battery][Display]
+DimDisplayWhenIdle=false
+
+[LowBattery][Display]
+DimDisplayWhenIdle=false
