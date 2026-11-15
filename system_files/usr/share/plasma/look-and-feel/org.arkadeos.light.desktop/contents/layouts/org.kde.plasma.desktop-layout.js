@@ -1,6 +1,6 @@
 // ArkadeOS desktop layout (T007): one taskbar at the bottom.
-// Plasma runs this once, when a user first logs in. ArkadeOS Dark falls back
-// to this package, so both global themes give the same layout.
+// Plasma runs this once, when a user first logs in. ArkadeOS Dark gets a copy
+// at build time (70-theme.sh), so both global themes give the same layout.
 
 // One taskbar at the bottom (Roland, 2026-11-04), the ArkadeOS Glass bar
 // since 2026-11-13 (T086): flush with the screen's edge, the ArkadeOS mark

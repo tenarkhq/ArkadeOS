@@ -7,8 +7,8 @@
             }
         ],
         "Category": "Global Themes (Plasma 6)",
-        "Description": "Breeze look for ArkadeOS, dark",
-        "Description[hu]": "Breeze-kinézet az ArkadeOS-hez, sötét",
+        "Description": "ArkadeOS Glass look, dark",
+        "Description[hu]": "ArkadeOS Glass-kinézet, sötét",
         "EnabledByDefault": true,
         "Id": "org.arkadeos.dark.desktop",
         "License": "GPLv3",

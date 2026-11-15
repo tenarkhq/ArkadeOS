@@ -232,6 +232,10 @@ check "ArkadeOS Glass in the ArkadeOS global theme" "grep -qE '^org\.arkadeos\.(
     grep -qE '^name=arkadeos-glass-(light|dark)$' ${home}/kdedefaults/plasmarc &&
     grep -qE '^Theme=arkadeos-glass(-dark)?$' ${home}/kdedefaults/kdeglobals &&
     ! ls -d /usr/share/icons/WhiteSur* /usr/share/themes/WhiteSur* /usr/share/plasma/desktoptheme/WhiteSur* 2>/dev/null"
+# Roland, 2026-11-15: ArkadeOS Dark applied with its layout gave Plasma's stock
+# taskbar on a white desktop; it carries Light's layout and welcome screen.
+check "ArkadeOS Dark has its own taskbar layout and welcome screen" "test -s /usr/share/plasma/look-and-feel/org.arkadeos.dark.desktop/contents/layouts/org.kde.plasma.desktop-layout.js &&
+    test -s /usr/share/plasma/look-and-feel/org.arkadeos.dark.desktop/contents/splash/Splash.qml"
 # Roland, 2026-11-14: the see-through sidebar of the first run was right, the
 # solid menu bar and toolbar were not. Darkly paints those bars solid unless
 # its own opacities say otherwise, whatever the colour scheme's alpha.

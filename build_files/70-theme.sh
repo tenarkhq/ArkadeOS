@@ -101,6 +101,15 @@ done
 # The new default wallpaper (Égkék) for every global theme's defaults.
 sed -i 's/^Image=ArkadeOS$/Image=ArkadeOS-Egkek/' /usr/share/plasma/look-and-feel/*/contents/defaults
 if grep -rqE '^Image=(Next|Fedora|ArkadeOS)$' /usr/share/plasma/look-and-feel/*/contents/defaults; then exit 1; fi
+# ArkadeOS Dark carries ArkadeOS Light's desktop layout and welcome screen.
+# Plasma 6.8 does not take them over through X-KDE-fallbackPackage: applying
+# ArkadeOS Dark with its desktop layout gave Plasma's stock taskbar on an
+# empty white desktop (Roland, 2026-11-15).
+lnf=/usr/share/plasma/look-and-feel
+cp -a "${lnf}/org.arkadeos.light.desktop/contents/layouts" "${lnf}/org.arkadeos.light.desktop/contents/splash" \
+    "${lnf}/org.arkadeos.dark.desktop/contents/"
+test -s "${lnf}/org.arkadeos.dark.desktop/contents/layouts/org.kde.plasma.desktop-layout.js"
+test -s "${lnf}/org.arkadeos.dark.desktop/contents/splash/Splash.qml"
 # System Settings in ArkadeOS Glass (T086, Roland, 2026-11-13: "az egész
 # ablak kinézetét rendezni kell nem csak az ikonokat"): its Qt Quick parts
 # (the side list, most pages) drawn by Union, KDE's CSS style engine, with
