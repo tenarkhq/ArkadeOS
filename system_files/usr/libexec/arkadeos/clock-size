@@ -1,0 +1,46 @@
+#!/usr/bin/python3 -I
+"""Prints the point size that draws the taskbar clock at the size of the
+tray's text on the screen of the taskbar, 0 when the screen is not known.
+
+KDE's clock turns its fixed size from points into pixels with the screen's
+pixel density, not with the system font's 96 dots per inch: 10 points were
+13 pixels in the VM, and 24 on Roland's laptop screen, twice the tray's text
+(Roland, 2026-11-15). The size it is given here undoes that density, so the
+clock has the system font's size (Inter 10 pt, 13.3 pixels) on every screen.
+The density is the clock's own: the screen's width in desktop pixels (its
+mode divided by its scale) over its width in millimetres, as Qt reports it;
+without a physical size Qt takes 96 dots per inch.
+"""
+import json
+import subprocess
+import sys
+
+TEXT_PX = 10 * 96 / 72
+
+
+def point_size(config):
+    outputs = [o for o in config.get("outputs", []) if o.get("enabled") and o.get("connected")]
+    if not outputs:
+        return 0
+    # The taskbar is on the primary screen, priority 1 (0 is "none").
+    output = min(outputs, key=lambda o: o.get("priority") or 1000)
+    mode = next((m for m in output.get("modes", []) if m.get("id") == output.get("currentModeId")), {})
+    px = (mode.get("size") or output.get("size") or {}).get("width") or 0
+    mm = (output.get("sizeMM") or {}).get("width") or 0
+    scale = output.get("scale") or 1
+    if px <= 0:
+        return 0
+    dpi = px / scale / (mm / 25.4) if mm > 0 else 96
+    return max(1, round(TEXT_PX * 72 / dpi))
+
+
+if __name__ == "__main__":
+    if len(sys.argv) > 1:
+        config = json.load(open(sys.argv[1]))
+    else:
+        run = subprocess.run(["kscreen-doctor", "-j"], capture_output=True, text=True, timeout=20)
+        if run.returncode != 0:
+            print(0)
+            sys.exit(0)
+        config = json.loads(run.stdout)
+    print(point_size(config))

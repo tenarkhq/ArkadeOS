@@ -151,6 +151,11 @@ done
 # Once the desktop has loaded its taskbar (plasma-script): sooner, the
 # script finds no dock and changes nothing.
 sed "s|@PRESENT@|{${present%, }}|" /usr/share/arkadeos/dock-stores.js | /usr/libexec/arkadeos/plasma-script - >/dev/null || true
+# The taskbar clock at the size of the tray's text on this screen and in the
+# normal weight (Roland, 2026-11-15: big and thin on his laptop screen).
+size=$(/usr/libexec/arkadeos/clock-size 2>/dev/null) || size=0
+[[ "${size}" =~ ^[0-9]+$ ]] || size=0
+sed "s|@SIZE@|${size}|" /usr/share/arkadeos/clock-size.js | /usr/libexec/arkadeos/plasma-script - >/dev/null || true
 
 # KDE often writes the places file at the first login while this runs, and the
 # path unit does not start a run that is still going: try once more, after

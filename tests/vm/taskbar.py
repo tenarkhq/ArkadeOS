@@ -55,8 +55,12 @@ assert tray_spacing == "1", f"tray icon spacing: {tray_spacing!r}"
 clock = order[6]
 look = c[f"Containments][{bar}][Applets][{clock}][Configuration][Appearance"] if c.has_section(
     f"Containments][{bar}][Applets][{clock}][Configuration][Appearance") else {}
-assert (look.get("showDate"), look.get("dateDisplayFormat"), look.get("autoFontAndSize"), look.get("fontSize")) == (
-    "false", "1", "false", "10"), dict(look)
+assert (look.get("showDate"), look.get("dateDisplayFormat"), look.get("autoFontAndSize")) == ("false", "1", "false"), dict(look)
+# Its size follows the screen (clock-size, at each login; 10 points at 96 dots
+# per inch) and its weight is Qt 6's normal (Roland, 2026-11-15: big and thin
+# on his laptop screen).
+assert look.get("fontSize") == look.get("arkadeosFontSize", "10"), dict(look)
+assert look.get("fontWeight") == "400", dict(look)
 if len(sys.argv) > 2:
     # Flush with the edge: Plasma keeps a panel's float in plasmashellrc.
     s = configparser.ConfigParser(strict=False, interpolation=None)

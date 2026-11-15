@@ -259,6 +259,13 @@ taskbar=$(base64 -w0 "$(dirname "$0")/taskbar.py")
 ssh_vm "echo ${taskbar} | base64 -d | python3 - ${home}/plasma-org.kde.plasma.desktop-appletsrc ${home}/plasmashellrc;
     cat ${home}/plasma-org.kde.plasma.desktop-appletsrc" > "${out}/taskbar-check.txt" 2>&1 || true
 check "one glass taskbar, the ArkadeOS mark first, the apps in the middle, Portal on it" "echo ${taskbar} | base64 -d | python3 - ${home}/plasma-org.kde.plasma.desktop-appletsrc ${home}/plasmashellrc"
+# The clock's size from the screen (Roland, 2026-11-15): the screen as KDE
+# describes it goes to the results; the helper reads it, and gives the
+# laptop of the report (2560 x 1600 at 1.1, 344 mm wide) 6 points.
+ssh_vm "${session} kscreen-doctor -j" > "${out}/kscreen.json" 2>&1 || true
+check "clock size read from the screen" "${session} /usr/libexec/arkadeos/clock-size | grep -qxE '[1-9][0-9]*' &&
+    printf '%s' '{\"outputs\":[{\"enabled\":true,\"connected\":true,\"priority\":1,\"scale\":1.1,\"currentModeId\":\"3\",\"modes\":[{\"id\":\"3\",\"size\":{\"width\":2560,\"height\":1600}}],\"sizeMM\":{\"width\":344,\"height\":215}}]}' > /tmp/laptop.json &&
+    test \"\$(/usr/libexec/arkadeos/clock-size /tmp/laptop.json)\" = 6"
 # Roland, 2026-11-15: steps that script the desktop ran before Plasma had
 # loaded its taskbar, changed nothing and counted as done (step 008 left his
 # old taskbar, step 010 the capsule). plasma-script waits: right after a
@@ -399,6 +406,11 @@ ssh_vm "pkill -u arkade -x systemsettings" || true
 ssh_vm "stat -c 'style.css modification time on the installed system: %y' /usr/share/union/styles/arkadeos-glass/contents/css/style.css" || true
 check "Union style read from the image at every start, no cache left from an earlier image" 'grep -q UNION_DISABLE_STYLE_CACHE=1 /usr/bin/systemsettings /usr/bin/kcmshell6 /usr/bin/plasma-systemmonitor /usr/bin/filelight &&
     test -z "$(ls -A /home/arkade/.cache/union 2>/dev/null)"'
+# The see-through sidebar (Roland, 2026-11-15: "hol az aero?"): System
+# Settings is ArkadeOS's own build of the image's version, not the package's
+# program (build_files/systemsettings.sh); the shots above show the glass.
+check "System Settings is the ArkadeOS build with the glass sidebar" 'test "$(rpm -q --dump plasma-systemsettings | awk "\$1 == \"/usr/bin/systemsettings\" {print \$4}")" != "$(sha256sum /usr/libexec/arkadeos/systemsettings | cut -d" " -f1)" &&
+    QT_QPA_PLATFORM=offscreen /usr/libexec/arkadeos/systemsettings --version | grep -q "$(rpm -q --qf %{VERSION} plasma-systemsettings)"'
 # Glass audit 1: Info Center is a link to the Glass systemsettings wrapper and
 # opens only under its own name; the wrapper must hand that name on.
 ssh_vm "nohup ${session} kinfocenter >/dev/null 2>&1 &" || true

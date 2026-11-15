@@ -54,6 +54,9 @@ clock.writeConfig("showDate", false)
 clock.writeConfig("dateDisplayFormat", 1)
 clock.writeConfig("autoFontAndSize", false)
 clock.writeConfig("fontSize", 10)
+// Qt 6's normal weight: KDE's default (50) is Qt 5's, thinner than Thin in
+// Qt 6. The size follows the screen at each login (clock-size.js).
+clock.writeConfig("fontWeight", 400)
 panel.addWidget("org.kde.plasma.showdesktop")
 
 // ArkadeOS wallpaper: Égkék (T086, before it the Ark of T009); Plasma picks

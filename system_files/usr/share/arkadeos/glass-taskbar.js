@@ -60,6 +60,9 @@ panels().forEach(function (panel) {
     clock.writeConfig("dateDisplayFormat", 1)
     clock.writeConfig("autoFontAndSize", false)
     clock.writeConfig("fontSize", 10)
+    // Qt 6's normal weight: KDE's default (50) is Qt 5's, thinner than Thin in
+    // Qt 6. The size follows the screen at each login (clock-size.js).
+    clock.writeConfig("fontWeight", 400)
     bar.addWidget("org.kde.plasma.showdesktop")
 })
 desktops().forEach(function (d) {
