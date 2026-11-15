@@ -261,7 +261,7 @@ check "one glass taskbar, the ArkadeOS mark first, the apps in the middle, Porta
 check "the tray icons are ArkadeOS Glass's own, the power switch's too" 'for t in arkadeos-glass arkadeos-glass-dark; do
     grep -qx FollowsColorScheme=true /usr/share/icons/${t}/index.theme || exit 1
     for n in audio-volume-high-symbolic network-wireless-80-symbolic network-wired-activated-symbolic battery-050-charging-symbolic \
-        brightness-high-symbolic network-bluetooth-symbolic notification-inactive-symbolic user-desktop-symbolic \
+        brightness-high-symbolic network-bluetooth-symbolic notification-inactive-symbolic user-desktop-symbolic steam_tray_mono \
         $(grep -oE "\"[a-z0-9-]+-symbolic\"" /usr/share/plasma/plasmoids/org.arkadeos.power/contents/ui/main.qml | tr -d "\"" | sort -u); do
         test -f /usr/share/icons/${t}/status/22/${n}.svg || { echo "missing ${t} ${n}"; exit 1; }; done; done'
 # System Settings with the ArkadeOS Glass Union style (Roland, 2026-11-13):

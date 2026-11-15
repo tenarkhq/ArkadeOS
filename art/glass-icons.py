@@ -299,6 +299,27 @@ icons["solaar-attention"] = svg(moved("translate(2.5 0)", *MOUSE), dot(17.25, 5,
 icons["battery-100-charged-symbolic"] = svg(line(BODY), solid(NUB), solid(
     "M4.5 9 H14.25 A.75 .75 0 0 1 15 9.75 V12.25 A.75 .75 0 0 1 14.25 13 H4.5 Z", "Highlight"))
 
+# Steam (Glass audit 6): its tray asks for "steam_tray_mono" by name (the
+# client's steamui.so, through ayatana-appindicator, with its own public/
+# folder as the fallback), so the theme's one wins: the Steam mark in the
+# same thin strokes, a ring with the piston arm to the small wheel. The other
+# apps measured (Discord, WowUp) send ready pictures, which no theme reaches.
+def ring(cx, cy, r, cls="Text"):
+    return line(f"M{f(cx - r)} {f(cy)} A{f(r)} {f(r)} 0 1 0 {f(cx + r)} {f(cy)} A{f(r)} {f(r)} 0 1 0 {f(cx - r)} {f(cy)}", cls)
+
+
+def steam():
+    bx, by, br = 13.75, 8.25, 2.75
+    sx, sy, sr = 7.25, 14.0, 1.75
+    ux, uy = bx - sx, by - sy
+    n = math.hypot(ux, uy)
+    ux, uy = ux / n, uy / n
+    return svg(ring(11, 11, 8.25), ring(bx, by, br), dot(bx, by, 1.1), ring(sx, sy, sr),
+               line(f"M{f(sx + sr * ux)} {f(sy + sr * uy)} L{f(bx - br * ux)} {f(by - br * uy)}"))
+
+
+icons["steam_tray_mono"] = steam()
+
 THEME = """[Icon Theme]
 Name={name}
 Comment=ArkadeOS: {base_name} with the glass taskbar's own tray icons and app icons
