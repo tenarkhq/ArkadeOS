@@ -857,7 +857,7 @@ check "terminal: paste as text, ~ in the prompt" "grep -qx 'set enable-bracketed
     test \"\$(${session} bash -ic 'cd /var/home/arkade && . /etc/profile.d/arkadeos-home.sh && pwd' 2>/dev/null | tail -1)\" = \"\$(${session} printenv HOME)\""
 check "Windows partition named Windows" "udevadm verify /usr/lib/udev/rules.d/90-arkadeos-windows-name.rules >/dev/null &&
     grep -q 'UDISKS_NAME}=\"Windows\"' /usr/lib/udev/rules.d/90-arkadeos-windows-name.rules"
-check "Dolphin's Create missing folder in Hungarian" "msgunfmt /usr/share/locale/hu/LC_MESSAGES/dolphin.mo | grep -qx 'msgstr \"Hiányzó mappa létrehozása\"'"
+check "Dolphin's Create missing folder in Hungarian" "msgunfmt /usr/share/locale/hu/LC_MESSAGES/dolphin.mo | grep -x 'msgstr \"Hiányzó mappa létrehozása\"' >/dev/null"
 # T014: Battle.net on the image's GE-Proton, its installer reachable.
 check "Battle.net launcher on GE-Proton" "${session} arkadeos-battlenet --check | grep -q '^proton=.*GE-Proton'"
 check "Battle.net installer reachable" "curl -fsSL -o /dev/null -r 0-0 \"\$(grep -o 'https://downloader[^\"]*' /usr/bin/arkadeos-store)\""
