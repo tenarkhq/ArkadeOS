@@ -66,7 +66,8 @@ sleep 30
 shot old-desktop
 ssh_vm 'runuser -u arkade -- env HOME=/home/arkade kwriteconfig6 --file kwinrc --group Windows --key FocusPolicy FocusFollowsMouse &&
     runuser -u arkade -- sh -c "echo keep > /home/arkade/keep.txt" &&
-    runuser -u arkade -- sh -c "mkdir -p /home/arkade/.cache/union && echo old > /home/arkade/.cache/union/old-style"'
+    runuser -u arkade -- sh -c "mkdir -p /home/arkade/.cache/union && echo old > /home/arkade/.cache/union/old-style" &&
+    rm -f /home/arkade/.local/state/arkadeos/migrations/013-union-cache.sh'
 before=$(ssh_vm "bootc status --json | jq -r .status.booted.image.imageDigest")
 ssh_vm 'flatpak list --app --columns=application' | sort > "${out}/apps-before.txt" || true
 
@@ -111,6 +112,8 @@ taskbar=$(base64 -w0 "$(dirname "$0")/taskbar.py")
 check "top bar and dock became one glass taskbar, Portal on it" "echo ${taskbar} | base64 -d | python3 - /home/arkade/.config/plasma-org.kde.plasma.desktop-appletsrc /home/arkade/.config/plasmashellrc"
 check "ArkadeOS Glass look after the update" 'f=/home/arkade/.config; cat $f/kdeglobals $f/kdedefaults/kdeglobals 2>/dev/null | grep -m1 ^ColorScheme= | grep -qE "^ColorScheme=ArkadeOSGlass(Light|Dark)$" &&
     cat $f/kdeglobals $f/kdedefaults/kdeglobals 2>/dev/null | grep -m1 ^widgetStyle= | grep -qx widgetStyle=Darkly'
+# The previous build may already carry step 013 and have run it at its first
+# login; its state is taken away above, as on a machine that never ran it.
 check "System Settings' style cache from the old build gone (013)" 'test ! -e /home/arkade/.cache/union/old-style'
 ssh_vm 'ls -la --time-style=full-iso /home/arkade/.cache/union /home/arkade/.local/state/arkadeos/migrations 2>&1' > "${out}/union-cache.txt" 2>&1 || true
 # Dolphin drops MenuBar=Enabled when it closes with the menu bar shown.
