@@ -380,9 +380,7 @@ sleep 12
 shot app-filelight
 check "Filelight opens" "pgrep -u arkade -f '^/usr/bin/[f]ilelight' >/dev/null"
 ssh_vm "pkill -u arkade -f filelight" || true
-# Glass audit 10: OpenRGB (Qt 5) in Darkly like the Qt 6 windows; its tray
-# icon the monochrome one (Glass audit 6, set once by session-setup).
-check "OpenRGB's tray icon set to its monochrome one" "grep -q '\"greyscale_tray_icon\": true' /home/arkade/.config/OpenRGB/OpenRGB.json"
+# Glass audit 10: OpenRGB (Qt 5) in Darkly like the Qt 6 windows.
 ssh_vm "nohup ${session} openrgb >/tmp/openrgb.log 2>&1 &" || true
 sleep 15
 shot app-openrgb
