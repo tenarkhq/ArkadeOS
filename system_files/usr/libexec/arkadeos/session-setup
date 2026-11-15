@@ -76,7 +76,9 @@ d = {}
 if os.path.exists(p):
     with open(p) as f:
         d = json.load(f)
-d.setdefault("UserInterface", {})["monochrome_tray_icon"] = True
+# The image's OpenRGB (1.0 rc2) reads "greyscale_tray_icon"; later ones move
+# it to "monochrome_tray_icon" themselves.
+d.setdefault("UserInterface", {})["greyscale_tray_icon"] = True
 with open(p + ".arkadeos", "w") as f:
     json.dump(d, f, indent=4)
 os.replace(p + ".arkadeos", p)
