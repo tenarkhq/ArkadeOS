@@ -389,6 +389,13 @@ for variant in dark light; do
     shot "glass-${variant}-settings"
 done
 ssh_vm "pkill -u arkade -x systemsettings" || true
+# Union's style cache trusts the files' modification times, which OSTree keeps
+# the same in every image: after an update the windows kept the old style
+# (Roland, 2026-11-15, the Bluetooth switch's dark knob). The launchers turn
+# the cache off, so Settings, run twice above, left none behind.
+ssh_vm "stat -c 'style.css modification time on the installed system: %y' /usr/share/union/styles/arkadeos-glass/contents/css/style.css" || true
+check "Union style read from the image at every start, no cache left from an earlier image" 'grep -q UNION_DISABLE_STYLE_CACHE=1 /usr/bin/systemsettings /usr/bin/kcmshell6 /usr/bin/plasma-systemmonitor /usr/bin/filelight &&
+    test -z "$(ls -A /home/arkade/.cache/union 2>/dev/null)"'
 # Glass audit 1: Info Center is a link to the Glass systemsettings wrapper and
 # opens only under its own name; the wrapper must hand that name on.
 ssh_vm "nohup ${session} kinfocenter >/dev/null 2>&1 &" || true

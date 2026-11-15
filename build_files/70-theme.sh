@@ -122,18 +122,25 @@ test -s "${lnf}/org.arkadeos.dark.desktop/contents/splash/Splash.qml"
 # Breeze.
 test -f /usr/share/union/styles/arkadeos-glass/contents/css/style.css
 test -f /usr/share/union/styles/breeze/contents/css/style.css
+# Union keeps a compiled copy of the style in ~/.cache/union and checks it only
+# against the style files' modification times. On an installed ArkadeOS every
+# file of the image carries the same time (OSTree keeps none), so after an
+# update the windows kept the style of the first start: the Bluetooth switch's
+# knob stayed dark after its fix (Roland, 2026-11-15). The wrappers turn that
+# cache off; the style is read from the image at every start.
 for bin in systemsettings kcmshell6 plasma-systemmonitor filelight; do
     mv "/usr/bin/${bin}" "/usr/libexec/arkadeos/${bin}"
     # exec -a keeps the name it was started by: kinfocenter is a link to
     # systemsettings and opens Info Center only under its own name.
     printf '%s\n' '#!/usr/bin/bash' \
         "# ArkadeOS: ${bin} with the ArkadeOS Glass Union style (build_files/70-theme.sh)." \
-        'export QT_QUICK_CONTROLS_STYLE=org.kde.union UNION_STYLE_NAME=arkadeos-glass QML_IMPORT_PATH=/usr/share/arkadeos/union-qml${QML_IMPORT_PATH:+:${QML_IMPORT_PATH}}' \
+        'export QT_QUICK_CONTROLS_STYLE=org.kde.union UNION_STYLE_NAME=arkadeos-glass UNION_DISABLE_STYLE_CACHE=1 QML_IMPORT_PATH=/usr/share/arkadeos/union-qml${QML_IMPORT_PATH:+:${QML_IMPORT_PATH}}' \
         "exec -a \"\$0\" /usr/libexec/arkadeos/${bin} \"\$@\"" > "/usr/bin/${bin}"
     chmod 755 "/usr/bin/${bin}"
 done
 test "$(readlink -f /usr/bin/kinfocenter)" = /usr/bin/systemsettings
 grep -qF 'exec -a "$0" /usr/libexec/arkadeos/systemsettings "$@"' /usr/bin/systemsettings
+grep -q 'UNION_DISABLE_STYLE_CACHE=1' /usr/bin/systemsettings
 # Selected rows in those windows (Roland, 2026-11-14: "javíthatod"): Union
 # draws our soft glass pill, but Kirigami's title and subtitle take the
 # selection's white text colour from the colour scheme, unreadable on the

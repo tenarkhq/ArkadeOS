@@ -65,7 +65,8 @@ desktop || { shot old-desktop-missing; echo "FAILED desktop on the previous buil
 sleep 30
 shot old-desktop
 ssh_vm 'runuser -u arkade -- env HOME=/home/arkade kwriteconfig6 --file kwinrc --group Windows --key FocusPolicy FocusFollowsMouse &&
-    runuser -u arkade -- sh -c "echo keep > /home/arkade/keep.txt"'
+    runuser -u arkade -- sh -c "echo keep > /home/arkade/keep.txt" &&
+    runuser -u arkade -- sh -c "mkdir -p /home/arkade/.cache/union && echo old > /home/arkade/.cache/union/old-style"'
 before=$(ssh_vm "bootc status --json | jq -r .status.booted.image.imageDigest")
 ssh_vm 'flatpak list --app --columns=application' | sort > "${out}/apps-before.txt" || true
 
@@ -100,6 +101,7 @@ for _ in $(seq 30); do
         test -e /home/arkade/.local/state/arkadeos/migrations/008-glass.sh &&
         test -e /home/arkade/.local/state/arkadeos/migrations/009-darkly.sh &&
         test -e /home/arkade/.local/state/arkadeos/migrations/011-no-akku-on-charger.sh &&
+        test -e /home/arkade/.local/state/arkadeos/migrations/013-union-cache.sh &&
         test -e /home/arkade/.local/state/arkadeos/migrations/early-001-widgets-gone-from-the-image.sh' && break
     sleep 5
 done
@@ -109,6 +111,7 @@ taskbar=$(base64 -w0 "$(dirname "$0")/taskbar.py")
 check "top bar and dock became one glass taskbar, Portal on it" "echo ${taskbar} | base64 -d | python3 - /home/arkade/.config/plasma-org.kde.plasma.desktop-appletsrc /home/arkade/.config/plasmashellrc"
 check "ArkadeOS Glass look after the update" 'f=/home/arkade/.config; cat $f/kdeglobals $f/kdedefaults/kdeglobals 2>/dev/null | grep -m1 ^ColorScheme= | grep -qE "^ColorScheme=ArkadeOSGlass(Light|Dark)$" &&
     cat $f/kdeglobals $f/kdedefaults/kdeglobals 2>/dev/null | grep -m1 ^widgetStyle= | grep -qx widgetStyle=Darkly'
+check "System Settings' style cache from the old build gone (013)" 'test ! -e /home/arkade/.cache/union'
 # Dolphin drops MenuBar=Enabled when it closes with the menu bar shown.
 check "menu bar in Dolphin after the update" '! grep -qx MenuBar=Disabled /home/arkade/.config/dolphinrc &&
     grep -q ^Version= /home/arkade/.config/dolphinrc'
