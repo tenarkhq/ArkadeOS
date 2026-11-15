@@ -398,14 +398,17 @@ for variant in dark light; do
     sleep 12
     shot "glass-${variant}-settings"
 done
-ssh_vm "pkill -u arkade -x systemsettings" || true
 # Union's style cache trusts the files' modification times, which OSTree keeps
 # the same in every image: after an update the windows kept the old style
 # (Roland, 2026-11-15, the Bluetooth switch's dark knob). The launchers turn
-# the cache off, so Settings, run twice above, left none behind.
-ssh_vm "stat -c 'style.css modification time on the installed system: %y' /usr/share/union/styles/arkadeos-glass/contents/css/style.css" || true
-check "Union style read from the image at every start, no cache left from an earlier image" 'grep -q UNION_DISABLE_STYLE_CACHE=1 /usr/bin/systemsettings /usr/bin/kcmshell6 /usr/bin/plasma-systemmonitor /usr/bin/filelight &&
-    test -z "$(ls -A /home/arkade/.cache/union 2>/dev/null)"'
+# the cache off: the open Settings runs with it off. What else keeps a Union
+# cache, and for which style, goes to the results.
+check "Union style read from the image at every start, not from a cache" 'grep -q UNION_DISABLE_STYLE_CACHE=1 /usr/bin/systemsettings /usr/bin/kcmshell6 /usr/bin/plasma-systemmonitor /usr/bin/filelight &&
+    pid=$(pgrep -u arkade -x systemsettings | head -1) && tr "\0" "\n" < /proc/${pid}/environ | grep -qx UNION_DISABLE_STYLE_CACHE=1'
+ssh_vm "stat -c 'style.css modification time on the installed system: %y' /usr/share/union/styles/arkadeos-glass/contents/css/style.css;
+    ls -la --time-style=full-iso /home/arkade/.cache/union 2>&1; for f in /home/arkade/.cache/union/*; do [ -f \"\$f\" ] &&
+    echo \"\$f: \$(grep -a -o '/usr/share/union/styles/[a-z-]*' \"\$f\" | sort -u | tr '\n' ' ')\"; done" > "${out}/union-cache.txt" 2>&1 || true
+ssh_vm "pkill -u arkade -x systemsettings" || true
 # The see-through sidebar (Roland, 2026-11-15: "hol az aero?"): System
 # Settings is ArkadeOS's own build of the image's version, not the package's
 # program (build_files/systemsettings.sh); the shots above show the glass.
