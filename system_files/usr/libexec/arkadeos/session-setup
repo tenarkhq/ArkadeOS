@@ -148,12 +148,9 @@ for store in steam.desktop org.arkadeos.BattleNet.desktop com.heroicgameslaunche
     has_app "${store}" && on=true || on=false
     present+="\"applications:${store}\": ${on}, "
 done
-js=$(sed "s|@PRESENT@|{${present%, }}|" /usr/share/arkadeos/dock-stores.js)
-for _ in $(seq 30); do
-    busctl --user call org.kde.plasmashell /PlasmaShell org.kde.PlasmaShell evaluateScript s "${js}" \
-        &>/dev/null && break
-    sleep 2
-done
+# Once the desktop has loaded its taskbar (plasma-script): sooner, the
+# script finds no dock and changes nothing.
+sed "s|@PRESENT@|{${present%, }}|" /usr/share/arkadeos/dock-stores.js | /usr/libexec/arkadeos/plasma-script - >/dev/null || true
 
 # KDE often writes the places file at the first login while this runs, and the
 # path unit does not start a run that is still going: try once more, after

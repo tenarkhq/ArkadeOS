@@ -4,3 +4,14 @@ NNN-what-it-does.sh, sourced in bash with set_default and replace_app
 available (see migrate). A new user gets the new defaults from /etc/xdg anyway,
 so a step only has to bring an existing user from the old default to the new
 one, and must leave alone what the user changed.
+
+A step that scripts the desktop goes through /usr/libexec/arkadeos/plasma-script,
+never straight to PlasmaShell.evaluateScript: Plasma answers before it has
+loaded its taskbar, and a script run then changes nothing yet succeeds
+(steps 008 and 010 on Roland's laptop, 2026-11-15).
+
+early/: steps run before the desktop starts (migrate --early,
+arkadeos-migrate-early.service), on the setting files themselves. A widget
+or anything else the desktop loads leaves the image only together with an
+early step that takes it out of the users' files, so the desktop never
+loads it broken.

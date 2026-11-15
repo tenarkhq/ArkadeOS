@@ -25,12 +25,6 @@ if [[ "$(gsettings get org.gnome.desktop.interface gtk-theme 2>/dev/null)" == "'
     gsettings set org.gnome.desktop.interface icon-theme breeze
     gsettings set org.gnome.desktop.interface cursor-theme breeze_cursors
 fi
-# The desktop must be running: until it answers, the step fails and runs
-# again at the next login.
-js=$(cat /usr/share/arkadeos/taskbar.js)
-for _ in $(seq 30); do
-    busctl --user call org.kde.plasmashell /PlasmaShell org.kde.PlasmaShell evaluateScript s "${js}" \
-        &>/dev/null && exit 0
-    sleep 2
-done
-exit 1
+# Once the desktop has loaded its taskbar (plasma-script); until then the
+# step fails and runs again at the next login.
+/usr/libexec/arkadeos/plasma-script /usr/share/arkadeos/taskbar.js >/dev/null

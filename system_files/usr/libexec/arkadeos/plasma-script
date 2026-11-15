@@ -1,0 +1,25 @@
+#!/usr/bin/bash
+# Runs a Plasma desktop script (PlasmaShell.evaluateScript) once Plasma has
+# loaded its taskbar and desktop, and prints what the script prints.
+#   plasma-script FILE      or      ... | plasma-script -
+# Plasma answers on D-Bus as soon as it starts, before it has loaded its
+# layout. A script run in that moment finds no panel, changes nothing, and
+# still succeeds: update step 008 left Roland's old taskbar as it was that
+# way, and step 010 left the capsule on it, both counted as done
+# (2026-11-15). This waits until the desktop's containments are there (they
+# load with the panels), up to a minute, and fails if they never come.
+set -uo pipefail
+
+js=$(cat "${1:--}")
+for _ in $(seq 30); do
+    if out=$(busctl --user call org.kde.plasmashell /PlasmaShell org.kde.PlasmaShell evaluateScript s \
+            "if (desktops().length == 0) { print('arkadeos-plasma-not-loaded'); } else {
+${js}
+}" 2>/dev/null) && [[ "${out}" != *arkadeos-plasma-not-loaded* ]]; then
+        printf '%s\n' "${out}"
+        exit 0
+    fi
+    sleep 2
+done
+echo "plasma-script: Plasma did not load its taskbar and desktop within a minute" >&2
+exit 1

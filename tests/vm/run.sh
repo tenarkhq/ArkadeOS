@@ -259,13 +259,14 @@ taskbar=$(base64 -w0 "$(dirname "$0")/taskbar.py")
 ssh_vm "echo ${taskbar} | base64 -d | python3 - ${home}/plasma-org.kde.plasma.desktop-appletsrc ${home}/plasmashellrc;
     cat ${home}/plasma-org.kde.plasma.desktop-appletsrc" > "${out}/taskbar-check.txt" 2>&1 || true
 check "one glass taskbar, the ArkadeOS mark first, the apps in the middle, Portal on it" "echo ${taskbar} | base64 -d | python3 - ${home}/plasma-org.kde.plasma.desktop-appletsrc ${home}/plasmashellrc"
-# Roland, 2026-11-15: after the update the capsule's place stayed on his
-# taskbar as an error, its package gone from the image (step 010 had run
-# before Plasma loaded the panels). A missing widget's placeholder, as Plasma
-# makes it, is found by its name and leaves with update step 012.
-check "a missing widget's error placeholder leaves the taskbar (update step 012)" "${session} busctl --user call org.kde.plasmashell /PlasmaShell org.kde.PlasmaShell evaluateScript s 'var n = 0; panels().forEach(function (p) { if (p.widgets(\"org.kde.plasma.icontasks\").length > 0) p.addWidget(\"org.arkadeos.capsule\"); n += p.widgets(\"org.arkadeos.capsule\").length }); print(\"added=\" + n)' | grep -q 'added=[1-9]' &&
-    ${session} bash -c 'cfg=\$HOME/.config; source /usr/share/arkadeos/migrations/012-capsule-gone-for-good.sh' &&
-    ${session} busctl --user call org.kde.plasmashell /PlasmaShell org.kde.PlasmaShell evaluateScript s 'var n = 0; panels().forEach(function (p) { n += p.widgets(\"org.arkadeos.capsule\").length }); print(\"left=\" + n)' | grep -q 'left=0'"
+# Roland, 2026-11-15: steps that script the desktop ran before Plasma had
+# loaded its taskbar, changed nothing and counted as done (step 008 left his
+# old taskbar, step 010 the capsule). plasma-script waits: right after a
+# restart of the desktop it still sees the taskbar.
+check "desktop scripts wait until Plasma has loaded its taskbar (plasma-script)" "${session} systemctl --user restart plasma-plasmashell.service &&
+    echo 'print(\"panels=\" + panels().length)' | ${session} /usr/libexec/arkadeos/plasma-script - | grep -q 'panels=[1-9]' &&
+    ! grep -rl 'busctl.*evaluateScript' /usr/share/arkadeos/migrations /usr/libexec/arkadeos/session-setup /usr/bin/arkadeos-webapp"
+sleep 10
 # Roland, 2026-11-15: "elég béna megoldás h megjelenik a hibás ikon és utána
 # tűnik el". Steps on the desktop's own files run before plasmashell starts
 # (migrate --early): a gone widget leaves the layout file, its order too.

@@ -18,7 +18,7 @@ dock() {  # $1 add|remove, $2 desktop file name
         var s = 'applications:$2', i = l.indexOf(s);
         if ('$1' === 'add' && i < 0) l.push(s); else if ('$1' === 'remove' && i >= 0) l.splice(i, 1); else return;
         w.writeConfig('launchers', l); w.reloadConfig() }) })"
-    busctl --user call org.kde.plasmashell /PlasmaShell org.kde.PlasmaShell evaluateScript s "${js}" >/dev/null || true
+    printf '%s' "${js}" | /usr/libexec/arkadeos/plasma-script - >/dev/null || true
 }
 
 add() {

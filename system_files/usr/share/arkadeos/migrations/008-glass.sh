@@ -15,22 +15,13 @@ case "${lnf}" in
             kwriteconfig6 --file kdeglobals --group KDE --key AutomaticLookAndFeel --delete
         fi ;;
 esac
-# The desktop must be running: until it answers, the step fails and runs
-# again at the next login.
-js=$(cat /usr/share/arkadeos/glass-taskbar.js)
-tray=$(cat /usr/share/arkadeos/glass-tray.js)
-for _ in $(seq 30); do
-    if busctl --user call org.kde.plasmashell /PlasmaShell org.kde.PlasmaShell evaluateScript s "${js}" &>/dev/null; then
-        # The tray's spacing (glass-tray.js says "wait" while an older
-        # Plasma's inner tray is not there yet); without it the bar still
-        # counts as done.
-        for _ in $(seq 15); do
-            out=$(busctl --user call org.kde.plasmashell /PlasmaShell org.kde.PlasmaShell evaluateScript s "${tray}" 2>/dev/null) &&
-                [[ "${out}" != *wait* ]] && break
-            sleep 2
-        done
-        exit 0
-    fi
+# Once the desktop has loaded its taskbar (plasma-script); until then the
+# step fails and runs again at the next login.
+/usr/libexec/arkadeos/plasma-script /usr/share/arkadeos/glass-taskbar.js >/dev/null || exit 1
+# The tray's spacing (glass-tray.js says "wait" while an older Plasma's inner
+# tray is not there yet); without it the bar still counts as done.
+for _ in $(seq 15); do
+    out=$(/usr/libexec/arkadeos/plasma-script /usr/share/arkadeos/glass-tray.js) && [[ "${out}" != *wait* ]] && break
     sleep 2
 done
-exit 1
+exit 0
