@@ -59,6 +59,33 @@ PY
     fi
 fi
 
+# OpenRGB's tray icon (Glass audit 6): its own "Monochrome Tray Icon"
+# setting, once per user, before OpenRGB runs: a light bulb with a dark rim
+# instead of the rainbow one, readable on the dark and the light glass. The
+# icon is a picture inside OpenRGB, so no icon theme can draw it; the user
+# can switch it back in OpenRGB's settings and it stays.
+openrgb_done="${XDG_STATE_HOME:-${HOME}/.local/state}/arkadeos/openrgb-tray-icon"
+openrgb_conf="${XDG_CONFIG_HOME:-${HOME}/.config}/OpenRGB/OpenRGB.json"
+if [[ ! -e "${openrgb_done}" ]] && command -v openrgb >/dev/null &&
+    ! pgrep -u "$(id -u)" -x openrgb >/dev/null; then
+    mkdir -p "$(dirname "${openrgb_conf}")"
+    if python3 -I - "${openrgb_conf}" <<'PY'
+import json, os, sys
+p = sys.argv[1]
+d = {}
+if os.path.exists(p):
+    with open(p) as f:
+        d = json.load(f)
+d.setdefault("UserInterface", {})["monochrome_tray_icon"] = True
+with open(p + ".arkadeos", "w") as f:
+    json.dump(d, f, indent=4)
+os.replace(p + ".arkadeos", p)
+PY
+    then
+        mkdir -p "$(dirname "${openrgb_done}")" && touch "${openrgb_done}"
+    fi
+fi
+
 # ArkadeOS Glass for the GTK3 and GTK4 apps (Glass audit 4 and 5): the image's
 # stylesheets, kept current at every login, imported last in gtk.css so they
 # come after kde-gtk-config's colours and window buttons.
