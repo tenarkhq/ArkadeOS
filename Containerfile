@@ -78,11 +78,23 @@ RUN --mount=type=bind,source=build_files/darkly.sh,target=/ctx/darkly.sh \
     --mount=type=tmpfs,dst=/tmp \
     /ctx/darkly.sh /out
 
+# System Settings with the see-through sidebar of ArkadeOS Glass (T086):
+# rebuilt from the image's own source package with ArkadeOS's patch; only the
+# program leaves the stage.
+FROM packages AS systemsettings
+RUN --mount=type=bind,source=build_files/systemsettings.sh,target=/ctx/systemsettings.sh \
+    --mount=type=bind,source=build_files/stage.sh,target=/ctx/stage.sh \
+    --mount=type=bind,source=build_files/patches/systemsettings-glass-sidebar.patch,target=/ctx/patches/systemsettings-glass-sidebar.patch \
+    --mount=type=cache,dst=/var/cache \
+    --mount=type=tmpfs,dst=/tmp \
+    /ctx/systemsettings.sh /out
+
 FROM packages
 COPY --from=proton /out/ /
 COPY --from=initramfs /out/ /
 COPY --from=blur /out/ /
 COPY --from=darkly /out/ /
+COPY --from=systemsettings /out/ /
 
 ARG IMAGE_NAME=arkadeos
 ARG IMAGE_VENDOR=tenarkhq

@@ -1,0 +1,62 @@
+diff --git a/app/SidebarMode.cpp b/app/SidebarMode.cpp
+index d1e8728..b58ee1c 100644
+--- a/app/SidebarMode.cpp
++++ b/app/SidebarMode.cpp
+@@ -597,6 +597,11 @@ void SidebarMode::initWidget()
+     d->quickWidget = new QQuickWidget(d->engine.get(), d->mainWidget);
+     d->quickWidget->quickWindow()->setTitle(i18n("Sidebar"));
+     d->quickWidget->setResizeMode(QQuickWidget::SizeRootObjectToView);
++    // ArkadeOS Glass: the sidebar is drawn on top of the window's own
++    // see-through background (the Darkly style, blurred behind by KWin), so
++    // it shows the glass as Dolphin's sidebar does; the pages stay solid.
++    d->quickWidget->setAttribute(Qt::WA_AlwaysStackOnTop, true);
++    d->quickWidget->setClearColor(Qt::transparent);
+ 
+     d->quickWidget->rootContext()->setContextProperty(QStringLiteral("systemsettings"), this);
+ 
+diff --git a/app/qml/CategoriesPage.qml b/app/qml/CategoriesPage.qml
+index 9a6dd1d..e121780 100644
+--- a/app/qml/CategoriesPage.qml
++++ b/app/qml/CategoriesPage.qml
+@@ -16,8 +16,10 @@ Kirigami.ScrollablePage {
+     id: mainColumn
+     readonly property bool searchMode: searchField.text.length > 0
+ 
+-    Kirigami.Theme.colorSet: Kirigami.Theme.View
++    // ArkadeOS Glass: the list on the window's glass, not on a solid view.
++    Kirigami.Theme.colorSet: Kirigami.Theme.Window
+     Kirigami.Theme.inherit: false
++    background: Item {}
+ 
+     header: Kirigami.AbstractApplicationHeader {
+         id: pageHeader
+diff --git a/app/qml/SideBarItem.qml b/app/qml/SideBarItem.qml
+index 4aa7042..15f241d 100644
+--- a/app/qml/SideBarItem.qml
++++ b/app/qml/SideBarItem.qml
+@@ -12,6 +12,9 @@ import org.kde.kirigami 2.20 as Kirigami
+ Kirigami.ApplicationItem {
+     id: root
+ 
++    // ArkadeOS Glass: no background of its own, the window's glass shows.
++    color: "transparent"
++
+     implicitWidth: wideScreen ? Kirigami.Units.gridUnit * 30 :  Kirigami.Units.gridUnit * 15
+     wideScreen: pageStack.depth > 1 && systemsettings.width > Kirigami.Units.gridUnit * 70
+ 
+diff --git a/app/qml/SubCategoryPage.qml b/app/qml/SubCategoryPage.qml
+index c8e1243..37a599c 100644
+--- a/app/qml/SubCategoryPage.qml
++++ b/app/qml/SubCategoryPage.qml
+@@ -18,8 +18,10 @@ Kirigami.ScrollablePage {
+     id: subCategoryColumn
+     title: systemsettings.subCategoryModel.title
+ 
+-    Kirigami.Theme.colorSet: Kirigami.Theme.View
++    // ArkadeOS Glass: the list on the window's glass, not on a solid view.
++    Kirigami.Theme.colorSet: Kirigami.Theme.Window
+     Kirigami.Theme.inherit: false
++    background: Item {}
+ 
+     header: Kirigami.AbstractApplicationHeader {
+         id: pageHeader
