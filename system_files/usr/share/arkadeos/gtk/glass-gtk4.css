@@ -6,8 +6,8 @@
    ArkadeOS Glass colour scheme), so the day/night switch restyles the apps
    too. As in KDE's windows, the header bar is the sky-blue glass, the
    sidebars and the window a neutral smoke (KDE's window colour), both at
-   55 % over the blur behind; lists, text and cards keep their own solid
-   colours. */
+   55 % over the blur behind; the content under the header (the end of this
+   file), lists, text and cards are solid. */
 @import 'colors.css';
 
 :root {
@@ -41,4 +41,16 @@ windowcontrols > button.close {
 }
 windowcontrols > button.close:hover {
   background: linear-gradient(to bottom, #ff7d8a, #e0485b);
+}
+
+/* The content is solid, as in KDE's windows (a file list, a page of
+   settings): the window's own colour under a toolbar view's content, so
+   nothing of the windows behind shows through it (Glass audit, the store
+   window: Bazaar's pages sat on the 55 % smoke). The header bar above it and
+   the sidebars keep the glass. */
+toolbarview > :not(.top-bar):not(.bottom-bar) {
+  background-color: @theme_bg_color_breeze;
+}
+.sidebar-pane toolbarview > :not(.top-bar):not(.bottom-bar) {
+  background-color: transparent;
 }
