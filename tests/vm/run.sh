@@ -227,7 +227,7 @@ step "look"
 check "ArkadeOS Glass in the ArkadeOS global theme" "grep -qE '^org\.arkadeos\.(light|dark)\.desktop' ${home}/kdedefaults/package &&
     grep -qE '^ColorScheme=ArkadeOSGlass(Light|Dark)$' ${home}/kdedefaults/kdeglobals &&
     grep -qx widgetStyle=Darkly ${home}/kdedefaults/kdeglobals &&
-    test -f /usr/lib64/qt6/plugins/styles/darkly6.so &&
+    test -f /usr/lib64/qt6/plugins/styles/darkly6.so && test -f /usr/lib64/qt5/plugins/styles/darkly5.so &&
     grep -qE '^theme=__aurorae__svg__ArkadeOS-Glass-(Light|Dark)$' ${home}/kdedefaults/kwinrc &&
     grep -qE '^name=arkadeos-glass-(light|dark)$' ${home}/kdedefaults/plasmarc &&
     grep -qE '^Theme=arkadeos-glass(-dark)?$' ${home}/kdedefaults/kdeglobals &&
@@ -380,6 +380,11 @@ sleep 12
 shot app-filelight
 check "Filelight opens" "pgrep -u arkade -f '^/usr/bin/[f]ilelight' >/dev/null"
 ssh_vm "pkill -u arkade -f filelight" || true
+# Glass audit 10: OpenRGB (Qt 5) in Darkly like the Qt 6 windows.
+ssh_vm "nohup ${session} openrgb >/tmp/openrgb.log 2>&1 &" || true
+sleep 15
+shot app-openrgb
+ssh_vm "pkill -u arkade -x openrgb" || true
 # The store (Bazaar, GTK 4) beside the glass system, for the Glass audit; it
 # loads Flathub's list first, so the picture comes late. Only a picture.
 ssh_vm "nohup ${session} bazaar-daemon >/dev/null 2>&1 &" || true
