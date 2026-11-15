@@ -638,10 +638,6 @@ check "laptop: Akku back to Balanced on the charger, once" 'ARKADEOS_POWER_SUPPL
     arkadeos-power status | grep -qx profile=balanced && /usr/libexec/arkadeos/power-set battery &&
     ARKADEOS_POWER_SUPPLY=/tmp/ps/laptop ARKADEOS_POWER_STATE=/tmp/ps/laptop.state ARKADEOS_POWER_WAIT=0 /usr/libexec/arkadeos/power-ac &&
     arkadeos-power status | grep -qx profile=battery'
-ssh_vm '/usr/libexec/arkadeos/power-set balanced' || true
-# T050: the switch reads the profile when it changes, not every three seconds.
-# A stand-in in front of arkadeos-power notes who asks for the status; the
-# test's own questions come from runuser.
 # Roland, 2026-11-15: Akku at every login on the charger came from Plasma's
 # "on the charger: Power Save" in his settings; update step 011 removes it and
 # puts the profile back to Balanced.
@@ -651,6 +647,10 @@ check "Plasma's 'Power Save on the charger' removed, Balanced back (update step 
     (cfg=/tmp/m11; source /usr/share/arkadeos/migrations/011-no-akku-on-charger.sh) &&
     ! grep -q power-saver /tmp/m11/powerdevilrc && grep -q AutoSuspendAction=0 /tmp/m11/powerdevilrc &&
     arkadeos-power status | grep -qx profile=balanced'
+ssh_vm '/usr/libexec/arkadeos/power-set balanced' || true
+# T050: the switch reads the profile when it changes, not every three seconds.
+# A stand-in in front of arkadeos-power notes who asks for the status; the
+# test's own questions come from runuser.
 ssh_vm 'printf "%s\n" "#!/usr/bin/bash" \
     "[[ \"\$1\" == status ]] && echo \"\$(date +%s) \$(cat /proc/\$PPID/comm)\" >> /tmp/power-status.log" \
     "exec /usr/bin/arkadeos-power \"\$@\"" > /usr/local/bin/arkadeos-power && chmod +x /usr/local/bin/arkadeos-power'
@@ -850,6 +850,14 @@ fi # games
 
 if want apps; then
 step "apps"
+# Roland, 2026-11-15: a paste into the terminal broke on ^[[200~, the prompt
+# showed /var/home/<user> instead of ~, the Windows partition was "Basic data
+# partition", and Dolphin's "Create missing folder" was in English.
+check "terminal: paste as text, ~ in the prompt" "grep -qx 'set enable-bracketed-paste on' /etc/inputrc &&
+    test \"\$(${session} bash -ic 'cd /var/home/arkade && . /etc/profile.d/arkadeos-home.sh && pwd' 2>/dev/null | tail -1)\" = \"\$(${session} printenv HOME)\""
+check "Windows partition named Windows" "udevadm verify /usr/lib/udev/rules.d/90-arkadeos-windows-name.rules >/dev/null &&
+    grep -q 'UDISKS_NAME}=\"Windows\"' /usr/lib/udev/rules.d/90-arkadeos-windows-name.rules"
+check "Dolphin's Create missing folder in Hungarian" "msgunfmt /usr/share/locale/hu/LC_MESSAGES/dolphin.mo | grep -qx 'msgstr \"Hiányzó mappa létrehozása\"'"
 # T014: Battle.net on the image's GE-Proton, its installer reachable.
 check "Battle.net launcher on GE-Proton" "${session} arkadeos-battlenet --check | grep -q '^proton=.*GE-Proton'"
 check "Battle.net installer reachable" "curl -fsSL -o /dev/null -r 0-0 \"\$(grep -o 'https://downloader[^\"]*' /usr/bin/arkadeos-store)\""

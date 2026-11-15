@@ -1,0 +1,5 @@
+# ArkadeOS: the Windows partition beside ArkadeOS is called "Windows" in
+# Dolphin and the file dialogs, not by its GPT name "Basic data partition"
+# (Roland, 2026-11-15). Only an NTFS partition with no label of its own and
+# Windows' default partition name; a labelled drive keeps its label.
+SUBSYSTEM=="block", ENV{ID_FS_TYPE}=="ntfs", ENV{ID_FS_LABEL}=="", ENV{ID_PART_ENTRY_NAME}=="Basic data partition", ENV{UDISKS_NAME}="Windows"
