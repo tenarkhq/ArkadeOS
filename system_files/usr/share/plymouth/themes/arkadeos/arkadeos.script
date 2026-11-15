@@ -687,16 +687,32 @@ for (k = 0; k < 6; k++) {
     glint_s[k] = Sprite(glint_img[0]);
     glint_s[k].SetOpacity(0);
 }
+# The flash and the flares in all their sizes made here, once: scaled anew in
+# every frame, the ignition's frames were the heaviest of the opening, and
+# they come while the machine moves from the boot image to the system, its
+# busiest second; the animation caught there (Roland, 2026-11-15: "boot
+# animacio egy kicsit bereccen").
+FLASH_N = 24; FLASH_LO = 0.1; FLASH_HI = 2.6;
+FLARE_N = 16; FLARE_HI = 1.2;
 flash_base = load("flash");
-flash_s = Sprite(flash_base);
+for (j = 0; j < FLASH_N; j++) {
+    flash_k = (FLASH_LO + (FLASH_HI - FLASH_LO) * j / (FLASH_N - 1)) / FLASH_HI;
+    flash_img[j] = flash_base.Scale(Math.Max(1, Math.Int(flash_base.GetWidth() * flash_k)), Math.Max(1, Math.Int(flash_base.GetHeight() * flash_k)));
+}
+flash_s = Sprite(flash_img[0]);
 flash_s.SetOpacity(0);
+flash_i = -1;
 for (i = 0; i < 2; i++) {
     for (j = 0; j < SHOCK_N; j++) shock_img[i][j] = load("shock" + i + "-" + j);
     shock_s[i] = Sprite(shock_img[i][0]);
     shock_s[i].SetOpacity(0);
     flare_base[i] = load("flare" + i);
-    flare_s[i] = Sprite(flare_base[i]);
+    for (j = 0; j < FLARE_N; j++) {
+        flare_img[i][j] = flare_base[i].Scale(Math.Max(1, Math.Int(flare_base[i].GetWidth() * FLARE_HI * (j + 1) / FLARE_N)), flare_base[i].GetHeight());
+    }
+    flare_s[i] = Sprite(flare_img[i][0]);
     flare_s[i].SetOpacity(0);
+    flare_i[i] = -1;
 }
 word = layer("word", 24);
 dialog_on = 0;
@@ -874,8 +890,12 @@ fun refresh() {
     f = track("flash", 0, t);
     if (f.o <= 0) flash_s.SetOpacity(0);
     else {
-        flash_s.SetImage(flash_base.Scale(Math.Max(1, Math.Int(flash_base.GetWidth() * f.s / 2.6)), Math.Max(1, Math.Int(flash_base.GetHeight() * f.s / 2.6))));
-        at(flash_s, spr["flash"].x, spr["flash"].y, 21);
+        j = Math.Clamp(Math.Int((f.s - FLASH_LO) / (FLASH_HI - FLASH_LO) * (FLASH_N - 1) + 0.5), 0, FLASH_N - 1);
+        if (j != flash_i) {
+            flash_s.SetImage(flash_img[j]);
+            at(flash_s, spr["flash"].x, spr["flash"].y, 21);
+            global.flash_i = j;
+        }
         flash_s.SetOpacity(f.o);
     }
     for (i = 0; i < 2; i++) {
@@ -890,8 +910,12 @@ fun refresh() {
         f = track("flare", i, t);
         if (f.o <= 0 || f.s < 0.01) flare_s[i].SetOpacity(0);
         else {
-            flare_s[i].SetImage(flare_base[i].Scale(Math.Max(1, Math.Int(flare_base[i].GetWidth() * f.s)), flare_base[i].GetHeight()));
-            at(flare_s[i], spr["flare" + i].x, spr["flare" + i].y, 23);
+            j = Math.Clamp(Math.Int(f.s / FLARE_HI * FLARE_N + 0.5) - 1, 0, FLARE_N - 1);
+            if (j != flare_i[i]) {
+                flare_s[i].SetImage(flare_img[i][j]);
+                at(flare_s[i], spr["flare" + i].x, spr["flare" + i].y, 23);
+                global.flare_i[i] = j;
+            }
             flare_s[i].SetOpacity(f.o);
         }
     }
