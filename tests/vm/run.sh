@@ -638,6 +638,15 @@ ssh_vm '/usr/libexec/arkadeos/power-set balanced' || true
 # T050: the switch reads the profile when it changes, not every three seconds.
 # A stand-in in front of arkadeos-power notes who asks for the status; the
 # test's own questions come from runuser.
+# Roland, 2026-11-15: Akku at every login on the charger came from Plasma's
+# "on the charger: Power Save" in his settings; update step 011 removes it and
+# puts the profile back to Balanced.
+check "Plasma's 'Power Save on the charger' removed, Balanced back (update step 011)" 'mkdir -p /tmp/m11 &&
+    printf "[AC][Performance]\nPowerProfile=power-saver\n[AC][SuspendAndShutdown]\nAutoSuspendAction=0\n" > /tmp/m11/powerdevilrc &&
+    /usr/libexec/arkadeos/power-set battery &&
+    (cfg=/tmp/m11; source /usr/share/arkadeos/migrations/011-no-akku-on-charger.sh) &&
+    ! grep -q power-saver /tmp/m11/powerdevilrc && grep -q AutoSuspendAction=0 /tmp/m11/powerdevilrc &&
+    arkadeos-power status | grep -qx profile=balanced'
 ssh_vm 'printf "%s\n" "#!/usr/bin/bash" \
     "[[ \"\$1\" == status ]] && echo \"\$(date +%s) \$(cat /proc/\$PPID/comm)\" >> /tmp/power-status.log" \
     "exec /usr/bin/arkadeos-power \"\$@\"" > /usr/local/bin/arkadeos-power && chmod +x /usr/local/bin/arkadeos-power'
