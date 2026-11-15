@@ -100,7 +100,8 @@ for _ in $(seq 30); do
         test -e /home/arkade/.local/state/arkadeos/migrations/008-glass.sh &&
         test -e /home/arkade/.local/state/arkadeos/migrations/009-darkly.sh &&
         test -e /home/arkade/.local/state/arkadeos/migrations/011-no-akku-on-charger.sh &&
-        test -e /home/arkade/.local/state/arkadeos/migrations/012-capsule-gone-for-good.sh' && break
+        test -e /home/arkade/.local/state/arkadeos/migrations/012-capsule-gone-for-good.sh &&
+        test -e /home/arkade/.local/state/arkadeos/migrations/early-001-widgets-gone-from-the-image.sh' && break
     sleep 5
 done
 sleep 15

@@ -11,6 +11,16 @@ set -uo pipefail
 
 dir=${ARKADEOS_MIGRATIONS:-/usr/share/arkadeos/migrations}
 state="${XDG_STATE_HOME:-${HOME}/.local/state}/arkadeos/migrations"
+# --early: the steps in early/ run before the desktop starts
+# (arkadeos-migrate-early.service), for changes the desktop must not show
+# half done, such as a widget whose package has left the image (Roland,
+# 2026-11-15: "elég béna megoldás h megjelenik a hibás ikon és utána tűnik
+# el"). They change the setting files directly.
+mark=""
+if [[ "${1:-}" == --early ]]; then
+    dir="${dir}/early"
+    mark="early-"
+fi
 mkdir -p "${state}"
 cfg="${XDG_CONFIG_HOME:-${HOME}/.config}"
 
@@ -32,10 +42,10 @@ replace_app() {
 for step in "${dir}"/[0-9][0-9][0-9]-*.sh; do
     [[ -f "${step}" ]] || continue
     name=$(basename "${step}")
-    [[ -e "${state}/${name}" ]] && continue
+    [[ -e "${state}/${mark}${name}" ]] && continue
     # shellcheck source=/dev/null
     if ( source "${step}" ); then
-        touch "${state}/${name}"
+        touch "${state}/${mark}${name}"
     else
         echo "migration ${name} failed; it runs again at the next login" >&2
     fi

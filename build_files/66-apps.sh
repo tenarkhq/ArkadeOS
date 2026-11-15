@@ -6,6 +6,8 @@ set -euo pipefail
 
 systemctl enable arkadeos-apps.service
 systemctl --global enable arkadeos-session-setup.service arkadeos-session-setup.path
+# Update steps that must be done before the desktop starts (migrate --early).
+systemctl --global enable arkadeos-migrate-early.service
 # T072: new Claude and Codex Desktop versions offered in a notification.
 systemctl --global enable arkadeos-ai-update.timer
 desktop-file-validate /usr/share/applications/org.arkadeos.BattleNet.desktop \

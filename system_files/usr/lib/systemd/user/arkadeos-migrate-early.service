@@ -1,0 +1,13 @@
+[Unit]
+Description=ArkadeOS: update steps that must be done before the desktop starts
+# The taskbar and desktop read their settings when plasmashell starts; these
+# steps change those files first, so nothing half done is ever shown.
+Before=plasma-plasmashell.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/libexec/arkadeos/migrate --early
+TimeoutStartSec=30
+
+[Install]
+WantedBy=plasma-core.target

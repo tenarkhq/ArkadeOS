@@ -266,6 +266,16 @@ check "one glass taskbar, the ArkadeOS mark first, the apps in the middle, Porta
 check "a missing widget's error placeholder leaves the taskbar (update step 012)" "${session} busctl --user call org.kde.plasmashell /PlasmaShell org.kde.PlasmaShell evaluateScript s 'var n = 0; panels().forEach(function (p) { if (p.widgets(\"org.kde.plasma.icontasks\").length > 0) p.addWidget(\"org.arkadeos.capsule\"); n += p.widgets(\"org.arkadeos.capsule\").length }); print(\"added=\" + n)' | grep -q 'added=[1-9]' &&
     ${session} bash -c 'cfg=\$HOME/.config; source /usr/share/arkadeos/migrations/012-capsule-gone-for-good.sh' &&
     ${session} busctl --user call org.kde.plasmashell /PlasmaShell org.kde.PlasmaShell evaluateScript s 'var n = 0; panels().forEach(function (p) { n += p.widgets(\"org.arkadeos.capsule\").length }); print(\"left=\" + n)' | grep -q 'left=0'"
+# Roland, 2026-11-15: "elég béna megoldás h megjelenik a hibás ikon és utána
+# tűnik el". Steps on the desktop's own files run before plasmashell starts
+# (migrate --early): a gone widget leaves the layout file, its order too.
+check "early update steps run before the desktop starts, gone widgets leave the layout file" "${session} systemctl --user show arkadeos-migrate-early.service -p Before | grep -q plasma-plasmashell.service &&
+    test -e /home/arkade/.local/state/arkadeos/migrations/early-001-widgets-gone-from-the-image.sh &&
+    cp ${home}/plasma-org.kde.plasma.desktop-appletsrc /tmp/early.rc &&
+    printf '\\n[Containments][990][Applets][991]\\nplugin=org.arkadeos.capsule\\n\\n[Containments][990][Applets][991][Configuration]\\nPreloadWeight=0\\n\\n[Containments][990][General]\\nAppletOrder=991;992\\n' >> /tmp/early.rc &&
+    /usr/libexec/arkadeos/applets-remove /tmp/early.rc org.arkadeos.capsule >/dev/null &&
+    ! grep -q -e org.arkadeos.capsule -e 'Applets.\\[991' /tmp/early.rc && grep -qx 'AppletOrder=992' /tmp/early.rc &&
+    grep -q org.kde.plasma.icontasks /tmp/early.rc"
 # The tray's own icons (T086, Roland, 2026-11-13: "nem lehet újat rajzolni
 # azoknak?"): both ArkadeOS Glass icon themes have them on top of Breeze,
 # the power switch's among them (Adwaita's names showed a blank page).
