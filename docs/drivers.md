@@ -20,7 +20,7 @@ update ever drops one, the build fails and the update never ships.
 | USB Wi-Fi | Realtek RTL8812AU, RTL8811AU/8821AU, RTL8822BU, RTL8814AU, RTL8852AU/BU; MediaTek MT7921AU, MT7925 |
 | Bluetooth | Intel, Realtek, MediaTek, Qualcomm |
 | Graphics | AMD Radeon RX 400 and newer (Mesa), Intel Arc and Iris Xe and newer (i915, Xe), NVIDIA GTX 16 / RTX 20 and newer; one image for all |
-| Sensors and fans | AMD and Intel processor temperature; ITE (it87), Nuvoton (nct6775, nct6687), ASUS ROG/TUF, Gigabyte mainboard sensors; fan curves in CoolerControl on desktops |
+| Sensors and fans | AMD and Intel processor temperature, AMD processor power draw (zenergy); ITE (it87), Nuvoton (nct6775, nct6687), ASUS ROG/TUF, Gigabyte mainboard sensors; fan curves in CoolerControl on desktops |
 | Controllers | Xbox (USB and Wireless Adapter), DualShock 4, DualSense, Switch Pro, Joy-Con, Steam Controller |
 | Laptop makers | ASUS (asusctl), MSI (msi-ec, MControlCenter), Lenovo Legion (LenovoLegionLinux: legion-laptop driver, built with every kernel) and IdeaPad (the kernel's Lenovo drivers) |
 | Peripherals | Razer (OpenRazer), Logitech (Solaar, Piper), RGB (OpenRGB), monitors over DDC/CI |

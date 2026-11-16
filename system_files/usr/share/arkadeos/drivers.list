@@ -43,6 +43,7 @@ i915	Intel graphics (up to Alder Lake)
 xe	Intel Arc and newer Intel graphics
 # Sensors and fans
 k10temp	AMD processor temperature
+zenergy	AMD processor power draw (watts in MangoHud, CoolerControl)
 coretemp	Intel processor temperature
 it87	ITE mainboard sensors (Gigabyte, many others)
 nct6775	Nuvoton mainboard sensors (ASUS, MSI, ASRock)
