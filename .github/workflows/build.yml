@@ -187,9 +187,22 @@ jobs:
           # them only with --external); nothing else removes them.
           podman ps -a --external --format '{{.ID}} {{.Status}}' | awk '$2 == "Storage" { print $1 }' | xargs -r podman rm -f >/dev/null || true
           # Only the next build's cache stays: the stages kept under a name
-          # (Build), the bases they stand on and the prefetched :stable base.
-          # Everything else goes at once (former builds, replaced bases): it
-          # used to stay three days, about 100 GB on the build server.
+          # (Build), the bases they stand on, this build's pinned base and the
+          # prefetched :stable base. Everything else goes at once: former
+          # builds and replaced bases, which used to stay for good (a base
+          # pulled by its digest, or an old one still tagged, never counts as
+          # unused for podman image prune; about 110 GB on the build server).
+          # podman rmi without force leaves an image that a kept one stands on.
+          pin=$(awk -v i="${IMAGE}" '$1 == i { print $2 }' bases.txt)
+          for _ in 1 2 3; do
+            for id in $(podman images -q --no-trunc | sort -u); do
+              info=" $(podman image inspect --format '{{join .RepoTags " "}} {{join .RepoDigests " "}}' "${id}") "
+              case "${info}" in
+                *" localhost/${IMAGE}-cache:"* | *"/bazzite-nvidia-open:stable "* | *"@${pin##*@} "*) continue ;;
+              esac
+              podman rmi "${id}" >/dev/null 2>&1 || true
+            done
+          done
           podman image prune -f >/dev/null || true
           echo "build server image store: ${before} before the clean-up, $(du -sh ~/.local/share/containers 2>/dev/null | cut -f1) after" >> "$GITHUB_STEP_SUMMARY"
 
