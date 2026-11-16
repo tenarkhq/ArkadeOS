@@ -34,7 +34,7 @@ trap 'rm -rf "${work}"' EXIT
     [[ -n "${extra}" ]] && cat "${extra}"
     sed "s/@TAG@/${tag}/" "${here}/arkadeos.ks"
 } > "${work}/arkadeos.ks"
-cp "${here}/buildstamp.sh" "${here}/install-progress.py" "${work}/"
+cp "${here}/buildstamp.sh" "${here}/boot-menu.sh" "${here}/install-progress.py" "${work}/"
 # The app choice (T026) lists what the image's Portal lists.
 cp -r "${here}/addon" "${work}/addon"
 mkdir -p "${work}/addon/org_arkadeos_apps/data"
@@ -42,7 +42,9 @@ cp "${here}/../system_files/usr/share/arkadeos/portal/catalog.tsv" \
     "${here}/../system_files/usr/share/arkadeos/apps.list" "${work}/addon/org_arkadeos_apps/data/"
 ls "${here}/../system_files/usr/share/applications" > "${work}/addon/org_arkadeos_apps/data/image-apps"
 
-${PODMAN:-podman} run --rm -v "${work}:/work" -v "${cache}:/cache:ro" -v "$(dirname "${out}"):/out" \
+# label=disable: on a machine with SELinux (Fedora, ArkadeOS itself) the
+# container could not use the folders it is given otherwise.
+${PODMAN:-podman} run --rm --security-opt label=disable -v "${work}:/work" -v "${cache}:/cache:ro" -v "$(dirname "${out}"):/out" \
     "registry.fedoraproject.org/fedora:${fedora}" bash -euo pipefail -c "
     dnf -y -q install lorax xorriso squashfs-tools cpio mtools >/dev/null 2>&1
     cd /work
@@ -51,12 +53,13 @@ ${PODMAN:-podman} run --rm -v "${work}:/work" -v "${cache}:/cache:ro" -v "$(dirn
     mkdir -p /work/tmp
     mkksiso --tmp /work/tmp --skip-mkefiboot --ks arkadeos.ks --updates updates.img \
         -c \"${ISO_CMDLINE}\" -V ArkadeOS /cache/${netinst} /work/stage.iso
-    # Boot menus: ArkadeOS instead of Fedora (UEFI and BIOS).
+    # Boot menus: ArkadeOS instead of Fedora, and the channel to install
+    # (UEFI and BIOS).
     for cfg in EFI/BOOT/grub.cfg boot/grub2/grub.cfg; do
         mkdir -p \$(dirname \$cfg)
         xorriso -osirrox on -indev /work/stage.iso -extract /\$cfg \$cfg >/dev/null 2>&1 || continue
         chmod u+w \$cfg
-        sed -i 's/Fedora 44/ArkadeOS/g; s/Fedora/ArkadeOS/g' \$cfg
+        bash boot-menu.sh \$cfg ${tag}
         if [ \"${ISO_AUTOBOOT:-}\" = 1 ]; then
             sed -i 's/^set default=.*/set default=\"0\"/; s/^set timeout=.*/set timeout=1/' \$cfg
         fi
