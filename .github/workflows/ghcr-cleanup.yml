@@ -1,0 +1,32 @@
+name: GHCR clean-up
+# Removes the images that only a branch build's tag points at (branch-<sha>,
+# build.yml): they were only for that build's VM test. The base-update
+# branch's current build stays, as its VM test may still run again. Started
+# by hand (Roland, 2026-11-16).
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  clean:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Branch-only images
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          keep=$(gh api "repos/${GITHUB_REPOSITORY}/branches/base-update" --jq .commit.sha 2>/dev/null || true)
+          for pkg in arkadeos arkadeos-nvidia; do
+            n=0
+            for id in $(gh api --paginate "orgs/${GITHUB_REPOSITORY_OWNER}/packages/container/${pkg}/versions?per_page=100" \
+                --jq ".[] | select((.metadata.container.tags | length) > 0
+                  and all(.metadata.container.tags[]; startswith(\"branch-\"))
+                  and (.metadata.container.tags | index(\"branch-${keep}\") | not)) | .id"); do
+              gh api -X DELETE "orgs/${GITHUB_REPOSITORY_OWNER}/packages/container/${pkg}/versions/${id}"
+              n=$((n + 1))
+            done
+            echo "${pkg}: ${n} branch-only images removed" >> "$GITHUB_STEP_SUMMARY"
+          done
