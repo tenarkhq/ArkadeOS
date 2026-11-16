@@ -12,6 +12,9 @@ lnf=$(kreadconfig6 --file kdeglobals --group KDE --key LookAndFeelPackage)
 case "${lnf}" in
     org.arkadeos.light.desktop | org.arkadeos.dark.desktop | "")
         plasma-apply-lookandfeel -a org.arkadeos.dark.desktop >/dev/null || exit 1
-        kwriteconfig6 --file kdeglobals --group KDE --key AutomaticLookAndFeel --delete ;;
+        # The line is taken out of the file: kwriteconfig6 --delete would
+        # write AutomaticLookAndFeel[$d] instead, which hides the image's
+        # value too (the key then reads empty, not false).
+        sed -i '/^\[KDE\]$/,/^\[/{/^AutomaticLookAndFeel\(\[\$[a-z]\]\)\?\(=\|$\)/d}' "${cfg}" ;;
 esac
 exit 0
