@@ -7,10 +7,14 @@ smallestReadableFont=Inter,8,-1,5,50,0,0,0,0,0
 toolBarFont=Inter,9,-1,5,50,0,0,0,0,0
 
 [KDE]
-LookAndFeelPackage=org.arkadeos.light.desktop
+# ArkadeOS Dark by default, without the day/night switch (Roland, 2026-11-16:
+# „ez legyen a default. alapba nincs automata váltás sötét és világos
+# között”, „sötét a default”). The light and dark pair stays named for whoever
+# turns the switch on in System Settings.
+LookAndFeelPackage=org.arkadeos.dark.desktop
 DefaultLightLookAndFeel=org.arkadeos.light.desktop
 DefaultDarkLookAndFeel=org.arkadeos.dark.desktop
-AutomaticLookAndFeel=true
+AutomaticLookAndFeel=false
 # Animations one step faster than Plasma's: quicker, still pleasant to watch
 # (Roland, 2026-11-01).
 AnimationDurationFactor=0.5

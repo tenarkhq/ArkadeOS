@@ -1255,10 +1255,10 @@ def config(name, group, key):
 
 
 def wait_for_look():
-    """On the first login the Plasma look is not final yet when the Portal
-    starts: the session opens with the image's default (light) look, and
-    Plasma's automatic light/dark switch (a kded module) applies the right one
-    a few seconds later. The choice screen waits for that (at most 30
+    """On the first login the Plasma look may not be final yet when the
+    Portal starts: where the user turned Plasma's automatic light/dark switch
+    on (a kded module), it applies the right look a few seconds after the
+    session opens. The choice screen waits for that (at most 30
     seconds), so it opens in the final look; Breeze follows later switches
     by itself."""
     home = Path(os.environ.get("XDG_CONFIG_HOME", Path.home() / ".config"))

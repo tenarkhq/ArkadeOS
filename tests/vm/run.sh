@@ -248,7 +248,10 @@ check "GTK3 and GTK4 apps in ArkadeOS Glass (Glass audit 4, 5)" "for v in 3 4; d
         grep -qxF \"@import 'arkadeos-glass.css';\" ${home}/gtk-\$v.0/gtk.css || exit 1; done"
 check "the glass blur runs (Better Blur DX for this KWin), KWin's own blur off" "${session} busctl --user call org.kde.KWin /Effects org.kde.kwin.Effects isEffectLoaded s better_blur_dx | grep -qx 'b true' &&
     ${session} busctl --user call org.kde.KWin /Effects org.kde.kwin.Effects isEffectLoaded s blur | grep -qx 'b false'"
-check "day/night switch on" "test \"\$(${session} kreadconfig6 --group KDE --key AutomaticLookAndFeel)\" = true"
+# ArkadeOS Dark by default, no day/night switch (Roland, 2026-11-16).
+check "ArkadeOS Dark by default, day/night switch off" "test \"\$(${session} kreadconfig6 --group KDE --key AutomaticLookAndFeel)\" = false &&
+    test \"\$(${session} kreadconfig6 --group KDE --key LookAndFeelPackage)\" = org.arkadeos.dark.desktop &&
+    test \"\$(${session} kreadconfig6 --group General --key ColorScheme)\" = ArkadeOSGlassDark"
 check "Inter font" "fc-list : family | grep -qx Inter"
 check "GTK Breeze" "test \"\$(${session} gsettings get org.gnome.desktop.interface gtk-theme)\" = \"'Breeze'\" &&
     test -f /usr/share/themes/Breeze/gtk-3.0/gtk.css"
