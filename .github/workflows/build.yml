@@ -108,9 +108,14 @@ jobs:
           # was built again, so the stages it and the layers above it come
           # from stay in the build server's cache under a name: the clean-up
           # below removes only what no name points at. Each of these builds
-          # finds every step in the cache.
-          for stage in solid packages proton initramfs; do
-            podman build -q "${args[@]}" --target "${stage}" -t "localhost/${IMAGE}-cache:${stage}" -f Containerfile .
+          # finds every step in the cache. The compiled parts (blur, darkly,
+          # systemsettings) keep a name too, so the next build does not
+          # compile them again. A branch (base-update, on a newer base) keeps
+          # its own names beside main's, as its next nightly try reuses them.
+          suffix=""
+          [ "${GITHUB_REF_NAME}" = main ] || suffix="-${GITHUB_REF_NAME}"
+          for stage in solid packages proton initramfs blur darkly systemsettings; do
+            podman build -q "${args[@]}" --target "${stage}" -t "localhost/${IMAGE}-cache:${stage}${suffix}" -f Containerfile .
           done
           echo "layers: $(podman image inspect --format '{{ len .RootFS.Layers }}' localhost/${IMAGE}:build)" >> "$GITHUB_STEP_SUMMARY"
 
@@ -175,10 +180,17 @@ jobs:
         if: always()
         run: |
           podman logout ghcr.io || true
+          before=$(du -sh ~/.local/share/containers 2>/dev/null | cut -f1)
           podman rmi -f localhost/${IMAGE}:build || true
-          # The stages kept under a name (Build) stay as the next build's
-          # cache; the ones a newer build replaced go after three days.
-          podman image prune -f --filter until=72h
+          # A failed build leaves its working containers behind (podman shows
+          # them only with --external); nothing else removes them.
+          podman ps -a --external --format '{{.ID}} {{.Status}}' | awk '$2 == "Storage" { print $1 }' | xargs -r podman rm -f >/dev/null || true
+          # Only the next build's cache stays: the stages kept under a name
+          # (Build), the bases they stand on and the prefetched :stable base.
+          # Everything else goes at once (former builds, replaced bases): it
+          # used to stay three days, about 100 GB on the build server.
+          podman image prune -f >/dev/null || true
+          echo "build server image store: ${before} before the clean-up, $(du -sh ~/.local/share/containers 2>/dev/null | cut -f1) after" >> "$GITHUB_STEP_SUMMARY"
 
   # A branch build (base-update) is VM-tested here; main builds start the VM
   # test through its workflow_run trigger.
