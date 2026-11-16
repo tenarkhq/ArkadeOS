@@ -103,7 +103,7 @@ for _ in $(seq 30); do
         test -e /home/arkade/.local/state/arkadeos/migrations/009-darkly.sh &&
         test -e /home/arkade/.local/state/arkadeos/migrations/011-no-akku-on-charger.sh &&
         test -e /home/arkade/.local/state/arkadeos/migrations/013-union-cache.sh &&
-        test -e /home/arkade/.local/state/arkadeos/migrations/014-dark-default.sh &&
+        test -e /home/arkade/.local/state/arkadeos/migrations/early-002-dark-default.sh &&
         test -e /home/arkade/.local/state/arkadeos/migrations/early-001-widgets-gone-from-the-image.sh' && break
     sleep 5
 done
@@ -118,8 +118,8 @@ check "ArkadeOS Glass look after the update" 'f=/home/arkade/.config; cat $f/kde
 check "System Settings' style cache from the old build gone (013)" 'test ! -e /home/arkade/.cache/union/old-style'
 # ArkadeOS Dark is the default from 2026-11-16, without the day/night switch:
 # the previous build's user followed the old default, so the update brings
-# the dark look and the switch off (014).
-check "ArkadeOS Dark after the update, day/night switch off (014)" 'f=/home/arkade/.config; u="runuser -u arkade -- env HOME=/home/arkade kreadconfig6 --group KDE --key";
+# the dark look and the switch off (early 002).
+check "ArkadeOS Dark after the update, day/night switch off (early 002)" 'f=/home/arkade/.config; u="runuser -u arkade -- env HOME=/home/arkade kreadconfig6 --group KDE --key";
     test "$($u LookAndFeelPackage)" = org.arkadeos.dark.desktop && test "$($u AutomaticLookAndFeel)" = false &&
     cat $f/kdeglobals $f/kdedefaults/kdeglobals 2>/dev/null | grep -m1 ^ColorScheme= | grep -qx ColorScheme=ArkadeOSGlassDark'
 ssh_vm 'ls -la --time-style=full-iso /home/arkade/.cache/union /home/arkade/.local/state/arkadeos/migrations 2>&1' > "${out}/union-cache.txt" 2>&1 || true

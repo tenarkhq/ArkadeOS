@@ -2,7 +2,9 @@
 Description=ArkadeOS: update steps that must be done before the desktop starts
 # The taskbar and desktop read their settings when plasmashell starts; these
 # steps change those files first, so nothing half done is ever shown.
-Before=plasma-plasmashell.service
+# KWin, and kded (Plasma's day/night switcher) after it, read the look these
+# steps set.
+Before=plasma-kwin_wayland.service plasma-plasmashell.service
 
 [Service]
 Type=oneshot
