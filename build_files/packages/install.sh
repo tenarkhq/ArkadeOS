@@ -10,6 +10,10 @@ nodeps=(--setopt=install_weak_deps=False)
 # T002: the Bazzite parts ArkadeOS does not need.
 bash "${here}/remove.sh"
 
+# T026: PySide6 for the Portal (arkadeos-portal). It came with the Bazzite
+# base until its 2026-11-19 build dropped it, and the Portal could not start.
+dnf5 -y install "${nodeps[@]}" python3-pyside6
+
 # T003 (60-gaming.sh): GameMode.
 dnf5 -y install "${nodeps[@]}" gamemode gamemode.i686
 
