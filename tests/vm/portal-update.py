@@ -168,6 +168,11 @@ lines = re.sub(r"<[^>]+>|&nbsp;", " ", page.version.text())
 assert not page.looking, "the channel's answer did not come"
 assert re.search(r"(Running|Fut):\s+\d+\.\d{8}", lines), lines
 assert re.search(r"(Newest available|Legfrissebb elérhető):\s+\d+\.\d{8}", lines), lines
+# The automatic update's switch (Roland, 2026-11-21): on by default, and
+# when it looks.
+assert page.auto.isChecked(), "the automatic update is off by default"
+assert re.search(r"(6 hours|6 óránként)", page.auto_when.text()), page.auto_when.text()
+assert re.search(r"(last at|utoljára ma) \d\d:\d\d", page.auto_when.text()), page.auto_when.text()
 app.processEvents()
 page.grab().save(f"{out}/portal-system.png")
 print("portal update ok")

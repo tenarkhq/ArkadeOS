@@ -1,0 +1,10 @@
+#!/usr/bin/bash
+# The automatic update on or off (Roland, 2026-11-21), from the Portal's
+# switch through arkadeos-update auto: one setting for the machine, read by
+# the daily run (daily-update) and the scheduled look (arkadeos-update check).
+set -euo pipefail
+case "${1:-}" in on|off) ;; *) echo "auto-update-set: on | off" >&2; exit 2 ;; esac
+install -d -m 0755 /etc/arkadeos
+printf '%s\n' "$1" > /etc/arkadeos/auto-update.new
+chmod 0644 /etc/arkadeos/auto-update.new
+mv /etc/arkadeos/auto-update.new /etc/arkadeos/auto-update

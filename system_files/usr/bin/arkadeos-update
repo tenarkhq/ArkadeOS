@@ -15,6 +15,12 @@
 #                              (exit status 10: a newer one is out)
 #   arkadeos-update notify     tells the user once about each build that waits
 #                              for the reboot (arkadeos-update-notify.timer)
+#   arkadeos-update auto [on|off]   show or change the automatic update: on, a
+#                              new system version is downloaded and installed by
+#                              itself; off, only told (Roland, 2026-11-21)
+#   arkadeos-update check      the scheduled look at this machine's channel
+#                              (arkadeos-update-check.timer): on, it updates as
+#                              Update now does; off, it tells the new version
 # A version is <Fedora>.<day>, and <Fedora>.<day>.<n> for the day's further
 # builds: 45.20261112, 45.20261112.1, 45.20261112.2 (build.yml).
 set -euo pipefail
@@ -71,6 +77,53 @@ switch_to() {
     say "Done: ${1} starts at the next reboot." "Kész: a következő újraindításkor ez indul: ${1}."
 }
 
+# The automatic update (Roland, 2026-11-21): on unless the machine's admin
+# turned it off in the Portal. One setting for the machine, as its system is.
+AUTO=/etc/arkadeos/auto-update
+auto_on() { [[ "$(cat "${AUTO}" 2>/dev/null)" != off ]]; }
+
+STATE="${XDG_STATE_HOME:-${HOME}/.local/state}/arkadeos"
+
+# Roland, 2026-11-04 and 11-12: the channel's newest build against the
+# running and the staged one, by image digest. One line in the form of the
+# status lines; the Portal shows it under them when it opens. Exit status 10:
+# a newer one is out (its digest and version are left in REMOTE_DIGEST and
+# REMOTE_VERSION). The channel is always the one this machine follows: a
+# stable machine never hears of a testing build.
+latest() {
+    local ref remote digest newest
+    ref=$(image_ref)
+    [[ -n "${ref}" ]] || { say "No ArkadeOS image found." "Nem található ArkadeOS image."; return 1; }
+    remote=$(timeout 30 skopeo inspect --no-tags "docker://${ref}" 2>/dev/null) ||
+        { say "Newest available: the channel could not be reached" \
+            "Legfrissebb elérhető: a csatorna most nem érhető el"; return 1; }
+    # When it looked last: the Portal shows it under the automatic update.
+    mkdir -p "${STATE}" && date +%s > "${STATE}/update-checked" || true
+    digest=$(jq -r .Digest <<< "${remote}")
+    newest=$(jq -r '.Labels["org.opencontainers.image.version"] // empty' <<< "${remote}")
+    REMOTE_DIGEST=${digest} REMOTE_VERSION=${newest}
+    if [[ "${digest}" == "$(digest_of booted)" ]]; then
+        say "Newest available: ${newest} (this one is running)" "Legfrissebb elérhető: ${newest} (ez fut)"
+    elif [[ "${digest}" == "$(digest_of staged)" ]]; then
+        say "Newest available: ${newest} (downloaded, starts at the next reboot)" \
+            "Legfrissebb elérhető: ${newest} (letöltve, a következő újraindításkor indul)"
+    else
+        say "Newest available: ${newest}, newer than the running one; Update now brings it" \
+            "Legfrissebb elérhető: ${newest}, újabb a futónál; a Frissítés most gombbal jön le"
+        return 10
+    fi
+}
+
+# The channel's name as the Portal shows it.
+channel_name() {
+    local t
+    t=$(image_ref); t=${t##*:}; t=${t%%-*}
+    case "${t}" in
+        testing) say "Testing" "Teszt" ;;
+        *) say "Stable" "Stabil" ;;
+    esac
+}
+
 case "${1:-status}" in
     status)
         say "Running:  $(version booted)" "Fut:            $(version booted)"
@@ -83,26 +136,7 @@ case "${1:-status}" in
         version staged
         ;;
     latest)
-        # Roland, 2026-11-04 and 11-12: the channel's newest build against the
-        # running and the staged one, by image digest. One line in the form of
-        # the status lines; the Portal shows it under them when it opens.
-        ref=$(image_ref)
-        [[ -n "${ref}" ]] || { say "No ArkadeOS image found." "Nem található ArkadeOS image."; exit 1; }
-        remote=$(timeout 30 skopeo inspect --no-tags "docker://${ref}" 2>/dev/null) ||
-            { say "Newest available: the channel could not be reached" \
-                "Legfrissebb elérhető: a csatorna most nem érhető el"; exit 1; }
-        digest=$(jq -r .Digest <<< "${remote}")
-        newest=$(jq -r '.Labels["org.opencontainers.image.version"] // empty' <<< "${remote}")
-        if [[ "${digest}" == "$(digest_of booted)" ]]; then
-            say "Newest available: ${newest} (this one is running)" "Legfrissebb elérhető: ${newest} (ez fut)"
-        elif [[ "${digest}" == "$(digest_of staged)" ]]; then
-            say "Newest available: ${newest} (downloaded, starts at the next reboot)" \
-                "Legfrissebb elérhető: ${newest} (letöltve, a következő újraindításkor indul)"
-        else
-            say "Newest available: ${newest}, newer than the running one; Update now brings it" \
-                "Legfrissebb elérhető: ${newest}, újabb a futónál; a Frissítés most gombbal jön le"
-            exit 10
-        fi
+        latest || exit $?
         ;;
     now)
         # Without a password for the machine's admins (50-arkadeos-update.rules).
@@ -137,15 +171,47 @@ case "${1:-status}" in
         # second build of a day is told as well.
         build=$(digest_of staged)
         build=${build:-${staged}}
-        seen="${XDG_STATE_HOME:-${HOME}/.local/state}/arkadeos/update-notified"
+        seen="${STATE}/update-notified"
         [[ "$(cat "${seen}" 2>/dev/null)" != "${build}" ]] || exit 0
         mkdir -p "$(dirname "${seen}")"
         echo "${build}" > "${seen}"
         action=$(notify-send -a ArkadeOS -i system-software-update \
             -A restart="$(say "Restart now" "Újraindítás most")" \
-            "$(say "Update ready" "Frissítés kész")" \
+            "$(say "Update installed, restart needed" "Frissítés telepítve, újraindítás szükséges")" \
             "$(say "ArkadeOS ${staged} starts at the next reboot." "Az ArkadeOS ${staged} a következő újraindításkor indul.")" || true)
         [[ "${action}" == restart ]] && exec qdbus-qt6 org.kde.LogoutPrompt /LogoutPrompt promptReboot
+        exit 0
+        ;;
+    auto)
+        if [[ -z "${2:-}" ]]; then if auto_on; then echo on; else echo off; fi; exit 0; fi
+        case "${2}" in on|off) ;; *) echo "auto: on | off" >&2; exit 2 ;; esac
+        # Without a password for the machine's admins, as Update now
+        # (50-arkadeos-update.rules).
+        pkexec /usr/libexec/arkadeos/auto-update-set "${2}"
+        ;;
+    check)
+        # Every 6 hours and after the login (arkadeos-update-check.timer).
+        rc=0
+        latest >/dev/null || rc=$?
+        [[ ${rc} -eq 10 ]] || exit 0
+        if auto_on; then
+            # The same update as Update now; it does not run while a game
+            # runs (no-game-running), the next look tries again. It waits
+            # for the end, then tells that the new version is installed.
+            systemctl start uupd.service || true
+            exec "$0" notify
+        fi
+        # Off: told once per build, with its version.
+        seen="${STATE}/update-available-notified"
+        [[ "$(cat "${seen}" 2>/dev/null)" != "${REMOTE_DIGEST}" ]] || exit 0
+        mkdir -p "${STATE}"
+        echo "${REMOTE_DIGEST}" > "${seen}"
+        action=$(notify-send -a ArkadeOS -i system-software-update \
+            -A portal="$(say "Open the Portal" "Portál megnyitása")" \
+            "$(say "New update available" "Új frissítés érhető el")" \
+            "$(say "ArkadeOS ${REMOTE_VERSION} is out on the $(channel_name) channel. You can install it in the Portal." \
+                "Az ArkadeOS ${REMOTE_VERSION} megjelent a $(channel_name) csatornán. A Portálban telepítheted.")" || true)
+        [[ "${action}" == portal ]] && exec arkadeos-portal --system
         exit 0
         ;;
     versions)
@@ -174,7 +240,7 @@ for build in sorted(builds, reverse=True):
         switch_to "${ref%:*}:${tag}" "${3:-}"
         ;;
     *)
-        sed -n '2,19p' "$0" | sed 's/^# \{0,1\}//'
+        sed -n '2,25p' "$0" | sed 's/^# \{0,1\}//'
         exit 2
         ;;
 esac

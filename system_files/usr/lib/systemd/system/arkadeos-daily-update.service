@@ -1,0 +1,6 @@
+[Unit]
+Description=ArkadeOS daily update: the whole update, or the apps only when the automatic update is off
+
+[Service]
+Type=oneshot
+ExecStart=/usr/libexec/arkadeos/daily-update

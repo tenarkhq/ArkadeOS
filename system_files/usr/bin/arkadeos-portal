@@ -4,8 +4,9 @@
 Apps: tick to install, untick to remove (portal-item does the work). On the
 first login it opens by itself as the choice screen (T026, --first-run): the
 defaults are ticked, and what is chosen gets installed.
-System: update now, go back to the previous version, channel (stable or
-testing), the image for the graphics card, firmware, desktop defaults.
+System: update now, the automatic update on or off, go back to the previous
+version, channel (stable or testing), the image for the graphics card,
+firmware, desktop defaults. --system opens on it.
 Games: the power profile each game runs with (T055); arkadeos-power game
 keeps the list, a game not on it runs on Gaming.
 
@@ -781,14 +782,39 @@ class SystemTab(QWidget):
         u.addWidget(self.version)
         self.progress = UpdateProgress()
         u.addWidget(self.progress)
-        daily = QLabel(tr(
-            "The system, apps and Homebrew update every day by themselves; a new system "
-            "version starts at the next reboot.",
-            "A rendszer, az appok és a Homebrew naponta maguktól frissülnek; az új "
-            "rendszerverzió a következő újraindításkor indul."))
-        daily.setObjectName("muted")
-        daily.setWordWrap(True)
-        u.addWidget(daily)
+        # The automatic update (Roland, 2026-11-21, design A of
+        # https://claude.ai/artifact/RMdwapq5tdx7D3sgNspzQG): on, a new system
+        # version is downloaded and installed by itself and a notice asks for
+        # the restart; off, the notice only tells the new version. Looked for
+        # after the login and every 6 hours on this machine's own channel.
+        auto = QFrame()
+        auto.setObjectName("autoBox")
+        a = QGridLayout(auto)
+        a.setContentsMargins(12, 10, 12, 10)
+        a.setHorizontalSpacing(14)
+        a.setVerticalSpacing(4)
+        name = QLabel(tr("Automatic update", "Automatikus frissítés"))
+        name.setObjectName("cardName")
+        a.addWidget(name, 0, 0)
+        self.auto = QCheckBox()
+        self.auto.setObjectName("switch")
+        self.auto.setCursor(Qt.PointingHandCursor)
+        self.auto.setAccessibleName(name.text())
+        self.auto.setChecked(run("arkadeos-update", "auto") != "off")
+        self.auto.toggled.connect(self.auto_toggled)
+        self.channel_now = run("arkadeos-update", "channel")
+        a.addWidget(self.auto, 0, 1, Qt.AlignRight)
+        self.auto_note = QLabel()
+        self.auto_note.setObjectName("muted")
+        self.auto_note.setWordWrap(True)
+        a.addWidget(self.auto_note, 1, 0, 1, 2)
+        self.auto_when = QLabel()
+        self.auto_when.setObjectName("autoWhen")
+        self.auto_when.setWordWrap(True)
+        a.addWidget(self.auto_when, 2, 0, 1, 2)
+        a.setColumnStretch(0, 1)
+        u.addWidget(auto)
+        self.show_auto()
         row = QHBoxLayout()
         row.setSpacing(8)
         self.restart = QPushButton(QIcon.fromTheme("system-reboot"), tr("Restart now", "Újraindítás most"))
@@ -996,7 +1022,45 @@ class SystemTab(QWidget):
             self.again = False
             self.look_for_newer()
 
+    def show_auto(self):
+        """The switch's words: what happens, and when it looked last."""
+        self.auto_note.setText(tr(
+            "A new system version is downloaded and installed by itself. The machine does not "
+            "restart: a notice tells when it is ready, and the restart is yours to choose.",
+            "Az új rendszerverziót magától letölti és telepíti. Nem indítja újra a gépet: "
+            "értesítést küld, ha kész, az újraindításról te döntesz.") if self.auto.isChecked() else tr(
+            "Only told when a new version is out, with its number. Update now installs it.",
+            "Csak szól, ha új verzió jött ki, a verziószámmal. A Frissítés most gombbal telepíted."))
+        channel = tr("Testing", "Teszt") if self.channel_now == "testing" else tr("Stable", "Stabil")
+        text = tr(f"Looked for after the login and every 6 hours on the {channel} channel",
+                  f"Keresés bejelentkezés után és 6 óránként a {channel} csatornán")
+        try:
+            stamp = int((STATE / "update-checked").read_text().strip())
+        except (OSError, ValueError):
+            stamp = 0
+        if stamp:
+            day = time.strftime("%Y-%m-%d", time.localtime(stamp))
+            if day == time.strftime("%Y-%m-%d"):
+                text += tr(f" · last at {clock(stamp)}", f" · utoljára ma {clock(stamp)}")
+            else:
+                text += tr(f" · last on {day} {clock(stamp)}", f" · utoljára {day} {clock(stamp)}")
+        self.auto_when.setText(text)
+
+    def auto_toggled(self, on):
+        """The setting is the machine's: saved through arkadeos-update auto
+        (no password for the machine's admins). Turned on, it looks at once,
+        and a newer version is installed then."""
+        result = subprocess.run(["arkadeos-update", "auto", "on" if on else "off"], capture_output=True, text=True)
+        if result.returncode != 0:
+            self.auto.blockSignals(True)
+            self.auto.setChecked(not on)
+            self.auto.blockSignals(False)
+        elif on:
+            subprocess.Popen(["systemctl", "--user", "start", "--no-block", "arkadeos-update-check.service"])
+        self.show_auto()
+
     def show_versions(self):
+        self.show_auto()
         lines = self.status_lines + ([self.latest_line] if self.latest_line else [])
         self.version.setText(version_table(lines, self.latest_line if self.latest_newer else ""))
         self.update_headline(self.running)
@@ -1019,7 +1083,8 @@ class SystemTab(QWidget):
         every change made here (channel, going back, an earlier build)."""
         self.status_lines = run("arkadeos-update", "status").splitlines()
         self.show_versions()
-        index = self.channel.findData(run("arkadeos-update", "channel"))
+        self.channel_now = run("arkadeos-update", "channel")
+        index = self.channel.findData(self.channel_now)
         if index >= 0:
             self.channel.setCurrentIndex(index)
         self.look_for_newer()
@@ -1393,6 +1458,8 @@ def style_sheet(palette):
 #cardTitle {{ font-size: 14px; font-weight: 700; }}
 #headline {{ font-size: 16px; font-weight: 700; }}
 #versions {{ color: {text.name()}; }}
+#autoBox {{ background: {field.name()}; border: 1px solid {line}; border-radius: 10px; }}
+#autoWhen {{ color: {muted}; font-size: 12px; }}
 #notice {{ background: {rgba(amber, .14)}; border: 1px solid {rgba(amber, .5)}; border-radius: 8px; padding: 8px 12px; }}
 #footBar {{ background: {mix(window, text, .04).name()}; border-top: 1px solid {line};
   border-bottom-left-radius: 6px; border-bottom-right-radius: 6px; }}
@@ -1478,6 +1545,34 @@ class Portal(QWidget):
         foot.setContentsMargins(10, 0, 0, 6)
         self.nav.addWidget(foot)
         self.buttons.buttons()[0].setChecked(True)
+        self.system_button = None if first_run else button
+
+    def open_system(self):
+        """Opens on System: the "Open the Portal" of the new-version notice."""
+        if self.system_button:
+            self.system_button.click()
+
+    def natural_size(self):
+        """The size at which every page shows all it has, without scrolling or
+        the System page's columns going under each other (Roland, 2026-11-21:
+        "eleve akkora ablakban nyiljon meg a portal, hogy látszódjon rajta
+        minden"). A page's scroll area asks only for a small part of what is
+        in it, so what is inside counts."""
+        width = height = 0
+        for i in range(self.stack.count()):
+            page = self.stack.widget(i)
+            page.ensurePolished()
+            hint = page.sizeHint()
+            w, h = hint.width(), hint.height()
+            for scroll in page.findChildren(QScrollArea, "scroll"):
+                inner = scroll.widget().sizeHint()
+                frame = scroll.sizeHint()
+                w += max(0, inner.width() + scroll.verticalScrollBar().sizeHint().width() - frame.width())
+                h += max(0, inner.height() - frame.height())
+            width, height = max(width, w), max(height, h)
+        margins = self.layout().contentsMargins()
+        return (196 + self.layout().spacing() + width + margins.left() + margins.right(),
+                height + margins.top() + margins.bottom())
 
     def page(self, widget, icon, title):
         index = self.stack.addWidget(widget)
@@ -1534,7 +1629,13 @@ def main():
     app.setDesktopFileName("org.arkadeos.Portal")
     app.setStyleSheet(style_sheet(app.palette()))
     window = Portal(first_run)
-    window.resize(960, 640)
+    # As big as the pages need, at least the old 960 × 640, and never bigger
+    # than the screen leaves room for (the title bar and the taskbar).
+    want_w, want_h = window.natural_size()
+    room = app.primaryScreen().availableGeometry()
+    window.resize(min(max(960, want_w), room.width() - 24), min(max(640, want_h), room.height() - 48))
+    if "--system" in sys.argv:
+        window.open_system()
     LookLog(window)
     window.show()
     app.exec()

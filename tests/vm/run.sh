@@ -1233,6 +1233,26 @@ reboot_vm() {
     ssh_vm "timeout 600 systemctl is-system-running --wait" || true
 }
 check "daily updates on (system and apps)" 'systemctl is-enabled -q uupd.timer && systemctl is-active -q uupd.timer'
+# The automatic update (Roland, 2026-11-21): on by default; the daily run asks
+# the setting first, off it updates the apps only; the channel is looked at
+# after the login and every 6 hours; the switch and the scheduled look need
+# no password from the machine's admins.
+check "automatic update: on by default, daily run asks the setting" 'test "$(arkadeos-update auto)" = on &&
+    test "$(systemctl show -P Triggers uupd.timer)" = arkadeos-daily-update.service &&
+    systemctl show -P ExecStart arkadeos-apps-update.service | grep -q -- "--disable-module-system" &&
+    mkdir -p /tmp/daily && printf "#!/bin/sh\necho \"\$*\"\n" > /tmp/daily/systemctl && chmod 755 /tmp/daily/systemctl &&
+    test "$(PATH=/tmp/daily:/usr/bin /usr/libexec/arkadeos/daily-update)" = "start --no-block uupd.service" &&
+    /usr/libexec/arkadeos/auto-update-set off &&
+    test "$(PATH=/tmp/daily:/usr/bin /usr/libexec/arkadeos/daily-update)" = "start --no-block arkadeos-apps-update.service" &&
+    /usr/libexec/arkadeos/auto-update-set on && test "$(stat -c %a /etc/arkadeos/auto-update)" = 644'
+check "automatic update: looked for after the login and every 6 hours" "systemctl --global is-enabled -q arkadeos-update-check.timer &&
+    ${session} systemctl --user is-active -q arkadeos-update-check.timer &&
+    ${session} systemctl --user show -P TimersMonotonic arkadeos-update-check.timer | grep -q 'OnUnitActiveUSec=6h'"
+check "automatic update: switch and scheduled look without a password" 'p=$(pgrep -u arkade -x plasmashell | head -1) &&
+    pkcheck --action-id org.arkadeos.auto-update-set --process ${p} &&
+    m=$(pgrep -u arkade -x systemd | head -1) &&
+    pkcheck --action-id org.freedesktop.systemd1.manage-units --process ${m} --detail unit uupd.service --detail verb start &&
+    ! pkcheck --action-id org.freedesktop.systemd1.manage-units --process ${m} --detail unit sshd.service --detail verb start'
 # Update now without a password for the machine's admins in their session
 # (Roland, 2026-11-15), only the update: another unit still asks.
 check "Update now starts without a password, only the update" 'p=$(pgrep -u arkade -x plasmashell | head -1) &&
@@ -1257,7 +1277,7 @@ check "cache folder out of the home snapshots" 'btrfs subvolume show /home/arkad
 ssh_vm 'journalctl -b -u arkadeos-home-cache --no-pager; btrfs subvolume list /var/home' > "${out}/home-cache.txt" 2>&1 || true
 # T050: what can wait does not run while a game runs: updates, snapshot
 # cleanup, disk trim and the firmware list (fetched once a day).
-check "background jobs wait for a running game" 'for u in uupd snapper-cleanup fstrim fwupd-refresh; do
+check "background jobs wait for a running game" 'for u in uupd arkadeos-apps-update snapper-cleanup fstrim fwupd-refresh; do
     systemctl show $u.service -p ExecCondition | grep -q no-game-running || exit 1; done;
     systemctl show fwupd-refresh.timer -p TimersCalendar | grep -q "OnCalendar=\*-\*-\* 00:00:00"'
 # "Restart now" in the update notice and the Portal asks Plasma's own prompt
@@ -1275,7 +1295,31 @@ if [[ -n "${UPDATE_PUSH:-}" ]]; then
     eval "${UPDATE_PUSH}"
     check "newest available: a newer one is out" "${session} LANG=C arkadeos-update latest > /tmp/latest.txt; test \$? = 10 &&
         grep -qE '^Newest available: [0-9.]+, newer than the running one' /tmp/latest.txt"
-    ssh_vm 'bootc upgrade' > "${out}/update.txt" 2>&1 || true
+    # The automatic update (Roland, 2026-11-21), the scheduled look as its
+    # timer runs it. Off: the new version is told once, with its number, on
+    # this machine's channel, and nothing is installed. On: it starts the
+    # update as Update now does (uupd.service; a stand-in here, the real one
+    # is below with bootc). The notices go to a stand-in that keeps them.
+    ssh_vm "mkdir -p /tmp/auto && printf '#!/bin/sh\necho \"\$0 \$*\" >> /tmp/auto/log\n' > /tmp/auto/notify-send &&
+        cp /tmp/auto/notify-send /tmp/auto/systemctl && chmod 755 /tmp/auto/notify-send /tmp/auto/systemctl &&
+        chown -R arkade /tmp/auto && /usr/libexec/arkadeos/auto-update-set off"
+    ssh_vm "${session} LANG=C PATH=/tmp/auto:/usr/bin arkadeos-update check; ${session} LANG=C PATH=/tmp/auto:/usr/bin arkadeos-update check" || true
+    check "automatic update off: the new version told once, nothing installed" 'test "$(arkadeos-update auto)" = off &&
+        test "$(grep -c "notify-send.*New update available" /tmp/auto/log)" = 1 &&
+        grep -qE "ArkadeOS [0-9]+\.[0-9]{8}[.0-9]* is out on the (Stable|Testing) channel" /tmp/auto/log &&
+        ! grep -q systemctl /tmp/auto/log && test "$(bootc status --json | jq -r .status.staged)" = null &&
+        grep -q "^sha256:" /home/arkade/.local/state/arkadeos/update-available-notified'
+    # The notice as it looks on the desktop.
+    ssh_vm "rm -f /home/arkade/.local/state/arkadeos/update-available-notified"
+    (ssh_vm "timeout 20 ${session} arkadeos-update check" || true) &
+    sleep 8
+    shot update-available
+    wait
+    ssh_vm "/usr/libexec/arkadeos/auto-update-set on && : > /tmp/auto/log && ${session} LANG=C PATH=/tmp/auto:/usr/bin arkadeos-update check" || true
+    check "automatic update on: the update starts by itself" 'test "$(arkadeos-update auto)" = on &&
+        grep -qx "/tmp/auto/systemctl start uupd.service" /tmp/auto/log && ! grep -q "New update available" /tmp/auto/log'
+    ssh_vm 'cat /tmp/auto/log' >> "${out}/update.txt" 2>&1 || true
+    ssh_vm 'bootc upgrade' >> "${out}/update.txt" 2>&1 || true
     ssh_vm 'rpm-ostree status' >> "${out}/update.txt" 2>&1 || true
     check "update waits for the reboot" 'test "$(bootc status --json | jq -r .status.staged.image.imageDigest)" != null'
     check "newest available: downloaded, waits for the reboot" "${session} LANG=C arkadeos-update latest | grep -qE '^Newest available: [0-9.]+ \(downloaded, starts at the next reboot\)\$'"
@@ -1283,6 +1327,9 @@ if [[ -n "${UPDATE_PUSH:-}" ]]; then
     # The Portal asks as the user, without root: running and waiting versions.
     check "update status answers the user (Portal)" "${session} LANG=C arkadeos-update status 2>&1 |
         grep -qx 'Running:  [0-9.]*' && ${session} LANG=C arkadeos-update status 2>&1 | grep -q '^At reboot: [0-9]'"
+    check "update installed message asks for the restart" "rm -f /home/arkade/.local/state/arkadeos/update-notified &&
+        : > /tmp/auto/log && ${session} LANG=C PATH=/tmp/auto:/usr/bin arkadeos-update notify;
+        grep -q 'Update installed, restart needed' /tmp/auto/log && rm /home/arkade/.local/state/arkadeos/update-notified"
     # T048: a notification says so, once.
     ssh_vm "timeout 15 ${session} arkadeos-update notify" || true
     shot update-ready

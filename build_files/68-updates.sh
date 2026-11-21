@@ -16,3 +16,8 @@ test -e /usr/share/dbus-1/services/org.kde.LogoutPrompt.service
 
 # T048: the top bar says when an update waits for the reboot.
 systemctl --global enable arkadeos-update-notify.timer
+
+# The automatic update on or off in the Portal (Roland, 2026-11-21): the daily
+# run asks the setting first (uupd.timer.d), a look at the channel after the
+# login and every 6 hours.
+systemctl --global enable arkadeos-update-check.timer

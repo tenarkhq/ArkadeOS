@@ -1,0 +1,9 @@
+[Unit]
+Description=Look for a new ArkadeOS version on this machine's channel
+After=plasma-plasmashell.service
+
+[Service]
+Type=oneshot
+# On: updates as Update now does, then tells "installed, restart needed";
+# off: tells the new version only (Roland, 2026-11-21).
+ExecStart=/usr/bin/arkadeos-update check

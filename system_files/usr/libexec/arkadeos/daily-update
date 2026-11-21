@@ -1,0 +1,11 @@
+#!/usr/bin/bash
+# The daily run at 04:00 (uupd.timer, its unit changed in uupd.timer.d): with
+# the automatic update on, the whole update as before (system, apps,
+# Homebrew); turned off in the Portal (Roland, 2026-11-21), the apps and
+# Homebrew only, and the new system version is only told
+# (arkadeos-update check).
+set -euo pipefail
+if [[ "$(cat /etc/arkadeos/auto-update 2>/dev/null)" == off ]]; then
+    exec systemctl start --no-block arkadeos-apps-update.service
+fi
+exec systemctl start --no-block uupd.service

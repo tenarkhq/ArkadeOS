@@ -39,4 +39,16 @@
     </defaults>
     <annotate key="org.freedesktop.policykit.exec.path">/usr/libexec/arkadeos/reset-system</annotate>
   </action>
+  <action id="org.arkadeos.auto-update-set">
+    <description>Turn the automatic update on or off</description>
+    <description xml:lang="hu">Az automatikus frissítés be- vagy kikapcsolása</description>
+    <message>Changing whether the system updates by itself</message>
+    <message xml:lang="hu">Annak módosítása, hogy a rendszer magától frissüljön-e</message>
+    <defaults>
+      <allow_any>no</allow_any>
+      <allow_inactive>no</allow_inactive>
+      <allow_active>auth_admin_keep</allow_active>
+    </defaults>
+    <annotate key="org.freedesktop.policykit.exec.path">/usr/libexec/arkadeos/auto-update-set</annotate>
+  </action>
 </policyconfig>

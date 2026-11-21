@@ -1,0 +1,18 @@
+# uupd.service without the system: the daily run while the automatic update
+# is off (Roland, 2026-11-21). The apps, Homebrew and containers update as
+# before; the new system version waits for Update now.
+[Unit]
+Description=ArkadeOS daily update of the apps (the automatic system update is off)
+Wants=network-online.target
+After=network-online.target
+StartLimitBurst=3
+StartLimitIntervalSec=600
+
+[Service]
+Type=oneshot
+# T050: not while a game runs.
+ExecCondition=/usr/libexec/arkadeos/no-game-running
+ExecStart=/usr/bin/uupd --log-level=debug --json --disable-module-system
+Restart=on-failure
+RestartSec=60s
+SELinuxContext=system_u:unconfined_r:unconfined_t:s0

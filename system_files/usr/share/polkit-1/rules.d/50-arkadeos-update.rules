@@ -1,11 +1,21 @@
 // "Update now" (Roland, 2026-11-15: "frissítésnél muszáj jelszót kérnie?"):
-// the machine's admin users, at the machine, start the update without a
-// password, as the daily run does on its own. Only the start of the update
-// service; going back to an earlier version and switching the channel still
-// ask for it.
+// the machine's admin users start the update without a password, as the
+// daily run does on its own. Only the start of the update service; going
+// back to an earlier version and switching the channel still ask for it.
+// Not tied to the login session: the scheduled look of the automatic update
+// (arkadeos-update check, Roland, 2026-11-21) is a user service outside it.
 polkit.addRule(function (action, subject) {
     if (action.id == "org.freedesktop.systemd1.manage-units" &&
         action.lookup("unit") == "uupd.service" && action.lookup("verb") == "start" &&
+        subject.isInGroup("wheel")) {
+        return polkit.Result.YES;
+    }
+});
+// The automatic update on or off (the Portal's switch, Roland, 2026-11-21):
+// the machine's admin users at the machine, without a password, like the
+// update itself.
+polkit.addRule(function (action, subject) {
+    if (action.id == "org.arkadeos.auto-update-set" &&
         subject.isInGroup("wheel") && subject.local && subject.active) {
         return polkit.Result.YES;
     }
