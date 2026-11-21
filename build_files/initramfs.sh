@@ -26,7 +26,7 @@ dracut --no-hostonly --kver "${kver}" --reproducible --zstd --add ostree -f "${i
 chmod 0600 "${img}"
 lsinitrd "${img}" > /tmp/initrd.txt
 grep -c themes/arkadeos/arkadeos.script /tmp/initrd.txt
-grep -c themes/arkadeos/piece5-6.png /tmp/initrd.txt
+grep -c themes/arkadeos/mark.png /tmp/initrd.txt
 grep -c plymouth/script.so /tmp/initrd.txt
 settle
 sha256sum "${img}"
