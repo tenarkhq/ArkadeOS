@@ -1,7 +1,7 @@
 #!/usr/bin/bash
-# Boot screen (T009, T082, T086 round 8): the ArkadeOS Plymouth theme. Its
-# sprites, the disk password field's among them, and its script come from
-# art/boot-sprites.js. The initramfs that shows it at boot
+# Boot screen (T009, T082, T086 round 8, round 9): the ArkadeOS Plymouth theme.
+# Its sprites, the disk password field's among them, and its script come from
+# art/boot_iris.py (on round 8b's art/boot-sprites.js). The initramfs that shows it at boot
 # is made from the same files in its own stage (initramfs.sh, T076); the
 # system itself gets them here, for the screen at shutdown.
 set -euo pipefail

@@ -1,4 +1,5 @@
-// Boot screen (round 8b, approved 2026-11-14): renders every layer of the boot
+// Boot screen (round 8b, approved 2026-11-14; round 9, art/boot_iris.py, builds
+// on these sprites and replaces the script, so run that after this): renders every layer of the boot
 // animation (art/boot_scene.py) as PNG sprites and writes the Plymouth script
 // that moves them with the drawing's own timing (art/boot.script.in).
 //

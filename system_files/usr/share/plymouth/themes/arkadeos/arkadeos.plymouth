@@ -1,6 +1,6 @@
 [Plymouth Theme]
 Name=ArkadeOS
-Description=ArkadeOS boot screen (T086, round 8): sparks rush in from the dark, the crystal pieces of the Start mark fly in and lock, the gem ignites with a flash, a flare and two hexagonal shock waves, the rays shoot out and the ARKADEOS word comes up; then a light runs round the mark's ticks until the desktop comes. No words of its own, so it reads the same in every language (T010).
+Description=ArkadeOS boot screen (round 9, Írisz + Tervrajz): thin construction lines lay out the Start mark, its six crystal pieces spiral in onto the drawing like a closing iris and snap shut, the gem turns into place with a light line and a hexagonal ring, and the ARKADEOS word comes letter by letter; then a light point circles the faint construction circle until the desktop comes. No words of its own, so it reads the same in every language (T010).
 ModuleName=script
 
 [script]

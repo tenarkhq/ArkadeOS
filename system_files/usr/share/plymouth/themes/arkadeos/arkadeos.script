@@ -1,196 +1,239 @@
-# ArkadeOS boot screen (round 8b, approved 2026-11-14). Written by
-# art/boot-sprites.js from art/boot.script.in and the drawing in
-# art/boot_scene.py; change those, not this file.
+# ArkadeOS boot screen, round 9: Írisz + Tervrajz (approved 2026-11-21).
+# Written by art/boot_iris.py from art/boot-iris.script.in; change those, not
+# this file.
 #
-# Sparks rush in from the dark, the six crystal bezel pieces of the Start mark
-# fly in and lock with a glint each, the gem ignites with a flash, a flare and
-# two hexagonal shock waves, the rays shoot out and the ARKADEOS word comes up.
-# Until the desktop comes a light runs round the mark's 36 ticks (the loading
-# sign), a sheen sweeps the bezel, slow beams turn behind it, motes drift out.
-# Every sprite was rendered from the drawing; this moves them with its timing.
-# The system's own prompts (disk password, update progress) take the word's
-# place under the mark.
+# Thin construction lines lay out the mark (axes, dimension marks, two
+# circles, the hexagon), the six crystal pieces of the Start mark spiral in
+# onto the drawing like a closing iris and snap shut, the inside lights up,
+# the gem turns into place with a light line and a hexagonal ring, the drawing
+# fades, a sheen sweeps the mark and the word comes letter by letter. Until the
+# desktop comes a light point circles the faint construction circle and a
+# sheen sweeps the mark now and then. The system's own prompts (disk password,
+# update progress) take the word's place under the mark.
+#
+# Plymouth draws in software: everything that moves stays round the mark, and
+# once the opening is over the mark is one picture, so a frame redraws little.
 #
 # In Plymouth's script a name inside a function means the global of that name
 # when one exists, so every function brings in its own helpers as local.
-# (round 8: an ease() writing the global i hung the refresh loop).
 
 Window.SetBackgroundTopColor(0, 0, 0);
 Window.SetBackgroundBottomColor(0, 0, 0);
 
-DW = 1180; DH = 664; DCX = 590; DCY = 305.44; MU = 1.917; RENDER = 2.169;
-spr["amb"].d = 0.125; spr["amb"].x = 590; spr["amb"].y = 332;
-spr["beams-0"].d = 0.125; spr["beams-0"].x = 590; spr["beams-0"].y = 332;
-spr["beams-1"].d = 0.125; spr["beams-1"].x = 590; spr["beams-1"].y = 332;
-spr["beams-2"].d = 0.125; spr["beams-2"].x = 590; spr["beams-2"].y = 332;
-spr["beams-3"].d = 0.125; spr["beams-3"].x = 590; spr["beams-3"].y = 332;
-spr["beams-4"].d = 0.125; spr["beams-4"].x = 590; spr["beams-4"].y = 332;
-spr["beams-5"].d = 0.125; spr["beams-5"].x = 590; spr["beams-5"].y = 332;
-spr["beams-6"].d = 0.125; spr["beams-6"].x = 590; spr["beams-6"].y = 332;
-spr["beams-7"].d = 0.125; spr["beams-7"].x = 590; spr["beams-7"].y = 332;
-spr["beams-8"].d = 0.125; spr["beams-8"].x = 590; spr["beams-8"].y = 332;
-spr["beams-9"].d = 0.125; spr["beams-9"].x = 590; spr["beams-9"].y = 332;
-spr["beams-10"].d = 0.125; spr["beams-10"].x = 590; spr["beams-10"].y = 332;
-spr["beams-11"].d = 0.125; spr["beams-11"].x = 590; spr["beams-11"].y = 332;
-spr["halo"].d = 0.5; spr["halo"].x = 590; spr["halo"].y = 305.266;
-spr["chamber"].d = 1; spr["chamber"].x = 590; spr["chamber"].y = 305.266;
-spr["ticks"].d = 1; spr["ticks"].x = 590; spr["ticks"].y = 305.266;
-spr["ridge"].d = 1; spr["ridge"].x = 590; spr["ridge"].y = 305.266;
+DW = 1180; DH = 664; DCX = 590; DCY = 305.44; RENDER = 2.169;
+MCX = 590; MCY = 305.266; ARC_N = 16; HEX_N = 12; IRIS_STEP = 6;
+SEQ_N = 22; INNER_N = 8; SHOCK_N = 8; SHEEN_N = 17;
+sheen_name[0] = "sheen-0";
+sheen_name[1] = "sheen-2";
+sheen_name[2] = "sheen-4";
+sheen_name[3] = "sheen-6";
+sheen_name[4] = "sheen-8";
+sheen_name[5] = "sheen-10";
+sheen_name[6] = "sheen-12";
+sheen_name[7] = "sheen-14";
+sheen_name[8] = "sheen-16";
+sheen_name[9] = "sheen-18";
+sheen_name[10] = "sheen-20";
+sheen_name[11] = "sheen-22";
+sheen_name[12] = "sheen-24";
+sheen_name[13] = "sheen-26";
+sheen_name[14] = "sheen-28";
+sheen_name[15] = "sheen-30";
+sheen_name[16] = "sheen-32";
+piece_x[0] = 629.838; piece_y[0] = 236.44;
+piece_x[1] = 669.674; piece_y[1] = 305.44;
+piece_x[2] = 629.838; piece_y[2] = 374.44;
+piece_x[3] = 550.162; piece_y[3] = 374.44;
+piece_x[4] = 510.326; piece_y[4] = 305.44;
+piece_x[5] = 550.162; piece_y[5] = 236.44;
+spr["arci-0"].d = 1; spr["arci-0"].x = 582.078; spr["arci-0"].y = 345.09;
+spr["arci-1"].d = 1; spr["arci-1"].x = 567.441; spr["arci-1"].y = 339.027;
+spr["arci-10"].d = 1; spr["arci-10"].x = 623.761; spr["arci-10"].y = 282.707;
+spr["arci-11"].d = 1; spr["arci-11"].x = 629.824; spr["arci-11"].y = 297.344;
+spr["arci-12"].d = 1; spr["arci-12"].x = 629.824; spr["arci-12"].y = 313.188;
+spr["arci-13"].d = 1; spr["arci-13"].x = 623.761; spr["arci-13"].y = 327.825;
+spr["arci-14"].d = 1; spr["arci-14"].x = 612.559; spr["arci-14"].y = 339.027;
+spr["arci-15"].d = 1; spr["arci-15"].x = 597.922; spr["arci-15"].y = 345.09;
+spr["arci-2"].d = 1; spr["arci-2"].x = 556.239; spr["arci-2"].y = 327.825;
+spr["arci-3"].d = 1; spr["arci-3"].x = 550.176; spr["arci-3"].y = 313.188;
+spr["arci-4"].d = 1; spr["arci-4"].x = 550.176; spr["arci-4"].y = 297.344;
+spr["arci-5"].d = 1; spr["arci-5"].x = 556.239; spr["arci-5"].y = 282.707;
+spr["arci-6"].d = 1; spr["arci-6"].x = 567.441; spr["arci-6"].y = 271.505;
+spr["arci-7"].d = 1; spr["arci-7"].x = 582.078; spr["arci-7"].y = 265.442;
+spr["arci-8"].d = 1; spr["arci-8"].x = 597.922; spr["arci-8"].y = 265.442;
+spr["arci-9"].d = 1; spr["arci-9"].x = 612.559; spr["arci-9"].y = 271.505;
+spr["arco-0"].d = 1; spr["arco-0"].x = 610.282; spr["arco-0"].y = 203.3;
+spr["arco-1"].d = 1; spr["arco-1"].x = 647.759; spr["arco-1"].y = 218.824;
+spr["arco-10"].d = 1; spr["arco-10"].x = 503.558; spr["arco-10"].y = 363.025;
+spr["arco-11"].d = 1; spr["arco-11"].x = 488.034; spr["arco-11"].y = 325.548;
+spr["arco-12"].d = 1; spr["arco-12"].x = 488.034; spr["arco-12"].y = 284.984;
+spr["arco-13"].d = 1; spr["arco-13"].x = 503.558; spr["arco-13"].y = 247.507;
+spr["arco-14"].d = 1; spr["arco-14"].x = 532.241; spr["arco-14"].y = 218.824;
+spr["arco-15"].d = 1; spr["arco-15"].x = 569.718; spr["arco-15"].y = 203.3;
+spr["arco-2"].d = 1; spr["arco-2"].x = 676.442; spr["arco-2"].y = 247.507;
+spr["arco-3"].d = 1; spr["arco-3"].x = 691.966; spr["arco-3"].y = 284.984;
+spr["arco-4"].d = 1; spr["arco-4"].x = 691.966; spr["arco-4"].y = 325.548;
+spr["arco-5"].d = 1; spr["arco-5"].x = 676.442; spr["arco-5"].y = 363.025;
+spr["arco-6"].d = 1; spr["arco-6"].x = 647.759; spr["arco-6"].y = 391.708;
+spr["arco-7"].d = 1; spr["arco-7"].x = 610.282; spr["arco-7"].y = 407.232;
+spr["arco-8"].d = 1; spr["arco-8"].x = 569.718; spr["arco-8"].y = 407.232;
+spr["arco-9"].d = 1; spr["arco-9"].x = 532.241; spr["arco-9"].y = 391.708;
+spr["axis-h"].d = 1; spr["axis-h"].x = 590; spr["axis-h"].y = 305.266;
+spr["axis-v"].d = 1; spr["axis-v"].x = 590; spr["axis-v"].y = 305.266;
+spr["bar"].d = 1; spr["bar"].x = 590; spr["bar"].y = 517.297;
+spr["bar-back"].d = 1; spr["bar-back"].x = 590; spr["bar-back"].y = 517.297;
+spr["base"].d = 1; spr["base"].x = 590; spr["base"].y = 305.266;
+spr["bezel"].d = 1; spr["bezel"].x = 590; spr["bezel"].y = 305.266;
+spr["bezel-lit"].d = 1; spr["bezel-lit"].x = 590; spr["bezel-lit"].y = 305.266;
 spr["bloom"].d = 0.5; spr["bloom"].x = 590; spr["bloom"].y = 305.266;
-spr["tick-0"].d = 1; spr["tick-0"].x = 597.375; spr["tick-0"].y = 238.891;
-spr["tick-1"].d = 1; spr["tick-1"].x = 604.75; spr["tick-1"].y = 244.422;
-spr["tick-2"].d = 1; spr["tick-2"].x = 612.586; spr["tick-2"].y = 248.109;
-spr["tick-3"].d = 1; spr["tick-3"].x = 628.258; spr["tick-3"].y = 256.867;
-spr["tick-4"].d = 1; spr["tick-4"].x = 635.633; spr["tick-4"].y = 262.398;
-spr["tick-5"].d = 1; spr["tick-5"].x = 643.93; spr["tick-5"].y = 266.086;
-spr["tick-6"].d = 1; spr["tick-6"].x = 651.305; spr["tick-6"].y = 278.531;
-spr["tick-7"].d = 1; spr["tick-7"].x = 650.383; spr["tick-7"].y = 287.289;
-spr["tick-8"].d = 1; spr["tick-8"].x = 651.305; spr["tick-8"].y = 296.508;
-spr["tick-9"].d = 1; spr["tick-9"].x = 651.305; spr["tick-9"].y = 314.484;
-spr["tick-10"].d = 1; spr["tick-10"].x = 650.383; spr["tick-10"].y = 323.242;
-spr["tick-11"].d = 1; spr["tick-11"].x = 651.305; spr["tick-11"].y = 332.461;
-spr["tick-12"].d = 1; spr["tick-12"].x = 643.93; spr["tick-12"].y = 344.906;
-spr["tick-13"].d = 1; spr["tick-13"].x = 635.633; spr["tick-13"].y = 348.594;
-spr["tick-14"].d = 1; spr["tick-14"].x = 628.258; spr["tick-14"].y = 353.664;
-spr["tick-15"].d = 1; spr["tick-15"].x = 612.586; spr["tick-15"].y = 362.883;
-spr["tick-16"].d = 1; spr["tick-16"].x = 604.75; spr["tick-16"].y = 366.57;
-spr["tick-17"].d = 1; spr["tick-17"].x = 597.375; spr["tick-17"].y = 371.641;
-spr["tick-18"].d = 1; spr["tick-18"].x = 582.625; spr["tick-18"].y = 371.641;
-spr["tick-19"].d = 1; spr["tick-19"].x = 575.25; spr["tick-19"].y = 366.57;
-spr["tick-20"].d = 1; spr["tick-20"].x = 567.414; spr["tick-20"].y = 362.883;
-spr["tick-21"].d = 1; spr["tick-21"].x = 551.742; spr["tick-21"].y = 353.664;
-spr["tick-22"].d = 1; spr["tick-22"].x = 544.367; spr["tick-22"].y = 348.594;
-spr["tick-23"].d = 1; spr["tick-23"].x = 536.07; spr["tick-23"].y = 344.906;
-spr["tick-24"].d = 1; spr["tick-24"].x = 528.695; spr["tick-24"].y = 332.461;
-spr["tick-25"].d = 1; spr["tick-25"].x = 529.617; spr["tick-25"].y = 323.242;
-spr["tick-26"].d = 1; spr["tick-26"].x = 528.695; spr["tick-26"].y = 314.484;
-spr["tick-27"].d = 1; spr["tick-27"].x = 528.695; spr["tick-27"].y = 296.508;
-spr["tick-28"].d = 1; spr["tick-28"].x = 529.617; spr["tick-28"].y = 287.289;
-spr["tick-29"].d = 1; spr["tick-29"].x = 528.695; spr["tick-29"].y = 278.531;
-spr["tick-30"].d = 1; spr["tick-30"].x = 536.07; spr["tick-30"].y = 266.086;
-spr["tick-31"].d = 1; spr["tick-31"].x = 544.367; spr["tick-31"].y = 262.398;
-spr["tick-32"].d = 1; spr["tick-32"].x = 551.742; spr["tick-32"].y = 256.867;
-spr["tick-33"].d = 1; spr["tick-33"].x = 567.414; spr["tick-33"].y = 248.109;
-spr["tick-34"].d = 1; spr["tick-34"].x = 575.25; spr["tick-34"].y = 244.422;
-spr["tick-35"].d = 1; spr["tick-35"].x = 582.625; spr["tick-35"].y = 238.891;
-spr["rays-0"].d = 1; spr["rays-0"].x = 590; spr["rays-0"].y = 305.266;
-spr["rays-1"].d = 1; spr["rays-1"].x = 590; spr["rays-1"].y = 305.266;
-spr["rays-2"].d = 1; spr["rays-2"].x = 590; spr["rays-2"].y = 305.266;
-spr["rays-3"].d = 1; spr["rays-3"].x = 590; spr["rays-3"].y = 305.266;
-spr["rays-4"].d = 1; spr["rays-4"].x = 590; spr["rays-4"].y = 305.266;
-spr["rays-5"].d = 1; spr["rays-5"].x = 590; spr["rays-5"].y = 305.266;
-spr["rays-6"].d = 1; spr["rays-6"].x = 590; spr["rays-6"].y = 305.266;
-spr["rays-7"].d = 1; spr["rays-7"].x = 590; spr["rays-7"].y = 305.266;
-spr["rays-8"].d = 1; spr["rays-8"].x = 590; spr["rays-8"].y = 305.266;
-spr["rays-9"].d = 1; spr["rays-9"].x = 590; spr["rays-9"].y = 305.266;
-spr["rays-10"].d = 1; spr["rays-10"].x = 590; spr["rays-10"].y = 305.266;
-spr["rays-11"].d = 1; spr["rays-11"].x = 590; spr["rays-11"].y = 305.266;
-spr["rays-12"].d = 1; spr["rays-12"].x = 590; spr["rays-12"].y = 305.266;
-spr["rays-13"].d = 1; spr["rays-13"].x = 590; spr["rays-13"].y = 305.266;
-spr["rays-14"].d = 1; spr["rays-14"].x = 590; spr["rays-14"].y = 305.266;
-spr["rays-15"].d = 1; spr["rays-15"].x = 590; spr["rays-15"].y = 305.266;
-spr["rays-16"].d = 1; spr["rays-16"].x = 590; spr["rays-16"].y = 305.266;
-spr["rays-17"].d = 1; spr["rays-17"].x = 590; spr["rays-17"].y = 305.266;
-spr["piece0-0"].d = 1; spr["piece0-0"].x = 629.641; spr["piece0-0"].y = 236.586;
-spr["piece0-1"].d = 1; spr["piece0-1"].x = 629.641; spr["piece0-1"].y = 236.586;
-spr["piece0-2"].d = 1; spr["piece0-2"].x = 629.641; spr["piece0-2"].y = 236.586;
-spr["piece0-3"].d = 1; spr["piece0-3"].x = 629.641; spr["piece0-3"].y = 236.586;
-spr["piece0-4"].d = 1; spr["piece0-4"].x = 629.641; spr["piece0-4"].y = 236.586;
-spr["piece0-5"].d = 1; spr["piece0-5"].x = 629.641; spr["piece0-5"].y = 236.586;
-spr["piece0-6"].d = 1; spr["piece0-6"].x = 629.641; spr["piece0-6"].y = 236.586;
-spr["piece1-0"].d = 1; spr["piece1-0"].x = 669.742; spr["piece1-0"].y = 305.266;
-spr["piece1-1"].d = 1; spr["piece1-1"].x = 669.742; spr["piece1-1"].y = 305.266;
-spr["piece1-2"].d = 1; spr["piece1-2"].x = 669.742; spr["piece1-2"].y = 305.266;
-spr["piece1-3"].d = 1; spr["piece1-3"].x = 669.742; spr["piece1-3"].y = 305.266;
-spr["piece1-4"].d = 1; spr["piece1-4"].x = 669.742; spr["piece1-4"].y = 305.266;
-spr["piece1-5"].d = 1; spr["piece1-5"].x = 669.742; spr["piece1-5"].y = 305.266;
-spr["piece1-6"].d = 1; spr["piece1-6"].x = 669.742; spr["piece1-6"].y = 305.266;
-spr["piece2-0"].d = 1; spr["piece2-0"].x = 629.641; spr["piece2-0"].y = 374.406;
-spr["piece2-1"].d = 1; spr["piece2-1"].x = 629.641; spr["piece2-1"].y = 374.406;
-spr["piece2-2"].d = 1; spr["piece2-2"].x = 629.641; spr["piece2-2"].y = 374.406;
-spr["piece2-3"].d = 1; spr["piece2-3"].x = 629.641; spr["piece2-3"].y = 374.406;
-spr["piece2-4"].d = 1; spr["piece2-4"].x = 629.641; spr["piece2-4"].y = 374.406;
-spr["piece2-5"].d = 1; spr["piece2-5"].x = 629.641; spr["piece2-5"].y = 374.406;
-spr["piece2-6"].d = 1; spr["piece2-6"].x = 629.641; spr["piece2-6"].y = 374.406;
-spr["piece3-0"].d = 1; spr["piece3-0"].x = 550.359; spr["piece3-0"].y = 374.406;
-spr["piece3-1"].d = 1; spr["piece3-1"].x = 550.359; spr["piece3-1"].y = 374.406;
-spr["piece3-2"].d = 1; spr["piece3-2"].x = 550.359; spr["piece3-2"].y = 374.406;
-spr["piece3-3"].d = 1; spr["piece3-3"].x = 550.359; spr["piece3-3"].y = 374.406;
-spr["piece3-4"].d = 1; spr["piece3-4"].x = 550.359; spr["piece3-4"].y = 374.406;
-spr["piece3-5"].d = 1; spr["piece3-5"].x = 550.359; spr["piece3-5"].y = 374.406;
-spr["piece3-6"].d = 1; spr["piece3-6"].x = 550.359; spr["piece3-6"].y = 374.406;
-spr["piece4-0"].d = 1; spr["piece4-0"].x = 510.258; spr["piece4-0"].y = 305.266;
-spr["piece4-1"].d = 1; spr["piece4-1"].x = 510.258; spr["piece4-1"].y = 305.266;
-spr["piece4-2"].d = 1; spr["piece4-2"].x = 510.258; spr["piece4-2"].y = 305.266;
-spr["piece4-3"].d = 1; spr["piece4-3"].x = 510.258; spr["piece4-3"].y = 305.266;
-spr["piece4-4"].d = 1; spr["piece4-4"].x = 510.258; spr["piece4-4"].y = 305.266;
-spr["piece4-5"].d = 1; spr["piece4-5"].x = 510.258; spr["piece4-5"].y = 305.266;
-spr["piece4-6"].d = 1; spr["piece4-6"].x = 510.258; spr["piece4-6"].y = 305.266;
-spr["piece5-0"].d = 1; spr["piece5-0"].x = 550.359; spr["piece5-0"].y = 236.586;
-spr["piece5-1"].d = 1; spr["piece5-1"].x = 550.359; spr["piece5-1"].y = 236.586;
-spr["piece5-2"].d = 1; spr["piece5-2"].x = 550.359; spr["piece5-2"].y = 236.586;
-spr["piece5-3"].d = 1; spr["piece5-3"].x = 550.359; spr["piece5-3"].y = 236.586;
-spr["piece5-4"].d = 1; spr["piece5-4"].x = 550.359; spr["piece5-4"].y = 236.586;
-spr["piece5-5"].d = 1; spr["piece5-5"].x = 550.359; spr["piece5-5"].y = 236.586;
-spr["piece5-6"].d = 1; spr["piece5-6"].x = 550.359; spr["piece5-6"].y = 236.586;
-spr["glint-0"].d = 1; spr["glint-0"].x = 652.227; spr["glint-0"].y = 305.266;
-spr["glint-1"].d = 1; spr["glint-1"].x = 652.227; spr["glint-1"].y = 305.266;
-spr["glint-2"].d = 1; spr["glint-2"].x = 652.227; spr["glint-2"].y = 305.266;
-spr["glint-3"].d = 1; spr["glint-3"].x = 652.227; spr["glint-3"].y = 305.266;
-spr["glint-4"].d = 1; spr["glint-4"].x = 652.227; spr["glint-4"].y = 305.266;
-spr["glint-5"].d = 1; spr["glint-5"].x = 652.227; spr["glint-5"].y = 305.266;
-spr["glint-6"].d = 1; spr["glint-6"].x = 652.227; spr["glint-6"].y = 305.266;
-spr["glint-7"].d = 1; spr["glint-7"].x = 652.227; spr["glint-7"].y = 305.266;
-spr["glint-8"].d = 1; spr["glint-8"].x = 652.227; spr["glint-8"].y = 305.266;
-spr["glint-9"].d = 1; spr["glint-9"].x = 652.227; spr["glint-9"].y = 305.266;
-spr["glint-10"].d = 1; spr["glint-10"].x = 652.227; spr["glint-10"].y = 305.266;
-spr["glint-11"].d = 1; spr["glint-11"].x = 652.227; spr["glint-11"].y = 305.266;
-spr["glint-12"].d = 1; spr["glint-12"].x = 652.227; spr["glint-12"].y = 305.266;
-spr["glint-13"].d = 1; spr["glint-13"].x = 652.227; spr["glint-13"].y = 305.266;
-spr["gem-0"].d = 1; spr["gem-0"].x = 590; spr["gem-0"].y = 305.266;
-spr["gem-1"].d = 1; spr["gem-1"].x = 590; spr["gem-1"].y = 305.266;
-spr["gem-2"].d = 1; spr["gem-2"].x = 590; spr["gem-2"].y = 305.266;
-spr["gem-3"].d = 1; spr["gem-3"].x = 590; spr["gem-3"].y = 305.266;
-spr["gem-4"].d = 1; spr["gem-4"].x = 590; spr["gem-4"].y = 305.266;
-spr["gem-5"].d = 1; spr["gem-5"].x = 590; spr["gem-5"].y = 305.266;
-spr["gem-6"].d = 1; spr["gem-6"].x = 590; spr["gem-6"].y = 305.266;
-spr["gem-7"].d = 1; spr["gem-7"].x = 590; spr["gem-7"].y = 305.266;
-spr["gem-8"].d = 1; spr["gem-8"].x = 590; spr["gem-8"].y = 305.266;
-spr["gem-9"].d = 1; spr["gem-9"].x = 590; spr["gem-9"].y = 305.266;
+spr["bullet"].d = 1; spr["bullet"].x = 590; spr["bullet"].y = 517.297;
+spr["chamber"].d = 1; spr["chamber"].x = 590; spr["chamber"].y = 305.266;
+spr["circle"].d = 1; spr["circle"].x = 590; spr["circle"].y = 305.266;
+spr["dim-h"].d = 1; spr["dim-h"].x = 590; spr["dim-h"].y = 305.266;
+spr["dim-v"].d = 1; spr["dim-v"].x = 590; spr["dim-v"].y = 305.266;
+spr["entry"].d = 1; spr["entry"].x = 590; spr["entry"].y = 517.297;
+spr["halo"].d = 0.5; spr["halo"].x = 590; spr["halo"].y = 305.266;
+spr["hex0-0"].d = 1; spr["hex0-0"].x = 599.959; spr["hex0-0"].y = 219.016;
+spr["hex0-1"].d = 1; spr["hex0-1"].x = 619.878; spr["hex0-1"].y = 230.516;
+spr["hex0-10"].d = 1; spr["hex0-10"].x = 619.878; spr["hex0-10"].y = 380.016;
+spr["hex0-11"].d = 1; spr["hex0-11"].x = 599.959; spr["hex0-11"].y = 391.516;
+spr["hex0-2"].d = 1; spr["hex0-2"].x = 639.796; spr["hex0-2"].y = 242.016;
+spr["hex0-3"].d = 1; spr["hex0-3"].x = 659.715; spr["hex0-3"].y = 253.516;
+spr["hex0-4"].d = 1; spr["hex0-4"].x = 669.674; spr["hex0-4"].y = 270.766;
+spr["hex0-5"].d = 1; spr["hex0-5"].x = 669.674; spr["hex0-5"].y = 293.766;
+spr["hex0-6"].d = 1; spr["hex0-6"].x = 669.674; spr["hex0-6"].y = 316.766;
+spr["hex0-7"].d = 1; spr["hex0-7"].x = 669.674; spr["hex0-7"].y = 339.766;
+spr["hex0-8"].d = 1; spr["hex0-8"].x = 659.715; spr["hex0-8"].y = 357.016;
+spr["hex0-9"].d = 1; spr["hex0-9"].x = 639.796; spr["hex0-9"].y = 368.516;
+spr["hex1-0"].d = 1; spr["hex1-0"].x = 580.041; spr["hex1-0"].y = 219.016;
+spr["hex1-1"].d = 1; spr["hex1-1"].x = 560.122; spr["hex1-1"].y = 230.516;
+spr["hex1-10"].d = 1; spr["hex1-10"].x = 560.122; spr["hex1-10"].y = 380.016;
+spr["hex1-11"].d = 1; spr["hex1-11"].x = 580.041; spr["hex1-11"].y = 391.516;
+spr["hex1-2"].d = 1; spr["hex1-2"].x = 540.204; spr["hex1-2"].y = 242.016;
+spr["hex1-3"].d = 1; spr["hex1-3"].x = 520.285; spr["hex1-3"].y = 253.516;
+spr["hex1-4"].d = 1; spr["hex1-4"].x = 510.326; spr["hex1-4"].y = 270.766;
+spr["hex1-5"].d = 1; spr["hex1-5"].x = 510.326; spr["hex1-5"].y = 293.766;
+spr["hex1-6"].d = 1; spr["hex1-6"].x = 510.326; spr["hex1-6"].y = 316.766;
+spr["hex1-7"].d = 1; spr["hex1-7"].x = 510.326; spr["hex1-7"].y = 339.766;
+spr["hex1-8"].d = 1; spr["hex1-8"].x = 520.285; spr["hex1-8"].y = 357.016;
+spr["hex1-9"].d = 1; spr["hex1-9"].x = 540.204; spr["hex1-9"].y = 368.516;
+spr["inner-0"].d = 1; spr["inner-0"].x = 590; spr["inner-0"].y = 305.266;
+spr["inner-1"].d = 1; spr["inner-1"].x = 590; spr["inner-1"].y = 305.266;
+spr["inner-2"].d = 1; spr["inner-2"].x = 590; spr["inner-2"].y = 305.266;
+spr["inner-3"].d = 1; spr["inner-3"].x = 590; spr["inner-3"].y = 305.266;
+spr["inner-4"].d = 1; spr["inner-4"].x = 590; spr["inner-4"].y = 305.266;
+spr["inner-5"].d = 1; spr["inner-5"].x = 590; spr["inner-5"].y = 305.266;
+spr["inner-6"].d = 1; spr["inner-6"].x = 590; spr["inner-6"].y = 305.266;
+spr["inner-7"].d = 1; spr["inner-7"].x = 590; spr["inner-7"].y = 305.266;
+spr["iris-0"].d = 1; spr["iris-0"].x = 590; spr["iris-0"].y = 305.266;
+spr["iris-102"].d = 1; spr["iris-102"].x = 590; spr["iris-102"].y = 305.266;
+spr["iris-108"].d = 1; spr["iris-108"].x = 590; spr["iris-108"].y = 305.266;
+spr["iris-114"].d = 1; spr["iris-114"].x = 590; spr["iris-114"].y = 305.266;
+spr["iris-12"].d = 1; spr["iris-12"].x = 590; spr["iris-12"].y = 305.266;
+spr["iris-120"].d = 1; spr["iris-120"].x = 590; spr["iris-120"].y = 305.266;
+spr["iris-126"].d = 1; spr["iris-126"].x = 590; spr["iris-126"].y = 305.266;
+spr["iris-132"].d = 1; spr["iris-132"].x = 590; spr["iris-132"].y = 305.266;
+spr["iris-138"].d = 1; spr["iris-138"].x = 590; spr["iris-138"].y = 305.266;
+spr["iris-144"].d = 1; spr["iris-144"].x = 590; spr["iris-144"].y = 305.266;
+spr["iris-150"].d = 1; spr["iris-150"].x = 590; spr["iris-150"].y = 305.266;
+spr["iris-156"].d = 1; spr["iris-156"].x = 590; spr["iris-156"].y = 305.266;
+spr["iris-162"].d = 1; spr["iris-162"].x = 590; spr["iris-162"].y = 305.266;
+spr["iris-168"].d = 1; spr["iris-168"].x = 590; spr["iris-168"].y = 305.266;
+spr["iris-174"].d = 1; spr["iris-174"].x = 590; spr["iris-174"].y = 305.266;
+spr["iris-18"].d = 1; spr["iris-18"].x = 590; spr["iris-18"].y = 305.266;
+spr["iris-180"].d = 1; spr["iris-180"].x = 590; spr["iris-180"].y = 305.266;
+spr["iris-186"].d = 1; spr["iris-186"].x = 590; spr["iris-186"].y = 305.266;
+spr["iris-192"].d = 1; spr["iris-192"].x = 590; spr["iris-192"].y = 305.266;
+spr["iris-198"].d = 1; spr["iris-198"].x = 590; spr["iris-198"].y = 305.266;
+spr["iris-204"].d = 1; spr["iris-204"].x = 590; spr["iris-204"].y = 305.266;
+spr["iris-210"].d = 1; spr["iris-210"].x = 590; spr["iris-210"].y = 305.266;
+spr["iris-216"].d = 1; spr["iris-216"].x = 590; spr["iris-216"].y = 305.266;
+spr["iris-222"].d = 1; spr["iris-222"].x = 590; spr["iris-222"].y = 305.266;
+spr["iris-228"].d = 1; spr["iris-228"].x = 590; spr["iris-228"].y = 305.266;
+spr["iris-234"].d = 1; spr["iris-234"].x = 590; spr["iris-234"].y = 305.266;
+spr["iris-24"].d = 1; spr["iris-24"].x = 590; spr["iris-24"].y = 305.266;
+spr["iris-240"].d = 1; spr["iris-240"].x = 590; spr["iris-240"].y = 305.266;
+spr["iris-246"].d = 1; spr["iris-246"].x = 590; spr["iris-246"].y = 305.266;
+spr["iris-252"].d = 1; spr["iris-252"].x = 590; spr["iris-252"].y = 305.266;
+spr["iris-258"].d = 1; spr["iris-258"].x = 590; spr["iris-258"].y = 305.266;
+spr["iris-264"].d = 1; spr["iris-264"].x = 590; spr["iris-264"].y = 305.266;
+spr["iris-270"].d = 1; spr["iris-270"].x = 590; spr["iris-270"].y = 305.266;
+spr["iris-276"].d = 1; spr["iris-276"].x = 590; spr["iris-276"].y = 305.266;
+spr["iris-282"].d = 1; spr["iris-282"].x = 590; spr["iris-282"].y = 305.266;
+spr["iris-288"].d = 1; spr["iris-288"].x = 590; spr["iris-288"].y = 305.266;
+spr["iris-294"].d = 1; spr["iris-294"].x = 590; spr["iris-294"].y = 305.266;
+spr["iris-30"].d = 1; spr["iris-30"].x = 590; spr["iris-30"].y = 305.266;
+spr["iris-300"].d = 1; spr["iris-300"].x = 590; spr["iris-300"].y = 305.266;
+spr["iris-306"].d = 1; spr["iris-306"].x = 590; spr["iris-306"].y = 305.266;
+spr["iris-312"].d = 1; spr["iris-312"].x = 590; spr["iris-312"].y = 305.266;
+spr["iris-318"].d = 1; spr["iris-318"].x = 590; spr["iris-318"].y = 305.266;
+spr["iris-324"].d = 1; spr["iris-324"].x = 590; spr["iris-324"].y = 305.266;
+spr["iris-330"].d = 1; spr["iris-330"].x = 590; spr["iris-330"].y = 305.266;
+spr["iris-336"].d = 1; spr["iris-336"].x = 590; spr["iris-336"].y = 305.266;
+spr["iris-342"].d = 1; spr["iris-342"].x = 590; spr["iris-342"].y = 305.266;
+spr["iris-348"].d = 1; spr["iris-348"].x = 590; spr["iris-348"].y = 305.266;
+spr["iris-354"].d = 1; spr["iris-354"].x = 590; spr["iris-354"].y = 305.266;
+spr["iris-36"].d = 1; spr["iris-36"].x = 590; spr["iris-36"].y = 305.266;
+spr["iris-42"].d = 1; spr["iris-42"].x = 590; spr["iris-42"].y = 305.266;
+spr["iris-48"].d = 1; spr["iris-48"].x = 590; spr["iris-48"].y = 305.266;
+spr["iris-54"].d = 1; spr["iris-54"].x = 590; spr["iris-54"].y = 305.266;
+spr["iris-6"].d = 1; spr["iris-6"].x = 590; spr["iris-6"].y = 305.266;
+spr["iris-60"].d = 1; spr["iris-60"].x = 590; spr["iris-60"].y = 305.266;
+spr["iris-66"].d = 1; spr["iris-66"].x = 590; spr["iris-66"].y = 305.266;
+spr["iris-72"].d = 1; spr["iris-72"].x = 590; spr["iris-72"].y = 305.266;
+spr["iris-78"].d = 1; spr["iris-78"].x = 590; spr["iris-78"].y = 305.266;
+spr["iris-84"].d = 1; spr["iris-84"].x = 590; spr["iris-84"].y = 305.266;
+spr["iris-90"].d = 1; spr["iris-90"].x = 590; spr["iris-90"].y = 305.266;
+spr["iris-96"].d = 1; spr["iris-96"].x = 590; spr["iris-96"].y = 305.266;
+spr["lock"].d = 1; spr["lock"].x = 590; spr["lock"].y = 517.297;
+spr["mark"].d = 1; spr["mark"].x = 590; spr["mark"].y = 305.266;
+spr["odot"].d = 1; spr["odot"].x = 590; spr["odot"].y = 305.266;
+spr["piece0-0"].d = 1; spr["piece0-0"].x = 629.838; spr["piece0-0"].y = 236.44;
+spr["piece1-0"].d = 1; spr["piece1-0"].x = 669.674; spr["piece1-0"].y = 305.44;
+spr["piece2-0"].d = 1; spr["piece2-0"].x = 629.838; spr["piece2-0"].y = 374.44;
+spr["piece3-0"].d = 1; spr["piece3-0"].x = 550.162; spr["piece3-0"].y = 374.44;
+spr["piece4-0"].d = 1; spr["piece4-0"].x = 510.326; spr["piece4-0"].y = 305.44;
+spr["piece5-0"].d = 1; spr["piece5-0"].x = 550.162; spr["piece5-0"].y = 236.44;
+spr["ridge"].d = 1; spr["ridge"].x = 590; spr["ridge"].y = 305.266;
+spr["seq-0"].d = 1; spr["seq-0"].x = 590; spr["seq-0"].y = 305.266;
+spr["seq-1"].d = 1; spr["seq-1"].x = 590; spr["seq-1"].y = 305.266;
+spr["seq-10"].d = 1; spr["seq-10"].x = 590; spr["seq-10"].y = 305.266;
+spr["seq-11"].d = 1; spr["seq-11"].x = 590; spr["seq-11"].y = 305.266;
+spr["seq-12"].d = 1; spr["seq-12"].x = 590; spr["seq-12"].y = 305.266;
+spr["seq-13"].d = 1; spr["seq-13"].x = 590; spr["seq-13"].y = 305.266;
+spr["seq-14"].d = 1; spr["seq-14"].x = 590; spr["seq-14"].y = 305.266;
+spr["seq-15"].d = 1; spr["seq-15"].x = 590; spr["seq-15"].y = 305.266;
+spr["seq-16"].d = 1; spr["seq-16"].x = 590; spr["seq-16"].y = 305.266;
+spr["seq-17"].d = 1; spr["seq-17"].x = 590; spr["seq-17"].y = 305.266;
+spr["seq-18"].d = 1; spr["seq-18"].x = 590; spr["seq-18"].y = 305.266;
+spr["seq-19"].d = 1; spr["seq-19"].x = 590; spr["seq-19"].y = 305.266;
+spr["seq-2"].d = 1; spr["seq-2"].x = 590; spr["seq-2"].y = 305.266;
+spr["seq-20"].d = 1; spr["seq-20"].x = 590; spr["seq-20"].y = 305.266;
+spr["seq-21"].d = 1; spr["seq-21"].x = 590; spr["seq-21"].y = 305.266;
+spr["seq-3"].d = 1; spr["seq-3"].x = 590; spr["seq-3"].y = 305.266;
+spr["seq-4"].d = 1; spr["seq-4"].x = 590; spr["seq-4"].y = 305.266;
+spr["seq-5"].d = 1; spr["seq-5"].x = 590; spr["seq-5"].y = 305.266;
+spr["seq-6"].d = 1; spr["seq-6"].x = 590; spr["seq-6"].y = 305.266;
+spr["seq-7"].d = 1; spr["seq-7"].x = 590; spr["seq-7"].y = 305.266;
+spr["seq-8"].d = 1; spr["seq-8"].x = 590; spr["seq-8"].y = 305.266;
+spr["seq-9"].d = 1; spr["seq-9"].x = 590; spr["seq-9"].y = 305.266;
 spr["sheen-0"].d = 1; spr["sheen-0"].x = 590; spr["sheen-0"].y = 305.266;
-spr["sheen-1"].d = 1; spr["sheen-1"].x = 590; spr["sheen-1"].y = 305.266;
-spr["sheen-2"].d = 1; spr["sheen-2"].x = 590; spr["sheen-2"].y = 305.266;
-spr["sheen-3"].d = 1; spr["sheen-3"].x = 590; spr["sheen-3"].y = 305.266;
-spr["sheen-4"].d = 1; spr["sheen-4"].x = 590; spr["sheen-4"].y = 305.266;
-spr["sheen-5"].d = 1; spr["sheen-5"].x = 590; spr["sheen-5"].y = 305.266;
-spr["sheen-6"].d = 1; spr["sheen-6"].x = 590; spr["sheen-6"].y = 305.266;
-spr["sheen-7"].d = 1; spr["sheen-7"].x = 590; spr["sheen-7"].y = 305.266;
-spr["sheen-8"].d = 1; spr["sheen-8"].x = 590; spr["sheen-8"].y = 305.266;
-spr["sheen-9"].d = 1; spr["sheen-9"].x = 590; spr["sheen-9"].y = 305.266;
 spr["sheen-10"].d = 1; spr["sheen-10"].x = 590; spr["sheen-10"].y = 305.266;
-spr["sheen-11"].d = 1; spr["sheen-11"].x = 590; spr["sheen-11"].y = 305.266;
 spr["sheen-12"].d = 1; spr["sheen-12"].x = 590; spr["sheen-12"].y = 305.266;
-spr["sheen-13"].d = 1; spr["sheen-13"].x = 590; spr["sheen-13"].y = 305.266;
 spr["sheen-14"].d = 1; spr["sheen-14"].x = 590; spr["sheen-14"].y = 305.266;
-spr["sheen-15"].d = 1; spr["sheen-15"].x = 590; spr["sheen-15"].y = 305.266;
 spr["sheen-16"].d = 1; spr["sheen-16"].x = 590; spr["sheen-16"].y = 305.266;
-spr["sheen-17"].d = 1; spr["sheen-17"].x = 590; spr["sheen-17"].y = 305.266;
 spr["sheen-18"].d = 1; spr["sheen-18"].x = 590; spr["sheen-18"].y = 305.266;
-spr["sheen-19"].d = 1; spr["sheen-19"].x = 590; spr["sheen-19"].y = 305.266;
+spr["sheen-2"].d = 1; spr["sheen-2"].x = 590; spr["sheen-2"].y = 305.266;
 spr["sheen-20"].d = 1; spr["sheen-20"].x = 590; spr["sheen-20"].y = 305.266;
-spr["sheen-21"].d = 1; spr["sheen-21"].x = 590; spr["sheen-21"].y = 305.266;
 spr["sheen-22"].d = 1; spr["sheen-22"].x = 590; spr["sheen-22"].y = 305.266;
-spr["sheen-23"].d = 1; spr["sheen-23"].x = 590; spr["sheen-23"].y = 305.266;
 spr["sheen-24"].d = 1; spr["sheen-24"].x = 590; spr["sheen-24"].y = 305.266;
-spr["sheen-25"].d = 1; spr["sheen-25"].x = 590; spr["sheen-25"].y = 305.266;
 spr["sheen-26"].d = 1; spr["sheen-26"].x = 590; spr["sheen-26"].y = 305.266;
-spr["sheen-27"].d = 1; spr["sheen-27"].x = 590; spr["sheen-27"].y = 305.266;
 spr["sheen-28"].d = 1; spr["sheen-28"].x = 590; spr["sheen-28"].y = 305.266;
-spr["sheen-29"].d = 1; spr["sheen-29"].x = 590; spr["sheen-29"].y = 305.266;
 spr["sheen-30"].d = 1; spr["sheen-30"].x = 590; spr["sheen-30"].y = 305.266;
-spr["sheen-31"].d = 1; spr["sheen-31"].x = 590; spr["sheen-31"].y = 305.266;
 spr["sheen-32"].d = 1; spr["sheen-32"].x = 590; spr["sheen-32"].y = 305.266;
-spr["flash"].d = 0.25; spr["flash"].x = 590; spr["flash"].y = 305.266;
+spr["sheen-4"].d = 1; spr["sheen-4"].x = 590; spr["sheen-4"].y = 305.266;
+spr["sheen-6"].d = 1; spr["sheen-6"].x = 590; spr["sheen-6"].y = 305.266;
+spr["sheen-8"].d = 1; spr["sheen-8"].x = 590; spr["sheen-8"].y = 305.266;
 spr["shock0-0"].d = 0.5; spr["shock0-0"].x = 590; spr["shock0-0"].y = 305.266;
 spr["shock0-1"].d = 0.5; spr["shock0-1"].x = 590; spr["shock0-1"].y = 305.266;
 spr["shock0-2"].d = 0.5; spr["shock0-2"].x = 590; spr["shock0-2"].y = 305.266;
@@ -199,360 +242,25 @@ spr["shock0-4"].d = 0.5; spr["shock0-4"].x = 590; spr["shock0-4"].y = 305.266;
 spr["shock0-5"].d = 0.5; spr["shock0-5"].x = 590; spr["shock0-5"].y = 305.266;
 spr["shock0-6"].d = 0.5; spr["shock0-6"].x = 590; spr["shock0-6"].y = 305.266;
 spr["shock0-7"].d = 0.5; spr["shock0-7"].x = 590; spr["shock0-7"].y = 305.266;
-spr["shock0-8"].d = 0.5; spr["shock0-8"].x = 590; spr["shock0-8"].y = 305.266;
-spr["shock0-9"].d = 0.5; spr["shock0-9"].x = 590; spr["shock0-9"].y = 305.266;
-spr["shock0-10"].d = 0.5; spr["shock0-10"].x = 590; spr["shock0-10"].y = 305.266;
-spr["shock0-11"].d = 0.5; spr["shock0-11"].x = 590; spr["shock0-11"].y = 305.266;
-spr["shock0-12"].d = 0.5; spr["shock0-12"].x = 590; spr["shock0-12"].y = 305.266;
-spr["shock0-13"].d = 0.5; spr["shock0-13"].x = 590; spr["shock0-13"].y = 305.266;
-spr["shock1-0"].d = 0.5; spr["shock1-0"].x = 590; spr["shock1-0"].y = 305.266;
-spr["shock1-1"].d = 0.5; spr["shock1-1"].x = 590; spr["shock1-1"].y = 305.266;
-spr["shock1-2"].d = 0.5; spr["shock1-2"].x = 590; spr["shock1-2"].y = 305.266;
-spr["shock1-3"].d = 0.5; spr["shock1-3"].x = 590; spr["shock1-3"].y = 305.266;
-spr["shock1-4"].d = 0.5; spr["shock1-4"].x = 590; spr["shock1-4"].y = 305.266;
-spr["shock1-5"].d = 0.5; spr["shock1-5"].x = 590; spr["shock1-5"].y = 305.266;
-spr["shock1-6"].d = 0.5; spr["shock1-6"].x = 590; spr["shock1-6"].y = 305.266;
-spr["shock1-7"].d = 0.5; spr["shock1-7"].x = 590; spr["shock1-7"].y = 305.266;
-spr["shock1-8"].d = 0.5; spr["shock1-8"].x = 590; spr["shock1-8"].y = 305.266;
-spr["shock1-9"].d = 0.5; spr["shock1-9"].x = 590; spr["shock1-9"].y = 305.266;
-spr["shock1-10"].d = 0.5; spr["shock1-10"].x = 590; spr["shock1-10"].y = 305.266;
-spr["shock1-11"].d = 0.5; spr["shock1-11"].x = 590; spr["shock1-11"].y = 305.266;
-spr["shock1-12"].d = 0.5; spr["shock1-12"].x = 590; spr["shock1-12"].y = 305.266;
-spr["shock1-13"].d = 0.5; spr["shock1-13"].x = 590; spr["shock1-13"].y = 305.266;
-spr["flare0"].d = 1; spr["flare0"].x = 590; spr["flare0"].y = 305.266;
-spr["flare1"].d = 0.5; spr["flare1"].x = 590; spr["flare1"].y = 305.266;
+spr["streak"].d = 1; spr["streak"].x = 590; spr["streak"].y = 305.266;
+spr["ticks"].d = 1; spr["ticks"].x = 590; spr["ticks"].y = 305.266;
 spr["word"].d = 1; spr["word"].x = 590; spr["word"].y = 490.563;
-spr["spark0-0"].d = 1; spr["spark0-0"].x = 590; spr["spark0-0"].y = 305.266;
-spr["spark0-1"].d = 1; spr["spark0-1"].x = 590; spr["spark0-1"].y = 305.266;
-spr["spark1-0"].d = 1; spr["spark1-0"].x = 590; spr["spark1-0"].y = 305.266;
-spr["spark1-1"].d = 1; spr["spark1-1"].x = 590; spr["spark1-1"].y = 305.266;
-spr["spark2-0"].d = 1; spr["spark2-0"].x = 590; spr["spark2-0"].y = 305.266;
-spr["spark2-1"].d = 1; spr["spark2-1"].x = 590; spr["spark2-1"].y = 305.266;
-spr["spark3-0"].d = 1; spr["spark3-0"].x = 590; spr["spark3-0"].y = 305.266;
-spr["spark3-1"].d = 1; spr["spark3-1"].x = 590; spr["spark3-1"].y = 305.266;
-spr["spark4-0"].d = 1; spr["spark4-0"].x = 590; spr["spark4-0"].y = 305.266;
-spr["spark4-1"].d = 1; spr["spark4-1"].x = 590; spr["spark4-1"].y = 305.266;
-spr["spark5-0"].d = 1; spr["spark5-0"].x = 590; spr["spark5-0"].y = 305.266;
-spr["spark5-1"].d = 1; spr["spark5-1"].x = 590; spr["spark5-1"].y = 305.266;
-spr["spark6-0"].d = 1; spr["spark6-0"].x = 590; spr["spark6-0"].y = 305.266;
-spr["spark6-1"].d = 1; spr["spark6-1"].x = 590; spr["spark6-1"].y = 305.266;
-spr["spark7-0"].d = 1; spr["spark7-0"].x = 590; spr["spark7-0"].y = 305.266;
-spr["spark7-1"].d = 1; spr["spark7-1"].x = 590; spr["spark7-1"].y = 305.266;
-spr["spark8-0"].d = 1; spr["spark8-0"].x = 590; spr["spark8-0"].y = 305.266;
-spr["spark8-1"].d = 1; spr["spark8-1"].x = 590; spr["spark8-1"].y = 305.266;
-spr["spark9-0"].d = 1; spr["spark9-0"].x = 590; spr["spark9-0"].y = 305.266;
-spr["spark9-1"].d = 1; spr["spark9-1"].x = 590; spr["spark9-1"].y = 305.266;
-spr["spark10-0"].d = 1; spr["spark10-0"].x = 590; spr["spark10-0"].y = 305.266;
-spr["spark10-1"].d = 1; spr["spark10-1"].x = 590; spr["spark10-1"].y = 305.266;
-spr["spark11-0"].d = 1; spr["spark11-0"].x = 590; spr["spark11-0"].y = 305.266;
-spr["spark11-1"].d = 1; spr["spark11-1"].x = 590; spr["spark11-1"].y = 305.266;
-spr["spark12-0"].d = 1; spr["spark12-0"].x = 590; spr["spark12-0"].y = 305.266;
-spr["spark12-1"].d = 1; spr["spark12-1"].x = 590; spr["spark12-1"].y = 305.266;
-spr["spark13-0"].d = 1; spr["spark13-0"].x = 590; spr["spark13-0"].y = 305.266;
-spr["spark13-1"].d = 1; spr["spark13-1"].x = 590; spr["spark13-1"].y = 305.266;
-spr["spark14-0"].d = 1; spr["spark14-0"].x = 590; spr["spark14-0"].y = 305.266;
-spr["spark14-1"].d = 1; spr["spark14-1"].x = 590; spr["spark14-1"].y = 305.266;
-spr["spark15-0"].d = 1; spr["spark15-0"].x = 590; spr["spark15-0"].y = 305.266;
-spr["spark15-1"].d = 1; spr["spark15-1"].x = 590; spr["spark15-1"].y = 305.266;
-spr["spark16-0"].d = 1; spr["spark16-0"].x = 590; spr["spark16-0"].y = 305.266;
-spr["spark16-1"].d = 1; spr["spark16-1"].x = 590; spr["spark16-1"].y = 305.266;
-spr["spark17-0"].d = 1; spr["spark17-0"].x = 590; spr["spark17-0"].y = 305.266;
-spr["spark17-1"].d = 1; spr["spark17-1"].x = 590; spr["spark17-1"].y = 305.266;
-spr["spark18-0"].d = 1; spr["spark18-0"].x = 590; spr["spark18-0"].y = 305.266;
-spr["spark18-1"].d = 1; spr["spark18-1"].x = 590; spr["spark18-1"].y = 305.266;
-spr["spark19-0"].d = 1; spr["spark19-0"].x = 590; spr["spark19-0"].y = 305.266;
-spr["spark19-1"].d = 1; spr["spark19-1"].x = 590; spr["spark19-1"].y = 305.266;
-spr["spark20-0"].d = 1; spr["spark20-0"].x = 590; spr["spark20-0"].y = 305.266;
-spr["spark20-1"].d = 1; spr["spark20-1"].x = 590; spr["spark20-1"].y = 305.266;
-spr["spark21-0"].d = 1; spr["spark21-0"].x = 590; spr["spark21-0"].y = 305.266;
-spr["spark21-1"].d = 1; spr["spark21-1"].x = 590; spr["spark21-1"].y = 305.266;
-spr["spark22-0"].d = 1; spr["spark22-0"].x = 590; spr["spark22-0"].y = 305.266;
-spr["spark22-1"].d = 1; spr["spark22-1"].x = 590; spr["spark22-1"].y = 305.266;
-spr["spark23-0"].d = 1; spr["spark23-0"].x = 590; spr["spark23-0"].y = 305.266;
-spr["spark23-1"].d = 1; spr["spark23-1"].x = 590; spr["spark23-1"].y = 305.266;
-spr["spark24-0"].d = 1; spr["spark24-0"].x = 590; spr["spark24-0"].y = 305.266;
-spr["spark24-1"].d = 1; spr["spark24-1"].x = 590; spr["spark24-1"].y = 305.266;
-spr["spark25-0"].d = 1; spr["spark25-0"].x = 590; spr["spark25-0"].y = 305.266;
-spr["spark25-1"].d = 1; spr["spark25-1"].x = 590; spr["spark25-1"].y = 305.266;
-spr["spark26-0"].d = 1; spr["spark26-0"].x = 590; spr["spark26-0"].y = 305.266;
-spr["spark26-1"].d = 1; spr["spark26-1"].x = 590; spr["spark26-1"].y = 305.266;
-spr["spark27-0"].d = 1; spr["spark27-0"].x = 590; spr["spark27-0"].y = 305.266;
-spr["spark27-1"].d = 1; spr["spark27-1"].x = 590; spr["spark27-1"].y = 305.266;
-spr["spark28-0"].d = 1; spr["spark28-0"].x = 590; spr["spark28-0"].y = 305.266;
-spr["spark28-1"].d = 1; spr["spark28-1"].x = 590; spr["spark28-1"].y = 305.266;
-spr["spark29-0"].d = 1; spr["spark29-0"].x = 590; spr["spark29-0"].y = 305.266;
-spr["spark29-1"].d = 1; spr["spark29-1"].x = 590; spr["spark29-1"].y = 305.266;
-spr["spark30-0"].d = 1; spr["spark30-0"].x = 590; spr["spark30-0"].y = 305.266;
-spr["spark30-1"].d = 1; spr["spark30-1"].x = 590; spr["spark30-1"].y = 305.266;
-spr["spark31-0"].d = 1; spr["spark31-0"].x = 590; spr["spark31-0"].y = 305.266;
-spr["spark31-1"].d = 1; spr["spark31-1"].x = 590; spr["spark31-1"].y = 305.266;
-spr["spark32-0"].d = 1; spr["spark32-0"].x = 590; spr["spark32-0"].y = 305.266;
-spr["spark32-1"].d = 1; spr["spark32-1"].x = 590; spr["spark32-1"].y = 305.266;
-spr["spark33-0"].d = 1; spr["spark33-0"].x = 590; spr["spark33-0"].y = 305.266;
-spr["spark33-1"].d = 1; spr["spark33-1"].x = 590; spr["spark33-1"].y = 305.266;
-spr["spark34-0"].d = 1; spr["spark34-0"].x = 590; spr["spark34-0"].y = 305.266;
-spr["spark34-1"].d = 1; spr["spark34-1"].x = 590; spr["spark34-1"].y = 305.266;
-spr["spark35-0"].d = 1; spr["spark35-0"].x = 590; spr["spark35-0"].y = 305.266;
-spr["spark35-1"].d = 1; spr["spark35-1"].x = 590; spr["spark35-1"].y = 305.266;
-spr["spark36-0"].d = 1; spr["spark36-0"].x = 590; spr["spark36-0"].y = 305.266;
-spr["spark36-1"].d = 1; spr["spark36-1"].x = 590; spr["spark36-1"].y = 305.266;
-spr["spark37-0"].d = 1; spr["spark37-0"].x = 590; spr["spark37-0"].y = 305.266;
-spr["spark37-1"].d = 1; spr["spark37-1"].x = 590; spr["spark37-1"].y = 305.266;
-spr["spark38-0"].d = 1; spr["spark38-0"].x = 590; spr["spark38-0"].y = 305.266;
-spr["spark38-1"].d = 1; spr["spark38-1"].x = 590; spr["spark38-1"].y = 305.266;
-spr["spark39-0"].d = 1; spr["spark39-0"].x = 590; spr["spark39-0"].y = 305.266;
-spr["spark39-1"].d = 1; spr["spark39-1"].x = 590; spr["spark39-1"].y = 305.266;
-spr["spark40-0"].d = 1; spr["spark40-0"].x = 590; spr["spark40-0"].y = 305.266;
-spr["spark40-1"].d = 1; spr["spark40-1"].x = 590; spr["spark40-1"].y = 305.266;
-spr["spark41-0"].d = 1; spr["spark41-0"].x = 590; spr["spark41-0"].y = 305.266;
-spr["spark41-1"].d = 1; spr["spark41-1"].x = 590; spr["spark41-1"].y = 305.266;
-spr["spark42-0"].d = 1; spr["spark42-0"].x = 590; spr["spark42-0"].y = 305.266;
-spr["spark42-1"].d = 1; spr["spark42-1"].x = 590; spr["spark42-1"].y = 305.266;
-spr["spark43-0"].d = 1; spr["spark43-0"].x = 590; spr["spark43-0"].y = 305.266;
-spr["spark43-1"].d = 1; spr["spark43-1"].x = 590; spr["spark43-1"].y = 305.266;
-spr["spark44-0"].d = 1; spr["spark44-0"].x = 590; spr["spark44-0"].y = 305.266;
-spr["spark44-1"].d = 1; spr["spark44-1"].x = 590; spr["spark44-1"].y = 305.266;
-spr["spark45-0"].d = 1; spr["spark45-0"].x = 590; spr["spark45-0"].y = 305.266;
-spr["spark45-1"].d = 1; spr["spark45-1"].x = 590; spr["spark45-1"].y = 305.266;
-spr["dot-0"].d = 1; spr["dot-0"].x = 590; spr["dot-0"].y = 305.266;
-spr["dot-1"].d = 1; spr["dot-1"].x = 590; spr["dot-1"].y = 305.266;
-spr["dot-2"].d = 1; spr["dot-2"].x = 590; spr["dot-2"].y = 305.266;
-spr["entry"].d = 1; spr["entry"].x = 590; spr["entry"].y = 517.297;
-spr["lock"].d = 1; spr["lock"].x = 590; spr["lock"].y = 517.297;
-spr["bullet"].d = 1; spr["bullet"].x = 590; spr["bullet"].y = 517.297;
-spr["bar-back"].d = 1; spr["bar-back"].x = 590; spr["bar-back"].y = 517.297;
-spr["bar"].d = 1; spr["bar"].x = 590; spr["bar"].y = 517.297;
-bez["linear"][0] = 0; bez["linear"][1] = 0; bez["linear"][2] = 1; bez["linear"][3] = 1;
-bez["ease-out"][0] = 0; bez["ease-out"][1] = 0; bez["ease-out"][2] = 0.58; bez["ease-out"][3] = 1;
-bez["ease-in"][0] = 0.42; bez["ease-in"][1] = 0; bez["ease-in"][2] = 1; bez["ease-in"][3] = 1;
-bez["ease-in-out"][0] = 0.42; bez["ease-in-out"][1] = 0; bez["ease-in-out"][2] = 0.58; bez["ease-in-out"][3] = 1;
-bez["out"][0] = 0.16; bez["out"][1] = 0.84; bez["out"][2] = 0.24; bez["out"][3] = 1;
-bez["in"][0] = 0.6; bez["in"][1] = 0; bez["in"][2] = 0.9; bez["in"][3] = 0.45;
-bez["pop"][0] = 0.3; bez["pop"][1] = 1.6; bez["pop"][2] = 0.5; bez["pop"][3] = 1;
-bez["wave"][0] = 0.2; bez["wave"][1] = 0.7; bez["wave"][2] = 0.3; bez["wave"][3] = 1;
-gate["amb"][0].t = 0; gate["amb"][0].v = 0; gate["amb"][0].e = "linear";
-gate["amb"][1].t = 1.62; gate["amb"][1].v = 0; gate["amb"][1].e = "ease-out";
-gate["amb"][2].t = 1.85; gate["amb"][2].v = 1; gate["amb"][2].e = "ease-in-out";
-gate["amb"][3].t = 3.2; gate["amb"][3].v = 0.55; gate["amb"][3].e = "linear";
-gate["beams"][0].t = 0; gate["beams"][0].v = 0; gate["beams"][0].e = "linear";
-gate["beams"][1].t = 1.75; gate["beams"][1].v = 0; gate["beams"][1].e = "ease-out";
-gate["beams"][2].t = 2; gate["beams"][2].v = 1; gate["beams"][2].e = "ease-in-out";
-gate["beams"][3].t = 3; gate["beams"][3].v = 0.6; gate["beams"][3].e = "linear";
-gate["motes"][0].t = 0; gate["motes"][0].v = 0; gate["motes"][0].e = "linear";
-gate["motes"][1].t = 2.2; gate["motes"][1].v = 0; gate["motes"][1].e = "linear";
-gate["motes"][2].t = 3; gate["motes"][2].v = 1; gate["motes"][2].e = "linear";
-gate["halo"][0].t = 0; gate["halo"][0].v = 0; gate["halo"][0].e = "linear";
-gate["halo"][1].t = 1.55; gate["halo"][1].v = 0; gate["halo"][1].e = "ease-out";
-gate["halo"][2].t = 2.3; gate["halo"][2].v = 1; gate["halo"][2].e = "linear";
-gate["chamber"][0].t = 0; gate["chamber"][0].v = 0; gate["chamber"][0].e = "linear";
-gate["chamber"][1].t = 1.2; gate["chamber"][1].v = 0; gate["chamber"][1].e = "ease-out";
-gate["chamber"][2].t = 1.6; gate["chamber"][2].v = 1; gate["chamber"][2].e = "linear";
-gate["bloom"][0].t = 0; gate["bloom"][0].v = 0; gate["bloom"][0].e = "linear";
-gate["bloom"][1].t = 1.62; gate["bloom"][1].v = 0; gate["bloom"][1].e = "ease-out";
-gate["bloom"][2].t = 1.8; gate["bloom"][2].v = 1; gate["bloom"][2].e = "ease-in-out";
-gate["bloom"][3].t = 2.6; gate["bloom"][3].v = 0.55; gate["bloom"][3].e = "linear";
-gate["ticks"][0].t = 0; gate["ticks"][0].v = 0; gate["ticks"][0].e = "linear";
-gate["ticks"][1].t = 1.5; gate["ticks"][1].v = 0; gate["ticks"][1].e = "ease-out";
-gate["ticks"][2].t = 2; gate["ticks"][2].v = 1; gate["ticks"][2].e = "linear";
-gate["lit"][0].t = 0; gate["lit"][0].v = 0; gate["lit"][0].e = "linear";
-gate["lit"][1].t = 2.3; gate["lit"][1].v = 0; gate["lit"][1].e = "ease-out";
-gate["lit"][2].t = 2.7; gate["lit"][2].v = 1; gate["lit"][2].e = "linear";
-gate["ridge"][0].t = 0; gate["ridge"][0].v = 0; gate["ridge"][0].e = "linear";
-gate["ridge"][1].t = 1.85; gate["ridge"][1].v = 0; gate["ridge"][1].e = "ease-out";
-gate["ridge"][2].t = 2.2; gate["ridge"][2].v = 1; gate["ridge"][2].e = "linear";
-gate["sheen"][0].t = 0; gate["sheen"][0].v = 0; gate["sheen"][0].e = "linear";
-gate["sheen"][1].t = 2.4; gate["sheen"][1].v = 0; gate["sheen"][1].e = "linear";
-gate["sheen"][2].t = 2.6; gate["sheen"][2].v = 1; gate["sheen"][2].e = "linear";
-gate["amb"].n = 4;
-gate["beams"].n = 4;
-gate["motes"].n = 3;
-gate["halo"].n = 3;
-gate["chamber"].n = 3;
-gate["bloom"].n = 4;
-gate["ticks"].n = 3;
-gate["lit"].n = 3;
-gate["ridge"].n = 3;
-gate["sheen"].n = 3;
-tick[0].x = 597.205; tick[0].y = 239.052;
-tick[1].x = 604.603; tick[1].y = 244.21;
-tick[2].x = 612.766; tick[2].y = 248.038;
-tick[3].x = 628.328; tick[3].y = 257.021;
-tick[4].x = 635.726; tick[4].y = 262.179;
-tick[5].x = 643.889; tick[5].y = 266.007;
-tick[6].x = 651.096; tick[6].y = 278.488;
-tick[7].x = 650.329; tick[7].y = 287.471;
-tick[8].x = 651.096; tick[8].y = 296.455;
-tick[9].x = 651.096; tick[9].y = 314.425;
-tick[10].x = 650.329; tick[10].y = 323.409;
-tick[11].x = 651.096; tick[11].y = 332.392;
-tick[12].x = 643.889; tick[12].y = 344.874;
-tick[13].x = 635.726; tick[13].y = 348.701;
-tick[14].x = 628.328; tick[14].y = 353.859;
-tick[15].x = 612.766; tick[15].y = 362.842;
-tick[16].x = 604.603; tick[16].y = 366.67;
-tick[17].x = 597.205; tick[17].y = 371.828;
-tick[18].x = 582.795; tick[18].y = 371.828;
-tick[19].x = 575.397; tick[19].y = 366.67;
-tick[20].x = 567.234; tick[20].y = 362.842;
-tick[21].x = 551.672; tick[21].y = 353.859;
-tick[22].x = 544.274; tick[22].y = 348.701;
-tick[23].x = 536.111; tick[23].y = 344.874;
-tick[24].x = 528.904; tick[24].y = 332.392;
-tick[25].x = 529.671; tick[25].y = 323.409;
-tick[26].x = 528.904; tick[26].y = 314.425;
-tick[27].x = 528.904; tick[27].y = 296.457;
-tick[28].x = 529.671; tick[28].y = 287.471;
-tick[29].x = 528.904; tick[29].y = 278.488;
-tick[30].x = 536.111; tick[30].y = 266.007;
-tick[31].x = 544.274; tick[31].y = 262.179;
-tick[32].x = 551.672; tick[32].y = 257.021;
-tick[33].x = 567.234; tick[33].y = 248.038;
-tick[34].x = 575.397; tick[34].y = 244.21;
-tick[35].x = 582.795; tick[35].y = 239.052;
-TICKS = 36; CHASE = 1.6; TAIL = 0.34;
-BREATHE = 2.4; BREATHE_LOW = 0.55; SPIN = 36;
-RAYS_FROM = 1.78; RAYS_FPS = 25; RAYS_N = 18;
-piece[0].t0 = 0.85; piece[0].t1 = 1.45; piece[0].fade = 0.12; piece[0].dx = 67.083; piece[0].dy = -116.192; piece[0].rot = 18; piece[0].x = 629.838; piece[0].y = 236.44;
-piece[1].t0 = 0.93; piece[1].t1 = 1.53; piece[1].fade = 0.12; piece[1].dx = 134.167; piece[1].dy = 0; piece[1].rot = 18; piece[1].x = 669.674; piece[1].y = 305.44;
-piece[2].t0 = 1.01; piece[2].t1 = 1.61; piece[2].fade = 0.12; piece[2].dx = 67.083; piece[2].dy = 116.192; piece[2].rot = 18; piece[2].x = 629.838; piece[2].y = 374.44;
-piece[3].t0 = 1.09; piece[3].t1 = 1.69; piece[3].fade = 0.12; piece[3].dx = -67.083; piece[3].dy = 116.192; piece[3].rot = 18; piece[3].x = 550.162; piece[3].y = 374.44;
-piece[4].t0 = 1.17; piece[4].t1 = 1.77; piece[4].fade = 0.12; piece[4].dx = -134.167; piece[4].dy = 0; piece[4].rot = 18; piece[4].x = 510.326; piece[4].y = 305.44;
-piece[5].t0 = 1.25; piece[5].t1 = 1.85; piece[5].fade = 0.12; piece[5].dx = -67.083; piece[5].dy = -116.192; piece[5].rot = 18; piece[5].x = 550.162; piece[5].y = 236.44;
-PIECE_STEPS = 7; PIECE_DEG = 3;
-glint[0].x = 652.246; glint[0].y = 305.44; glint[0].lit = 1.45; glint[0].tw = 0;
-glint[1].x = 621.123; glint[1].y = 359.346; glint[1].lit = 1.53; glint[1].tw = 0.37;
-glint[2].x = 558.877; glint[2].y = 359.346; glint[2].lit = 1.61; glint[2].tw = 0.74;
-glint[3].x = 527.754; glint[3].y = 305.44; glint[3].lit = 1.69; glint[3].tw = 1.11;
-glint[4].x = 558.877; glint[4].y = 251.534; glint[4].lit = 1.77; glint[4].tw = 1.48;
-glint[5].x = 621.123; glint[5].y = 251.534; glint[5].lit = 1.85; glint[5].tw = 1.85;
-glint_scale[0] = 0.2;
-glint_scale[1] = 0.32;
-glint_scale[2] = 0.45;
-glint_scale[3] = 0.6;
-glint_scale[4] = 0.75;
-glint_scale[5] = 0.88;
-glint_scale[6] = 1;
-glint_scale[7] = 1.2;
-glint_scale[8] = 1.45;
-glint_scale[9] = 1.7;
-glint_scale[10] = 2.05;
-glint_scale[11] = 2.5;
-glint_scale[12] = 3.1;
-glint_scale[13] = 4.1;
-GLINT_N = 14; TWINKLE = 2.2;
-twk[0].p = 0; twk[0].s = 1; twk[0].o = 1;
-twk[1].p = 0.12; twk[1].s = 1.7; twk[1].o = 1;
-twk[2].p = 0.3; twk[2].s = 0.85; twk[2].o = 0.7;
-twk[3].p = 1; twk[3].s = 1; twk[3].o = 1;
-gem_scale[0] = 0.12;
-gem_scale[1] = 0.25;
-gem_scale[2] = 0.4;
-gem_scale[3] = 0.55;
-gem_scale[4] = 0.7;
-gem_scale[5] = 0.82;
-gem_scale[6] = 0.92;
-gem_scale[7] = 1;
-gem_scale[8] = 1.06;
-gem_scale[9] = 1.12;
-GEM_N = 10; GEM_FROM = 1.62; GEM_TO = 1.95;
-SWEEP = 2.8; SWEEP_MOVING = 0.55; SHEEN_N = 33;
-flash[0].t = 1.66; flash[0].s = 0.1; flash[0].o = 0; flash[0].e = "ease-out";
-flash[1].t = 1.76; flash[1].s = 0.9; flash[1].o = 1; flash[1].e = "ease-out";
-flash[2].t = 2.4; flash[2].s = 2.6; flash[2].o = 0; flash[2].e = "linear";
-shock[0][0].t = 1.72; shock[0][0].s = 1; shock[0][0].o = 0.95; shock[0][0].e = "wave";
-shock[0][1].t = 2.62; shock[0][1].s = 2.9; shock[0][1].o = 0; shock[0][1].e = "linear";
-shock[1][0].t = 1.86; shock[1][0].s = 1; shock[1][0].o = 0.95; shock[1][0].e = "wave";
-shock[1][1].t = 2.76; shock[1][1].s = 3.4; shock[1][1].o = 0; shock[1][1].e = "linear";
-SHOCK_N = 14;
-flare[0][0].t = 1.66; flare[0][0].s = 0; flare[0][0].o = 0; flare[0][0].e = "out";
-flare[0][1].t = 1.8; flare[0][1].s = 1; flare[0][1].o = 1; flare[0][1].e = "ease-in";
-flare[0][2].t = 2.5; flare[0][2].s = 1.15; flare[0][2].o = 0; flare[0][2].e = "linear";
-flare[1][0].t = 1.66; flare[1][0].s = 0; flare[1][0].o = 0; flare[1][0].e = "out";
-flare[1][1].t = 1.82; flare[1][1].s = 1; flare[1][1].o = 0.7; flare[1][1].e = "ease-in";
-flare[1][2].t = 2.4; flare[1][2].s = 1.2; flare[1][2].o = 0; flare[1][2].e = "linear";
-WORD_FROM = 2.35; WORD_TO = 3.1; WORD_OPACITY = 0.92; WORD_RISE = 8;
-spark[0].a = 116.58; spark[0].r0 = 423.41; spark[0].r1 = 102.15; spark[0].d = 0.632; spark[0].dur = 0.75;
-spark[1].a = 20.88; spark[1].r0 = 544.11; spark[1].r1 = 79.58; spark[1].d = 0.213; spark[1].dur = 0.75;
-spark[2].a = 152.827; spark[2].r0 = 652.24; spark[2].r1 = 82.76; spark[2].d = 0.715; spark[2].dur = 0.75;
-spark[3].a = 210.795; spark[3].r0 = 389.13; spark[3].r1 = 86.34; spark[3].d = 0.27; spark[3].dur = 0.5;
-spark[4].a = 194.647; spark[4].r0 = 565.6; spark[4].r1 = 98.82; spark[4].d = 0.243; spark[4].dur = 0.75;
-spark[5].a = 67.634; spark[5].r0 = 405.33; spark[5].r1 = 104.41; spark[5].d = 0.707; spark[5].dur = 0.75;
-spark[6].a = 191.419; spark[6].r0 = 635.44; spark[6].r1 = 95.33; spark[6].d = 0.475; spark[6].dur = 0.5;
-spark[7].a = 251.638; spark[7].r0 = 454.97; spark[7].r1 = 99.34; spark[7].d = 0.938; spark[7].dur = 0.62;
-spark[8].a = 103.658; spark[8].r0 = 704.14; spark[8].r1 = 82.54; spark[8].d = 0.831; spark[8].dur = 0.62;
-spark[9].a = 151.811; spark[9].r0 = 697.99; spark[9].r1 = 81.06; spark[9].d = 0.86; spark[9].dur = 0.62;
-spark[10].a = 250.306; spark[10].r0 = 573.54; spark[10].r1 = 99.54; spark[10].d = 0.906; spark[10].dur = 0.62;
-spark[11].a = 250.935; spark[11].r0 = 394.35; spark[11].r1 = 105.11; spark[11].d = 0.67; spark[11].dur = 0.62;
-spark[12].a = 102.454; spark[12].r0 = 502.94; spark[12].r1 = 102.81; spark[12].d = 0.566; spark[12].dur = 0.75;
-spark[13].a = 42.154; spark[13].r0 = 392.3; spark[13].r1 = 106.47; spark[13].d = 0.373; spark[13].dur = 0.62;
-spark[14].a = 29.009; spark[14].r0 = 524.4; spark[14].r1 = 98.42; spark[14].d = 0.887; spark[14].dur = 0.62;
-spark[15].a = 254.303; spark[15].r0 = 706.27; spark[15].r1 = 103.32; spark[15].d = 0.358; spark[15].dur = 0.5;
-spark[16].a = 54.467; spark[16].r0 = 595.25; spark[16].r1 = 78.64; spark[16].d = 0.314; spark[16].dur = 0.5;
-spark[17].a = 52.444; spark[17].r0 = 553.31; spark[17].r1 = 100.64; spark[17].d = 0.263; spark[17].dur = 0.75;
-spark[18].a = 235.788; spark[18].r0 = 622.76; spark[18].r1 = 95; spark[18].d = 1.007; spark[18].dur = 0.75;
-spark[19].a = 141.256; spark[19].r0 = 507.4; spark[19].r1 = 82.01; spark[19].d = 0.206; spark[19].dur = 0.5;
-spark[20].a = 158.626; spark[20].r0 = 409.56; spark[20].r1 = 100.31; spark[20].d = 0.66; spark[20].dur = 0.5;
-spark[21].a = 341.622; spark[21].r0 = 580.1; spark[21].r1 = 80.79; spark[21].d = 0.489; spark[21].dur = 0.62;
-spark[22].a = 343.968; spark[22].r0 = 576.22; spark[22].r1 = 95.65; spark[22].d = 0.589; spark[22].dur = 0.62;
-spark[23].a = 174.18; spark[23].r0 = 401.42; spark[23].r1 = 81.96; spark[23].d = 0.388; spark[23].dur = 0.5;
-spark[24].a = 185.88; spark[24].r0 = 441.81; spark[24].r1 = 113.23; spark[24].d = 0.771; spark[24].dur = 0.75;
-spark[25].a = 107.312; spark[25].r0 = 589.97; spark[25].r1 = 81.55; spark[25].d = 0.617; spark[25].dur = 0.62;
-spark[26].a = 277.898; spark[26].r0 = 552.63; spark[26].r1 = 106.87; spark[26].d = 0.351; spark[26].dur = 0.5;
-spark[27].a = 294.6; spark[27].r0 = 622.79; spark[27].r1 = 86.54; spark[27].d = 0.47; spark[27].dur = 0.5;
-spark[28].a = 284.441; spark[28].r0 = 532.2; spark[28].r1 = 85.33; spark[28].d = 0.46; spark[28].dur = 0.62;
-spark[29].a = 343.8; spark[29].r0 = 495.78; spark[29].r1 = 86.31; spark[29].d = 0.327; spark[29].dur = 0.62;
-spark[30].a = 224.664; spark[30].r0 = 677.1; spark[30].r1 = 109.13; spark[30].d = 0.738; spark[30].dur = 0.5;
-spark[31].a = 300.474; spark[31].r0 = 412.94; spark[31].r1 = 92.5; spark[31].d = 0.329; spark[31].dur = 0.62;
-spark[32].a = 284.089; spark[32].r0 = 484.9; spark[32].r1 = 107.67; spark[32].d = 0.506; spark[32].dur = 0.75;
-spark[33].a = 340.847; spark[33].r0 = 617.69; spark[33].r1 = 84.46; spark[33].d = 0.286; spark[33].dur = 0.75;
-spark[34].a = 52.623; spark[34].r0 = 652.12; spark[34].r1 = 114.28; spark[34].d = 0.465; spark[34].dur = 0.75;
-spark[35].a = 47.154; spark[35].r0 = 377.17; spark[35].r1 = 113.93; spark[35].d = 0.624; spark[35].dur = 0.62;
-spark[36].a = 355.158; spark[36].r0 = 438.29; spark[36].r1 = 110.36; spark[36].d = 0.342; spark[36].dur = 0.5;
-spark[37].a = 274.925; spark[37].r0 = 482.69; spark[37].r1 = 98.23; spark[37].d = 0.205; spark[37].dur = 0.62;
-spark[38].a = 323.173; spark[38].r0 = 596.59; spark[38].r1 = 108.19; spark[38].d = 0.894; spark[38].dur = 0.5;
-spark[39].a = 191.457; spark[39].r0 = 549.55; spark[39].r1 = 78.89; spark[39].d = 0.315; spark[39].dur = 0.5;
-spark[40].a = 62.045; spark[40].r0 = 532.62; spark[40].r1 = 104.89; spark[40].d = 0.443; spark[40].dur = 0.75;
-spark[41].a = 199.959; spark[41].r0 = 637.82; spark[41].r1 = 82.1; spark[41].d = 0.374; spark[41].dur = 0.5;
-spark[42].a = 278.014; spark[42].r0 = 544.21; spark[42].r1 = 98.87; spark[42].d = 0.971; spark[42].dur = 0.62;
-spark[43].a = 220.51; spark[43].r0 = 543.48; spark[43].r1 = 97.05; spark[43].d = 0.557; spark[43].dur = 0.62;
-spark[44].a = 182.791; spark[44].r0 = 456.18; spark[44].r1 = 97.45; spark[44].d = 0.985; spark[44].dur = 0.5;
-spark[45].a = 302.4; spark[45].r0 = 418.77; spark[45].r1 = 82.68; spark[45].d = 0.215; spark[45].dur = 0.62;
-SPARKS = 46;
-mote[0].a = 26.323; mote[0].dur = 5.843; mote[0].d = -5.241; mote[0].r0 = 135.38; mote[0].r1 = 582.12; mote[0].o = 0.71; mote[0].dot = 2;
-mote[1].a = 51.472; mote[1].dur = 6.59; mote[1].d = -1.447; mote[1].r0 = 181.27; mote[1].r1 = 487.08; mote[1].o = 0.62; mote[1].dot = 2;
-mote[2].a = 356.354; mote[2].dur = 6.414; mote[2].d = -2.768; mote[2].r0 = 156.15; mote[2].r1 = 469.4; mote[2].o = 0.46; mote[2].dot = 0;
-mote[3].a = 114.669; mote[3].dur = 6.028; mote[3].d = -3.34; mote[3].r0 = 151.83; mote[3].r1 = 373.41; mote[3].o = 0.53; mote[3].dot = 0;
-mote[4].a = 224.614; mote[4].dur = 5.293; mote[4].d = -5.214; mote[4].r0 = 171.83; mote[4].r1 = 658.54; mote[4].o = 0.41; mote[4].dot = 0;
-mote[5].a = 95.603; mote[5].dur = 3.639; mote[5].d = -0.984; mote[5].r0 = 133.95; mote[5].r1 = 494.25; mote[5].o = 0.85; mote[5].dot = 2;
-mote[6].a = 294.832; mote[6].dur = 4.405; mote[6].d = -4.049; mote[6].r0 = 159.31; mote[6].r1 = 577.42; mote[6].o = 0.4; mote[6].dot = 0;
-mote[7].a = 20.71; mote[7].dur = 5.909; mote[7].d = -0.428; mote[7].r0 = 180.46; mote[7].r1 = 557.7; mote[7].o = 0.79; mote[7].dot = 1;
-mote[8].a = 30.147; mote[8].dur = 6.497; mote[8].d = -5.605; mote[8].r0 = 152.59; mote[8].r1 = 469.41; mote[8].o = 0.65; mote[8].dot = 0;
-mote[9].a = 333.601; mote[9].dur = 4.438; mote[9].d = -2.338; mote[9].r0 = 140.21; mote[9].r1 = 400.73; mote[9].o = 0.44; mote[9].dot = 0;
-mote[10].a = 18.137; mote[10].dur = 4.206; mote[10].d = -1.283; mote[10].r0 = 170.17; mote[10].r1 = 454.7; mote[10].o = 0.63; mote[10].dot = 1;
-mote[11].a = 64.044; mote[11].dur = 4.715; mote[11].d = -1.181; mote[11].r0 = 127.38; mote[11].r1 = 587.19; mote[11].o = 0.65; mote[11].dot = 0;
-mote[12].a = 68.204; mote[12].dur = 5.162; mote[12].d = -0.549; mote[12].r0 = 173.59; mote[12].r1 = 497.22; mote[12].o = 0.62; mote[12].dot = 2;
-mote[13].a = 300.461; mote[13].dur = 4.876; mote[13].d = -3.353; mote[13].r0 = 182.99; mote[13].r1 = 470.47; mote[13].o = 0.81; mote[13].dot = 1;
-mote[14].a = 254.421; mote[14].dur = 5.726; mote[14].d = -1.99; mote[14].r0 = 129.63; mote[14].r1 = 406.82; mote[14].o = 0.39; mote[14].dot = 1;
-mote[15].a = 266.72; mote[15].dur = 4.395; mote[15].d = -0.371; mote[15].r0 = 174.87; mote[15].r1 = 628.29; mote[15].o = 0.72; mote[15].dot = 0;
-mote[16].a = 101.496; mote[16].dur = 4.348; mote[16].d = -1.998; mote[16].r0 = 135.56; mote[16].r1 = 501.3; mote[16].o = 0.49; mote[16].dot = 1;
-mote[17].a = 346.243; mote[17].dur = 6.904; mote[17].d = -1.688; mote[17].r0 = 182.03; mote[17].r1 = 460.55; mote[17].o = 0.55; mote[17].dot = 1;
-mote[18].a = 0.385; mote[18].dur = 4.836; mote[18].d = -2.431; mote[18].r0 = 138.06; mote[18].r1 = 518.92; mote[18].o = 0.35; mote[18].dot = 1;
-mote[19].a = 95.101; mote[19].dur = 3.814; mote[19].d = -0.159; mote[19].r0 = 127.79; mote[19].r1 = 458.97; mote[19].o = 0.48; mote[19].dot = 1;
-mote[20].a = 210.81; mote[20].dur = 5.352; mote[20].d = -3.519; mote[20].r0 = 167.67; mote[20].r1 = 630.85; mote[20].o = 0.56; mote[20].dot = 2;
-mote[21].a = 117.409; mote[21].dur = 6.947; mote[21].d = -5.03; mote[21].r0 = 163.49; mote[21].r1 = 381.09; mote[21].o = 0.81; mote[21].dot = 0;
-mote[22].a = 321.099; mote[22].dur = 5.696; mote[22].d = -4.626; mote[22].r0 = 134.51; mote[22].r1 = 524.6; mote[22].o = 0.63; mote[22].dot = 1;
-mote[23].a = 300.578; mote[23].dur = 6.316; mote[23].d = -3.689; mote[23].r0 = 177.84; mote[23].r1 = 572.19; mote[23].o = 0.73; mote[23].dot = 2;
-mote[24].a = 82.779; mote[24].dur = 3.609; mote[24].d = -1.302; mote[24].r0 = 132.53; mote[24].r1 = 617.91; mote[24].o = 0.66; mote[24].dot = 0;
-mote[25].a = 225.996; mote[25].dur = 5.692; mote[25].d = -2.785; mote[25].r0 = 126.69; mote[25].r1 = 606.51; mote[25].o = 0.76; mote[25].dot = 1;
-mote[26].a = 181.07; mote[26].dur = 5.373; mote[26].d = -0.355; mote[26].r0 = 168.87; mote[26].r1 = 443.41; mote[26].o = 0.39; mote[26].dot = 1;
-mote[27].a = 95.601; mote[27].dur = 6.053; mote[27].d = -4.478; mote[27].r0 = 182.6; mote[27].r1 = 515.69; mote[27].o = 0.56; mote[27].dot = 0;
-mote[28].a = 172.444; mote[28].dur = 5.893; mote[28].d = -3.636; mote[28].r0 = 163.46; mote[28].r1 = 391.16; mote[28].o = 0.43; mote[28].dot = 2;
-mote[29].a = 91.419; mote[29].dur = 6.101; mote[29].d = -3.464; mote[29].r0 = 127.22; mote[29].r1 = 386.14; mote[29].o = 0.5; mote[29].dot = 1;
-mote[30].a = 241.921; mote[30].dur = 5.923; mote[30].d = -1.723; mote[30].r0 = 156.2; mote[30].r1 = 506.93; mote[30].o = 0.61; mote[30].dot = 1;
-mote[31].a = 42.661; mote[31].dur = 6.628; mote[31].d = -6.483; mote[31].r0 = 180.33; mote[31].r1 = 373.23; mote[31].o = 0.6; mote[31].dot = 0;
-mote[32].a = 295.163; mote[32].dur = 6.888; mote[32].d = -1.851; mote[32].r0 = 138.57; mote[32].r1 = 650.73; mote[32].o = 0.47; mote[32].dot = 1;
-mote[33].a = 209.33; mote[33].dur = 3.996; mote[33].d = -3.807; mote[33].r0 = 134.12; mote[33].r1 = 613.24; mote[33].o = 0.63; mote[33].dot = 1;
-MOTES = 34; FIELD_Y = 517.24;
+spr["word-1"].d = 1; spr["word-1"].x = 590; spr["word-1"].y = 490.563;
+spr["word-2"].d = 1; spr["word-2"].x = 590; spr["word-2"].y = 490.563;
+spr["word-3"].d = 1; spr["word-3"].x = 590; spr["word-3"].y = 490.563;
+spr["word-4"].d = 1; spr["word-4"].x = 590; spr["word-4"].y = 490.563;
+spr["word-5"].d = 1; spr["word-5"].x = 590; spr["word-5"].y = 490.563;
+spr["word-6"].d = 1; spr["word-6"].x = 590; spr["word-6"].y = 490.563;
+spr["word-7"].d = 1; spr["word-7"].x = 590; spr["word-7"].y = 490.563;
+spr["word-8"].d = 1; spr["word-8"].x = 590; spr["word-8"].y = 490.563;
+
+PI = 3.14159265;
+CIRC_O = 106;          # the outer construction circle's radius, design units
+LOCK = 1.95;           # the iris shuts
+IGN = 2.15;            # the gem ignites
+OPEN = 3.6;            # the opening is over, the waiting begins
+WORD_OPACITY = 0.92;
+AX_N = 16; STREAK_N = 16; GHOSTS = 2;
 
 SW = Window.GetWidth();
 SH = Window.GetHeight();
@@ -563,18 +271,22 @@ OY = Window.GetY() + SH * 0.46;
 fun X(x) { return OX + (x - DCX) * SC; }
 fun Y(y) { return OY + (y - DCY) * SC; }
 
-fun frac(x) {
-    local.i = Math.Int(x);
-    if (x < i) i = i - 1;
-    return x - i;
-}
+fun clamp01(v) { if (v < 0) return 0; if (v > 1) return 1; return v; }
+fun ramp(t, a, b) { return clamp01((t - a) / (b - a)); }
+fun out3(p) { local.q = 1 - p; return 1 - q * q * q; }
+fun inout3(p) { local.q = 0; if (p < 0.5) return 4 * p * p * p; q = 2 - 2 * p; return 1 - q * q * q / 2; }
+fun pop(p) { local.c1 = 1.70158 * 1.3; local.c3 = c1 + 1; local.q = p - 1; return 1 + c3 * q * q * q + c1 * q * q; }
+fun frac(x) { local.i = Math.Int(x); if (x < i) i = i - 1; return x - i; }
+fun near(x) { return Math.Int(x + 0.5); }
 
-# A sprite image scaled to this screen.
+# A sprite image scaled to this screen; at the size it was drawn for (2560 wide) as it is.
 fun load(name) {
     local.img = Image(name + ".png");
     local.k = SC / (RENDER * spr[name].d);
-    local.w = Math.Max(1, Math.Int(img.GetWidth() * k + 0.5));
-    local.h = Math.Max(1, Math.Int(img.GetHeight() * k + 0.5));
+    local.w = 0; local.h = 0;
+    if (k > 0.995 && k < 1.005) return img;
+    w = Math.Max(1, Math.Int(img.GetWidth() * k + 0.5));
+    h = Math.Max(1, Math.Int(img.GetHeight() * k + 0.5));
     return img.Scale(w, h);
 }
 
@@ -591,341 +303,215 @@ fun layer(name, z) {
     return s;
 }
 
-#----------------------------------------- easing: the drawing's cubic Béziers, tabled
-
-fun table(n) {
-    local.x1 = bez[n][0]; local.y1 = bez[n][1]; local.x2 = bez[n][2]; local.y2 = bez[n][3];
-    local.i = 0; local.j = 0; local.x = 0; local.lo = 0; local.hi = 0; local.m = 0; local.bx = 0;
-    for (i = 0; i <= 32; i++) {
-        x = i / 32;
-        lo = 0; hi = 1;
-        for (j = 0; j < 16; j++) {
-            m = (lo + hi) / 2;
-            bx = 3 * (1 - m) * (1 - m) * m * x1 + 3 * (1 - m) * m * m * x2 + m * m * m;
-            if (bx < x) lo = m; else hi = m;
-        }
-        m = (lo + hi) / 2;
-        global.tab[n][i] = 3 * (1 - m) * (1 - m) * m * y1 + 3 * (1 - m) * m * m * y2 + m * m * m;
-    }
-}
-names[0] = "ease-out"; names[1] = "ease-in"; names[2] = "ease-in-out"; names[3] = "out"; names[4] = "in"; names[5] = "pop"; names[6] = "wave";
-for (n = 0; n < 7; n++) table(names[n]);
-
-fun ease(n, p) {
-    if (p <= 0) return 0;
-    if (p >= 1) return 1;
-    if (n == "linear") return p;
-    local.q = p * 32;
-    local.i = Math.Int(q);
-    local.f = q - i;
-    return tab[n][i] * (1 - f) + tab[n][i + 1] * f;
-}
-
-# A layer's opacity at time t (the drawing's keyframes).
-fun gatev(name, t) {
-    local.n = gate[name].n;
-    local.i = 0;
-    local.p = 0;
-    if (t <= gate[name][0].t) return gate[name][0].v;
-    for (i = 0; i < n - 1; i++) {
-        if (t < gate[name][i + 1].t) {
-            p = (t - gate[name][i].t) / (gate[name][i + 1].t - gate[name][i].t);
-            return gate[name][i].v + (gate[name][i + 1].v - gate[name][i].v) * ease(gate[name][i].e, p);
-        }
-    }
-    return gate[name][n - 1].v;
-}
-
-fun mix(a, b, e) { return a + (b - a) * e; }
-
 #----------------------------------------- the sprites
 
-amb = layer("amb", 1);
-beam_a = layer("beams-0", 2);
-beam_b = layer("beams-1", 2);
-for (i = 0; i < 12; i++) beam_img[i] = load("beams-" + i);
-beam_i = -1;
+# the drawing
+axh_base = load("axis-h"); axv_base = load("axis-v");
+for (n = 0; n < AX_N; n++) {
+    axh_img[n] = axh_base.Scale(Math.Max(1, Math.Int(axh_base.GetWidth() * (n + 1) / AX_N)), axh_base.GetHeight());
+    axv_img[n] = axv_base.Scale(axv_base.GetWidth(), Math.Max(1, Math.Int(axv_base.GetHeight() * (n + 1) / AX_N)));
+}
+axh = Sprite(axh_img[0]); axh.SetOpacity(0); axh_i = -1;
+axv = Sprite(axv_img[0]); axv.SetOpacity(0); axv_i = -1;
+dimv_img = load("dim-v"); dimh_img = load("dim-h");
+for (n = 0; n < 13; n++) {
+    dimx[n] = Sprite(dimv_img); at(dimx[n], MCX + (n - 6) * 40, MCY, 2); dimx[n].SetOpacity(0);
+    dimy[n] = Sprite(dimh_img); at(dimy[n], MCX, MCY + (n - 6) * 40, 2); dimy[n].SetOpacity(0);
+}
+for (n = 0; n < ARC_N; n++) { arco[n] = layer("arco-" + n, 3); arci[n] = layer("arci-" + n, 3); }
+for (n = 0; n < HEX_N; n++) { hexa[n] = layer("hex0-" + n, 4); hexb[n] = layer("hex1-" + n, 4); }
+circle = layer("circle", 3);
 
-for (i = 0; i < 3; i++) dot_img[i] = load("dot-" + i);
-for (i = 0; i < MOTES; i++) {
-    mote_s[i] = Sprite(dot_img[mote[i].dot]);
-    mote_s[i].SetOpacity(0);
-}
-for (i = 0; i < SPARKS; i++) {
-    spark_img[i][0] = load("spark" + i + "-0");
-    spark_img[i][1] = load("spark" + i + "-1");
-    spark_s[i] = Sprite(spark_img[i][0]);
-    spark_s[i].SetOpacity(0);
-    spark_cos[i] = Math.Cos(spark[i].a * Math.Pi / 180);
-    spark_sin[i] = Math.Sin(spark[i].a * Math.Pi / 180);
-}
-for (i = 0; i < MOTES; i++) {
-    mote_cos[i] = Math.Cos(mote[i].a * Math.Pi / 180);
-    mote_sin[i] = Math.Sin(mote[i].a * Math.Pi / 180);
-}
-
-halo = layer("halo", 10);
-chamber = layer("chamber", 11);
-bloom = layer("bloom", 12);
-ticks = layer("ticks", 13);
-for (i = 0; i < TICKS; i++) tick_s[i] = layer("tick-" + i, 14);
-for (i = 0; i < RAYS_N; i++) ray_img[i] = load("rays-" + i);
-rays = layer("rays-0", 15);
-ray_i = -1;
+# the mark
+base = layer("base", 11);
+for (n = 0; n < INNER_N; n++) inner_img[n] = load("inner-" + n);
+inner = Sprite(inner_img[0]); inner.SetOpacity(0); at(inner, MCX, MCY, 14);
+for (a = 0; a < 360; a += IRIS_STEP) iris_img[a / IRIS_STEP] = load("iris-" + a);
+IRIS_N = 360 / IRIS_STEP;
 for (k = 0; k < 6; k++) {
-    for (s = 0; s < PIECE_STEPS; s++) piece_img[k][s] = load("piece" + k + "-" + s);
-    piece_s[k] = Sprite(piece_img[k][0]);
-    piece_s[k].SetOpacity(0);
+    piece_img[k] = load("piece" + k + "-0");
+    piece[k] = Sprite(iris_img[0]); piece[k].SetOpacity(0);
+    for (j = 1; j <= GHOSTS; j++) { ghost[k][j] = Sprite(iris_img[0]); ghost[k][j].SetOpacity(0); }
 }
 ridge = layer("ridge", 17);
-for (i = 0; i < SHEEN_N; i++) sheen_img[i] = load("sheen-" + i);
-sheen = layer("sheen-0", 18);
-for (i = 0; i < GEM_N; i++) gem_img[i] = load("gem-" + i);
-gem = layer("gem-0", 19);
-for (i = 0; i < GLINT_N; i++) glint_img[i] = load("glint-" + i);
-for (k = 0; k < 6; k++) {
-    glint_s[k] = Sprite(glint_img[0]);
-    glint_s[k].SetOpacity(0);
-}
-# The flash and the flares in all their sizes made here, once: scaled anew in
-# every frame, the ignition's frames were the heaviest of the opening, and
-# they come while the machine moves from the boot image to the system, its
-# busiest second; the animation caught there (Roland, 2026-11-15: "boot
-# animacio egy kicsit bereccen").
-FLASH_N = 24; FLASH_LO = 0.1; FLASH_HI = 2.6;
-FLARE_N = 16; FLARE_HI = 1.2;
-flash_base = load("flash");
-for (j = 0; j < FLASH_N; j++) {
-    flash_k = (FLASH_LO + (FLASH_HI - FLASH_LO) * j / (FLASH_N - 1)) / FLASH_HI;
-    flash_img[j] = flash_base.Scale(Math.Max(1, Math.Int(flash_base.GetWidth() * flash_k)), Math.Max(1, Math.Int(flash_base.GetHeight() * flash_k)));
-}
-flash_s = Sprite(flash_img[0]);
-flash_s.SetOpacity(0);
-flash_i = -1;
-for (i = 0; i < 2; i++) {
-    for (j = 0; j < SHOCK_N; j++) shock_img[i][j] = load("shock" + i + "-" + j);
-    shock_s[i] = Sprite(shock_img[i][0]);
-    shock_s[i].SetOpacity(0);
-    flare_base[i] = load("flare" + i);
-    for (j = 0; j < FLARE_N; j++) {
-        flare_img[i][j] = flare_base[i].Scale(Math.Max(1, Math.Int(flare_base[i].GetWidth() * FLARE_HI * (j + 1) / FLARE_N)), flare_base[i].GetHeight());
-    }
-    flare_s[i] = Sprite(flare_img[i][0]);
-    flare_s[i].SetOpacity(0);
-    flare_i[i] = -1;
-}
-word = layer("word", 24);
+bezel = layer("bezel", 17);
+lit = layer("bezel-lit", 18);
+for (n = 0; n < SHOCK_N; n++) shock_img[n] = load("shock0-" + n);
+ring = Sprite(shock_img[0]); ring.SetOpacity(0);
+for (n = 0; n < SEQ_N; n++) seq_img[n] = load("seq-" + n);
+seq = Sprite(seq_img[0]); seq.SetOpacity(0); at(seq, MCX, MCY, 16);
+SEQ_FROM = IGN; SEQ_TO = IGN + 0.9;
+streak_base = load("streak");
+for (n = 0; n < STREAK_N; n++) streak_img[n] = streak_base.Scale(Math.Max(1, Math.Int(streak_base.GetWidth() * (n + 1) / STREAK_N * 2400 / 1180)), streak_base.GetHeight());
+streak = Sprite(streak_img[0]); streak.SetOpacity(0);
+for (n = 0; n < SHEEN_N; n++) sheen_img[n] = load(sheen_name[n]);
+sheen = Sprite(sheen_img[0]); sheen.SetOpacity(0); at(sheen, MCX, MCY, 23);
+mark = layer("mark", 10);
+odot = layer("odot", 25);
+for (n = 0; n < 8; n++) word_img[n] = load("word-" + (n + 1));
+word_full = load("word");
+word = Sprite(word_img[0]); word.SetOpacity(0); at(word, spr["word"].x, spr["word"].y, 24);
+
 dialog_on = 0;
-
-# Shutdown and restart skip the opening: the mark is lit and loading.
+rest = 0; rested = 0; in_seq = 0; shut = 0; drawing_gone = 0; shx = 0; shy = 0;
 t = 0;
-if (Plymouth.GetMode() == "shutdown" || Plymouth.GetMode() == "reboot") t = 3.3;
+if (Plymouth.GetMode() == "shutdown" || Plymouth.GetMode() == "reboot") t = OPEN;
 
-# The nearest of a list of rendered scales.
-fun nearest(list, n, s) {
-    local.b = 0;
-    local.i = 0;
-    for (i = 1; i < n; i++) if (Math.Abs(list[i] - s) < Math.Abs(list[b] - s)) b = i;
-    return b;
-}
+#----------------------------------------- one frame
 
-# A two- or three-key track (flash, shock waves, flares): scale in .s, opacity in .o.
-fun track(kind, i, t) {
-    local.n = 3; local.j = 0; local.e = 0;
-    local.kt[0] = 0; local.ks[0] = 0; local.ko[0] = 0; local.ke[0] = 0;
-    local.r.s = 0; local.r.o = 0;
-    if (kind == "shock") n = 2;
-    for (j = 0; j < n; j++) {
-        if (kind == "flash") { kt[j] = flash[j].t; ks[j] = flash[j].s; ko[j] = flash[j].o; ke[j] = flash[j].e; }
-        else if (kind == "shock") { kt[j] = shock[i][j].t; ks[j] = shock[i][j].s; ko[j] = shock[i][j].o; ke[j] = shock[i][j].e; }
-        else { kt[j] = flare[i][j].t; ks[j] = flare[i][j].s; ko[j] = flare[i][j].o; ke[j] = flare[i][j].e; }
+fun shake_at(sprite, x, y, z) { at(sprite, x + shx, y + shy, z); }
+
+fun opening(t) {
+    local.la = 0; local.a = 0; local.n = 0; local.o = 0; local.cp = 0; local.hp = 0; local.p = 0; local.e = 0;
+    local.rot = 0; local.rad = 0; local.k = 0; local.j = 0; local.pj = 0; local.ej = 0; local.ang = 0;
+    local.idx = 0; local.dx = 0; local.dy = 0; local.c = 0; local.s = 0; local.sh = 0; local.d = 0;
+    local.rp = 0; local.ip = 0; local.sp = 0; local.kk = 0; local.w = 0; local.gp = 0; local.q = 0; local.wq = 0;
+
+    # the drawing (touched only while it draws and while it fades)
+    la = 1 - ramp(t, LOCK + 0.1, LOCK + 0.8);
+    if (t < 1.25 || (t > LOCK + 0.1 && !drawing_gone)) {
+        a = out3(ramp(t, 0, 0.55));
+        if (a <= 0) { axh.SetOpacity(0); axv.SetOpacity(0); }
+        else {
+            idx = Math.Min(AX_N - 1, Math.Int(a * AX_N));
+            if (idx != axh_i) { axh.SetImage(axh_img[idx]); axv.SetImage(axv_img[idx]); at(axh, MCX, MCY, 1); at(axv, MCX, MCY, 1); global.axh_i = idx; }
+            axh.SetOpacity(la); axv.SetOpacity(la);
+        }
+        for (n = 0; n < 13; n++) {
+            d = Math.Abs(n - 6);
+            o = ramp(t, 0.35 + d * 0.03, 0.55 + d * 0.03) * la;
+            dimx[n].SetOpacity(o);
+            if (d <= 4) dimy[n].SetOpacity(o);
+        }
+        cp = ramp(t, 0.25, 0.9);
+        if (t < SEQ_FROM) for (n = 0; n < ARC_N; n++) { o = clamp01(cp * ARC_N - n) * la; arco[n].SetOpacity(o); arci[n].SetOpacity(o); }
+        hp = inout3(ramp(t, 0.6, 1.2));
+        if (t < SEQ_FROM) for (n = 0; n < HEX_N; n++) { o = clamp01(hp * HEX_N - n) * la; hexa[n].SetOpacity(o); hexb[n].SetOpacity(o); }
+        if (la <= 0) global.drawing_gone = 1;
     }
-    r.s = ks[0]; r.o = 0;
-    if (t < kt[0] || t >= kt[n - 1]) return r;
-    for (j = 0; j < n - 1; j++) {
-        if (t < kt[j + 1]) {
-            e = ease(ke[j], (t - kt[j]) / (kt[j + 1] - kt[j]));
-            r.s = mix(ks[j], ks[j + 1], e);
-            r.o = mix(ko[j], ko[j + 1], e);
-            return r;
+
+    # the iris
+    sh = ramp(t, LOCK - 0.05, LOCK + 0.23);
+    if (sh > 0 && sh < 1) { d = 7 * (1 - sh); global.shx = Math.Sin(sh * 47) * d; global.shy = Math.Cos(sh * 39) * d * 0.6; }
+    else { global.shx = 0; global.shy = 0; }
+    p = ramp(t, 1.0, LOCK);
+    if (p > 0 && !shut) for (k = 0; k < 6; k++) {
+        dx = piece_x[k] - MCX; dy = piece_y[k] - MCY;
+        if (p <= 0) piece[k].SetOpacity(0);
+        else if (p < 1) {
+            for (j = 0; j <= GHOSTS; j++) {
+                pj = clamp01(p - j * 0.035);
+                ej = pop(pj);
+                rot = -135 * (1 - ej);
+                rad = 1 + 1.6 * (1 - ej);
+                ang = 60 * k + rot;
+                idx = near(ang / IRIS_STEP);
+                idx = idx - Math.Int(idx / IRIS_N) * IRIS_N; if (idx < 0) idx += IRIS_N;
+                c = Math.Cos(rot * PI / 180); s = Math.Sin(rot * PI / 180);
+                if (j == 0) {
+                    piece[k].SetImage(iris_img[idx]);
+                    at(piece[k], MCX + (dx * c - dy * s) * rad, MCY + (dx * s + dy * c) * rad, 15);
+                    piece[k].SetOpacity(clamp01(pj * 2.5));
+                } else {
+                    ghost[k][j].SetImage(iris_img[idx]);
+                    at(ghost[k][j], MCX + (dx * c - dy * s) * rad, MCY + (dx * s + dy * c) * rad, 14);
+                    ghost[k][j].SetOpacity(clamp01(pj * 2.5) * 0.3 * (GHOSTS + 1 - j) / GHOSTS);
+                }
+            }
+        } else {
+            # shut: the bezel picture stands for the six pieces and the ridge
+            piece[k].SetOpacity(0);
+            for (j = 1; j <= GHOSTS; j++) ghost[k][j].SetOpacity(0);
         }
     }
-    return r;
+    if (p >= 1) global.shut = 1;
+    if (t < LOCK - 0.1) return;
+
+    if (t < SEQ_FROM) {
+        if (p < 1) ridge.SetOpacity(ramp(t, LOCK - 0.1, LOCK + 0.05)); else ridge.SetOpacity(0);
+        if (p >= 1) { shake_at(bezel, MCX, MCY, 17); bezel.SetOpacity(1); }
+        shake_at(base, MCX, MCY, 11); base.SetOpacity(out3(ramp(t, LOCK, LOCK + 0.5)));
+        shake_at(lit, MCX, MCY, 18); lit.SetOpacity(clamp01(1.5 * (ramp(t, LOCK - 0.05, LOCK + 0.05) - ramp(t, LOCK + 0.05, LOCK + 0.7))));
+        ip = ramp(t, LOCK + 0.05, LOCK + 0.5);
+        if (ip <= 0 || ip >= 1) inner.SetOpacity(0);
+        else { inner.SetImage(inner_img[near(out3(ip) * (INNER_N - 1))]); inner.SetOpacity(clamp01(1.2 * (1 - ip))); }
+    } else if (t < SEQ_TO) {
+        # one picture for everything round the mark
+        if (!in_seq) {
+            ridge.SetOpacity(0); bezel.SetOpacity(0); base.SetOpacity(0); lit.SetOpacity(0); inner.SetOpacity(0);
+            for (n = 0; n < ARC_N; n++) { arco[n].SetOpacity(0); arci[n].SetOpacity(0); }
+            for (n = 0; n < HEX_N; n++) { hexa[n].SetOpacity(0); hexb[n].SetOpacity(0); }
+            global.in_seq = 1;
+        }
+        seq.SetImage(seq_img[near((t - SEQ_FROM) / (SEQ_TO - SEQ_FROM) * (SEQ_N - 1))]);
+        seq.SetOpacity(1);
+    } else if (!rested) { mark.SetOpacity(1); seq.SetOpacity(0); global.rested = 1; }
+
+    # the snap's hexagonal ring
+    rp = ramp(t, LOCK, LOCK + 0.7);
+    if (rp <= 0 || rp >= 1) ring.SetOpacity(0);
+    else {
+        ring.SetImage(shock_img[near(out3(rp) * (SHOCK_N - 1))]);
+        at(ring, MCX, MCY, 19);
+        ring.SetOpacity(0.9 * (1 - rp));
+    }
+
+    # the light line through the core
+    sp = ramp(t, IGN, IGN + 1.1);
+    if (sp <= 0 || sp >= 1) streak.SetOpacity(0);
+    else {
+        if (sp < 0.15) kk = sp / 0.15; else kk = 1 - (sp - 0.15) / 0.85;
+        w = (300 + 900 * out3(Math.Min(1, sp * 2))) * 2 / 2400;
+        streak.SetImage(streak_img[Math.Clamp(near(w * STREAK_N) - 1, 0, STREAK_N - 1)]);
+        at(streak, MCX, MCY, 22);
+        streak.SetOpacity(0.95 * kk);
+    }
+
+    # a sheen sweeps the mark, the word comes letter by letter
+    if (t > IGN + 0.5 && t < IGN + 1.2) {
+        q = inout3((t - IGN - 0.5) / 0.7);
+        sheen.SetImage(sheen_img[near(q * (SHEEN_N - 1))]);
+        sheen.SetOpacity(0.8);
+    } else sheen.SetOpacity(0);
+    wq = ramp(t, IGN + 0.6, IGN + 1.3);
+    if (wq <= 0 || dialog_on) word.SetOpacity(0);
+    else { word.SetImage(word_img[Math.Clamp(Math.Int(wq * 8 + 0.999) - 1, 0, 7)]); word.SetOpacity(WORD_OPACITY); }
+}
+
+# The opening's last frame equals the mark at rest; from here one picture stands for it.
+fun settle() {
+    local.n = 0; local.k = 0; local.j = 0;
+    mark.SetOpacity(1);
+    axh.SetOpacity(0); axv.SetOpacity(0);
+    for (n = 0; n < 13; n++) { dimx[n].SetOpacity(0); dimy[n].SetOpacity(0); }
+    for (n = 0; n < ARC_N; n++) { arco[n].SetOpacity(0); arci[n].SetOpacity(0); }
+    for (n = 0; n < HEX_N; n++) { hexa[n].SetOpacity(0); hexb[n].SetOpacity(0); }
+    for (k = 0; k < 6; k++) { piece[k].SetOpacity(0); for (j = 1; j <= GHOSTS; j++) ghost[k][j].SetOpacity(0); }
+    base.SetOpacity(0); bezel.SetOpacity(0); seq.SetOpacity(0); ridge.SetOpacity(0); lit.SetOpacity(0);
+    ring.SetOpacity(0); inner.SetOpacity(0); streak.SetOpacity(0);
+    sheen.SetOpacity(0);
+    word.SetImage(word_full);
+    global.rest = 1;
+}
+
+fun waiting(t) {
+    local.u = t - OPEN; local.a = 0; local.ph = 0;
+    circle.SetOpacity(0.16 * ramp(u, 0, 0.6));
+    a = u / 4 * 2 * PI - PI / 2;
+    at(odot, MCX + CIRC_O * Math.Cos(a), MCY + CIRC_O * Math.Sin(a), 25);
+    odot.SetOpacity(ramp(u, 0, 0.6));
+    ph = frac((u + 1.5) / 4.0);
+    if (ph < 0.45) { sheen.SetImage(sheen_img[near(inout3(ph / 0.45) * (SHEEN_N - 1))]); sheen.SetOpacity(0.5); }
+    else sheen.SetOpacity(0);
+    if (dialog_on) word.SetOpacity(0); else word.SetOpacity(WORD_OPACITY);
 }
 
 fun refresh() {
-    local.g = 0; local.a = 0; local.i = 0; local.j = 0; local.k = 0; local.u = 0; local.p = 0;
-    local.r = 0; local.o = 0; local.b = 0; local.off = 0; local.s = 0; local.q = 0; local.e = 0;
-    local.l = 0; local.gs = 0; local.go = 0; local.ts = 1; local.to = 1; local.f = 0; local.top = 0;
     global.t += 1 / 50;
-
-    amb.SetOpacity(gatev("amb", t));
-
-    # beams: a turn in SPIN s; six-fold, so 60 degrees in 12 steps, cross-faded
-    g = gatev("beams", t);
-    a = frac(t / SPIN * 6) * 12;
-    i = Math.Int(a);
-    if (i != beam_i) {
-        beam_a.SetImage(beam_img[i]);
-        beam_b.SetImage(beam_img[(i + 1) % 12]);
-        global.beam_i = i;
-    }
-    beam_a.SetOpacity(g * (1 - (a - i)));
-    beam_b.SetOpacity(g * (a - i));
-
-    # sparks rushing in
-    for (i = 0; i < SPARKS; i++) {
-        u = t - spark[i].d;
-        if (u < 0 || u > spark[i].dur + 0.06) spark_s[i].SetOpacity(0);
-        else {
-            p = Math.Min(1, u / spark[i].dur);
-            if (p < 0.7 && u < spark[i].dur) spark_s[i].SetImage(spark_img[i][0]); else spark_s[i].SetImage(spark_img[i][1]);
-            r = spark[i].r0 + (spark[i].r1 - spark[i].r0) * p;
-            at(spark_s[i], DCX + spark_cos[i] * r, DCY + spark_sin[i] * r, 4);
-            if (u < 0.1) o = u / 0.1; else if (u < spark[i].dur) o = 1; else o = 1 - (u - spark[i].dur) / 0.06;
-            spark_s[i].SetOpacity(o);
-        }
-    }
-
-    # motes drifting out while loading
-    g = gatev("motes", t);
-    for (i = 0; i < MOTES; i++) {
-        if (g <= 0) mote_s[i].SetOpacity(0);
-        else {
-            p = frac((t - mote[i].d) / mote[i].dur);
-            r = mote[i].r0 + (mote[i].r1 - mote[i].r0) * p;
-            at(mote_s[i], DCX + mote_cos[i] * r, DCY + mote_sin[i] * r, 3);
-            if (p < 0.15) o = mote[i].o * p / 0.15; else o = mote[i].o * (1 - (p - 0.15) / 0.85);
-            mote_s[i].SetOpacity(o * g);
-        }
-    }
-
-    halo.SetOpacity(gatev("halo", t));
-    chamber.SetOpacity(gatev("chamber", t));
-    ticks.SetOpacity(gatev("ticks", t));
-    ridge.SetOpacity(gatev("ridge", t));
-
-    # the core's bloom breathes
-    p = frac(t / BREATHE);
-    if (p < 0.5) b = mix(BREATHE_LOW, 1, ease("ease-in-out", p / 0.5)); else b = mix(1, BREATHE_LOW, ease("ease-in-out", (p - 0.5) / 0.5));
-    bloom.SetOpacity(gatev("bloom", t) * b);
-
-    # the light running round the ticks
-    g = gatev("lit", t);
-    for (i = 0; i < TICKS; i++) {
-        if (g <= 0) tick_s[i].SetOpacity(0);
-        else {
-            p = frac((t - i / TICKS * CHASE) / CHASE);
-            if (p < TAIL) o = 1 - ease("ease-in-out", p / TAIL); else o = 0;
-            tick_s[i].SetOpacity(o * g);
-        }
-    }
-
-    # rays, frame by frame
-    if (t < RAYS_FROM) rays.SetOpacity(0);
+    if (t < OPEN) opening(t);
     else {
-        i = Math.Min(RAYS_N - 1, Math.Int((t - RAYS_FROM) * RAYS_FPS + 0.5));
-        if (i != ray_i) { rays.SetImage(ray_img[i]); global.ray_i = i; }
-        rays.SetOpacity(1);
-    }
-
-    # the bezel pieces fly in and lock
-    for (k = 0; k < 6; k++) {
-        if (t < piece[k].t0) piece_s[k].SetOpacity(0);
-        else {
-            off = 1 - ease("out", (t - piece[k].t0) / (piece[k].t1 - piece[k].t0));
-            s = Math.Min(PIECE_STEPS - 1, Math.Int(piece[k].rot * off / PIECE_DEG + 0.5));
-            piece_s[k].SetImage(piece_img[k][s]);
-            at(piece_s[k], piece[k].x + piece[k].dx * off, piece[k].y + piece[k].dy * off, 16);
-            piece_s[k].SetOpacity(ease("out", (t - piece[k].t0) / piece[k].fade));
-        }
-    }
-
-    # the sheen sweeping the bezel
-    g = gatev("sheen", t);
-    if (g <= 0) sheen.SetOpacity(0);
-    else {
-        p = frac(t / SWEEP);
-        if (p < SWEEP_MOVING) q = ease("ease-in-out", p / SWEEP_MOVING); else q = 1;
-        sheen.SetImage(sheen_img[Math.Int(q * (SHEEN_N - 1) + 0.5)]);
-        sheen.SetOpacity(g);
-    }
-
-    # the gem ignites
-    if (t < GEM_FROM) gem.SetOpacity(0);
-    else {
-        e = ease("pop", (t - GEM_FROM) / (GEM_TO - GEM_FROM));
-        gem.SetImage(gem_img[nearest(gem_scale, GEM_N, e)]);
-        at(gem, spr["gem-0"].x, spr["gem-0"].y, 19);
-        gem.SetOpacity(Math.Clamp(e, 0, 1));
-    }
-
-    # glints: a flash as each piece locks, then twinkling
-    for (k = 0; k < 6; k++) {
-        l = glint[k].lit;
-        if (t < l - 0.02) { gs = 0; go = 0; }
-        else if (t < l + 0.1) { e = ease("ease-out", (t - l + 0.02) / 0.12); gs = 2.4 * e; go = e; }
-        else if (t < l + 0.45) { e = ease("ease-in", (t - l - 0.1) / 0.35); gs = mix(2.4, 1, e); go = 1; }
-        else { gs = 1; go = 1; }
-        p = frac((t - glint[k].tw) / TWINKLE);
-        ts = 1;
-        to = 1;
-        for (j = 0; j < 3; j++) {
-            if (p >= twk[j].p && p < twk[j + 1].p) {
-                e = ease("ease-in-out", (p - twk[j].p) / (twk[j + 1].p - twk[j].p));
-                ts = mix(twk[j].s, twk[j + 1].s, e);
-                to = mix(twk[j].o, twk[j + 1].o, e);
-            }
-        }
-        s = gs * ts;
-        if (s < 0.1) glint_s[k].SetOpacity(0);
-        else {
-            glint_s[k].SetImage(glint_img[nearest(glint_scale, GLINT_N, s)]);
-            at(glint_s[k], glint[k].x, glint[k].y, 20);
-            glint_s[k].SetOpacity(go * to);
-        }
-    }
-
-    # ignition: flash, shock waves, flares
-    f = track("flash", 0, t);
-    if (f.o <= 0) flash_s.SetOpacity(0);
-    else {
-        j = Math.Clamp(Math.Int((f.s - FLASH_LO) / (FLASH_HI - FLASH_LO) * (FLASH_N - 1) + 0.5), 0, FLASH_N - 1);
-        if (j != flash_i) {
-            flash_s.SetImage(flash_img[j]);
-            at(flash_s, spr["flash"].x, spr["flash"].y, 21);
-            global.flash_i = j;
-        }
-        flash_s.SetOpacity(f.o);
-    }
-    for (i = 0; i < 2; i++) {
-        f = track("shock", i, t);
-        if (f.o <= 0) shock_s[i].SetOpacity(0);
-        else {
-            top = shock[i][1].s;
-            shock_s[i].SetImage(shock_img[i][Math.Int((f.s - 1) / (top - 1) * (SHOCK_N - 1) + 0.5)]);
-            at(shock_s[i], DCX, DCY, 22);
-            shock_s[i].SetOpacity(f.o);
-        }
-        f = track("flare", i, t);
-        if (f.o <= 0 || f.s < 0.01) flare_s[i].SetOpacity(0);
-        else {
-            j = Math.Clamp(Math.Int(f.s / FLARE_HI * FLARE_N + 0.5) - 1, 0, FLARE_N - 1);
-            if (j != flare_i[i]) {
-                flare_s[i].SetImage(flare_img[i][j]);
-                at(flare_s[i], spr["flare" + i].x, spr["flare" + i].y, 23);
-                global.flare_i[i] = j;
-            }
-            flare_s[i].SetOpacity(f.o);
-        }
-    }
-
-    # the word, unless a prompt stands in its place
-    if (dialog_on) word.SetOpacity(0);
-    else {
-        e = ease("out", (t - WORD_FROM) / (WORD_TO - WORD_FROM));
-        at(word, spr["word"].x, spr["word"].y + WORD_RISE * (1 - e), 24);
-        word.SetOpacity(WORD_OPACITY * e);
+        if (!rest) settle();
+        waiting(t);
     }
 }
 Plymouth.SetRefreshFunction(refresh);
