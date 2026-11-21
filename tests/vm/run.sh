@@ -749,18 +749,28 @@ check "mode: the Portal's switch needs no password from an admin" "${session} pk
 mode_reboot
 check "mode: Kiegyensúlyozott after the restart" '/usr/libexec/arkadeos/mode status | grep -qx active=balanced'
 ssh_vm "${mode_state}" > "${out}/mode-balanced.txt" 2>&1 || true
+# TuneD leaves hot-plug SATA ports at full power (every port of QEMU's AHCI
+# is one), so a port counts only when TuneD sets it; the values TuneD gets
+# are checked on their own (tuned-values.py).
+ssh_vm "echo $(base64 -w0 "${here}/tuned-values.py") | base64 -d > /tmp/tuned-values.py"
+check "Kiegyensúlyozott: TuneD gets the power-saving values" 'test "$(python3 /tmp/tuned-values.py)" = "10 med_power_with_dipm"'
 check "Kiegyensúlyozott: on the charger the devices save power" 'tuned-adm active | grep -q arkadeos-balanced &&
     test ! -e /run/arkadeos/no-power-save.saved &&
-    ! grep -L -x med_power_with_dipm /sys/class/scsi_host/*/link_power_management_policy | grep -q . &&
+    for h in /sys/class/scsi_host/*; do
+        test -e "$h/link_power_management_policy" || continue
+        c=$(cat "$h/ahci_port_cmd" 2>/dev/null) && test -n "$c" && (( (16#${c#0x} & (1 << 18 | 1 << 21)) != 0 )) && continue
+        grep -qx med_power_with_dipm "$h/link_power_management_policy" || exit 1
+    done &&
     { test ! -e /sys/module/snd_hda_intel/parameters/power_save || test "$(cat /sys/module/snd_hda_intel/parameters/power_save)" = 10; }'
 check "Kiegyensúlyozott: TuneD read the mode" "! journalctl -b -u tuned | grep -qiE 'error|exception|traceback'"
 check "Kiegyensúlyozott: PipeWire's own latency" 'grep -qx "    default.clock.quantum = 1024" /etc/pipewire/pipewire.conf.d/60-arkadeos-balanced.conf'
 check "Kiegyensúlyozott: Plasma's own dimming and sleep on the charger" 'grep -qx "AutoSuspendAction\[\$d\]" /home/arkade/.config/kdedefaults/powerdevilrc &&
     grep -qx "DimDisplayWhenIdle\[\$d\]" /home/arkade/.config/kdedefaults/powerdevilrc'
-# A game (GameMode's client) does not raise the profile here; notifications
+# A game (a Steam game's reaper, as the watcher sees one; GameMode's client
+# does not load in the VM) does not raise the profile here; notifications
 # still wait while it runs.
 ssh_vm "nohup sh -c 'for i in \$(seq 8); do tuned-adm active; sleep 3; done' > /tmp/mode-game.log 2>&1 &"
-ssh_vm "${session} timeout 25 gamemoderun sleep 22" || true
+ssh_vm "${session} timeout 25 bash -c 'exec -a \"reaper SteamLaunch AppId=480 --\" sleep 22'" || true
 check "Kiegyensúlyozott: a game keeps the profile" 'grep -q arkadeos-balanced /tmp/mode-game.log && ! grep -q arkadeos-gaming /tmp/mode-game.log'
 check "Kiegyensúlyozott: the taskbar's Gaming still works" '/usr/libexec/arkadeos/power-set gaming && sleep 4 &&
     tuned-adm active | grep -q arkadeos-gaming && test -s /run/arkadeos/no-power-save.saved &&
@@ -779,7 +789,7 @@ else
     failed=1
 fi
 ssh_vm "nohup sh -c 'for i in \$(seq 8); do tuned-adm active; sleep 3; done' > /tmp/mode-game.log 2>&1 &"
-ssh_vm "${session} timeout 25 gamemoderun sleep 22" || true
+ssh_vm "${session} timeout 25 bash -c 'exec -a \"reaper SteamLaunch AppId=480 --\" sleep 22'" || true
 check "Teljesítmény: a game switches to Gaming as before" 'grep -q arkadeos-gaming /tmp/mode-game.log'
 fi # mode
 

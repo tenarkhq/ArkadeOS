@@ -45,6 +45,7 @@ while read -r f; do
         tests/vm/update-path.sh) add update-path ;;
         tests/vm/portal-games.py | tests/vm/portal-update.py | tests/vm/apps.txt) add apps ;;
         tests/vm/proton-test.bat | tests/vm/wine-own-test.bat | tests/vm/kwin-probe*) add games ;;
+        tests/vm/tuned-values.py) add mode ;;
         # The look: theme, icons, wallpapers, taskbar, app style.
         build_files/70-theme.sh | build_files/75-layout.sh | tests/vm/taskbar.py | tests/vm/glass-windows.kwinrulesrc | \
         build_files/solid.sh | build_files/patches/* | \
