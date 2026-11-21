@@ -7,6 +7,14 @@ set -euo pipefail
 systemctl --global enable arkadeos-game-profile.service
 # Max and Akku follow the charger, checked at boot too (power-ac).
 systemctl enable arkadeos-power-ac.service
+# The Portal's mode (Teljesítmény or Kiegyensúlyozott): read once at boot,
+# before TuneD, and at every login (mode).
+systemctl enable arkadeos-mode.service
+systemctl --global enable arkadeos-mode-session.service
+# The balanced profile asks the mode for two values; the default mode must
+# give exactly the values it had before the switch existed.
+test "$(/usr/libexec/arkadeos/mode pick 0 10)" = 0
+test "$(/usr/libexec/arkadeos/mode pick max_performance med_power_with_dipm)" = max_performance
 systemctl is-enabled tuned.service tuned-ppd.service
 
 # tuned-ppd refuses to start on a bad mapping (unknown or repeated profiles):

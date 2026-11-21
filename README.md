@@ -42,6 +42,8 @@ A clean KDE Plasma desktop, one image for NVIDIA, AMD and Intel graphics, Steam 
 | 🤖 | Optional AI tools: Claude and Codex, desktop apps and command line | implemented |
 | 🔄 | Atomic image updates with rollback, builds of the last 90 days, factory reset that keeps your files | implemented |
 | 🔔 | Automatic update switch in the Portal: on, a new version of the machine's own channel is installed and a notice asks for the restart; off, the notice tells the new version | implemented |
+| 🏠 | Portal home page: the machine at a glance (processor, graphics, memory, disk, battery, mode, update, uptime) | implemented |
+| 🎚️ | Portal mode switch: Performance (the gaming setup, the default) or Balanced (an everyday laptop: devices save power on the charger too, a game does not raise the profile, default audio latency, Plasma's own dimming and sleep); the change takes effect after a restart | implemented |
 | 📦 | Small updates: ArkadeOS's own files, Proton-GE and the boot image are layers of their own, so an update downloads only the part that changed | implemented |
 | 💿 | Installer next to Windows, with Windows in the boot menu; shows the download's progress and time left | implemented |
 | 🔒 | Encrypted disk unlocked by the TPM, firewall on, telemetry off, nothing running in the background unless you turn it on | implemented |
@@ -102,6 +104,8 @@ The ArkadeOS Portal does the same from a window, and also switches the channel (
 | Gaming | Automatically while a game runs | Performance CPU mode, low-latency scheduler, GPU boost, no power saving anywhere, huge memory pages for the game |
 | Max | Manually, on AC only | Deep sleep states off, fans and platform profile at maximum |
 | WoW | Automatically while World of Warcraft runs, or manually | Gaming for the CPU; on a laptop the graphics card is held back to 80% of its power (TGP; on ASUS also Dynamic Boost off) so the shared power and cooling go to the CPU. While the card itself is the bottleneck it gets more, up to all of it, so a weaker card is not slowed down. Desktops: nothing held back. The lowest share is `percent=` in `/etc/arkadeos/gpu-cap.conf`. On a processor with two groups of cores (the two CCDs of a Ryzen 9) the game runs on one of them; `arkadeos-power ccd off` lets it use all cores |
+
+All of this is the Performance mode, the default. In the Portal's Balanced mode the Balanced profile also lets the sound chip, the disk links and the other devices save power on the charger, and a game does not switch to Gaming by itself; the profiles can still be chosen by hand. The mode changes at the next restart, and switching back to Performance removes every Balanced setting.
 
 ## Project status
 

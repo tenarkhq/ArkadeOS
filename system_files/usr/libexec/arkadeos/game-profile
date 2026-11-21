@@ -28,7 +28,11 @@ a Ryzen 9, say (T084, game_cpus). arkadeos-power ccd off lets it use every
 core again.
 
 It looks every three seconds, for as long as the session lasts, so a look
-costs little (T050): it lists the processes, and reads only the new ones."""
+costs little (T050): it lists the processes, and reads only the new ones.
+
+In the Kiegyensúlyozott mode (Portal, /usr/libexec/arkadeos/mode) a game does
+not change the power profile: the profile chosen by hand stays. Notifications
+still wait while a game runs, and so do the background jobs."""
 import os
 import re
 import subprocess
@@ -64,6 +68,12 @@ PROFILES = ("battery", "balanced", "gaming", "max", "wow")
 CONFIG = Path(os.environ.get("XDG_CONFIG_HOME", Path.home() / ".config")) / "arkadeos"
 CONFS = [CONFIG / "game-profiles.conf", Path("/usr/share/arkadeos/game-profiles.conf")]
 CCD_OFF = CONFIG / "ccd-off"  # arkadeos-power ccd off
+# The machine's mode for this boot (mode boot): Kiegyensúlyozott leaves the
+# profile to the user. Anything but "balanced" is the Teljesítmény mode.
+try:
+    NOTEBOOK = Path("/run/arkadeos/mode").read_text().strip() == "balanced"
+except OSError:
+    NOTEBOOK = False
 # A process is read again 1, 2, 4... looks after it appeared, then every
 # MAX_GAP looks (a minute and a half).
 MAX_GAP = 32
@@ -468,6 +478,10 @@ def main():
                 mark.write_text(f"{what}\n")
             else:
                 mark.unlink(missing_ok=True)
+        if NOTEBOOK:
+            # Kiegyensúlyozott: no profile for the game, only the quiet.
+            quiet(want is not None, state)
+            want = None
         if want == "max":
             try:
                 if on_battery(bus):

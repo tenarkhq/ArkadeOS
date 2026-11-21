@@ -203,7 +203,7 @@ check "no NVIDIA service without an NVIDIA card" "! systemctl --failed --no-lege
 ssh_vm "${session} journalctl --user -b --no-pager | grep -E 'arkadeos-portal:|plasma-apply-lookandfeel|knighttime|lookandfeel'" > "${out}/look-journal.txt" 2>&1 || true
 
 # The parts after the desktop run on their own: TEST_GROUPS lists the ones to
-# run (look, keys, power, games, apps, update), "all" (the default)
+# run (look, keys, power, mode, games, apps, update), "all" (the default)
 # runs every one. A push runs the parts its changes reach (groups.sh), the
 # nightly build all of them.
 want() {
@@ -715,6 +715,73 @@ ppd_set balanced
 ssh_vm 'cat /tmp/power-status.log; rm -f /usr/local/bin/arkadeos-power /tmp/power-status.log;
     journalctl -b --no-pager | grep org.arkadeos.power' > "${out}/power-switch.txt" 2>&1 || true
 fi # power
+
+if want mode; then
+step "mode: Teljesítmény and Kiegyensúlyozott"
+# The Portal's mode (Roland, 2026-11-21): Teljesítmény is the gaming setup
+# exactly as it was, and the default; Kiegyensúlyozott, an everyday laptop,
+# comes with the next start, and going back brings every setting back. The
+# machine restarts for each switch, as the Portal does.
+mode_reboot() {
+    ssh_vm 'systemctl reboot' || true
+    sleep 40
+    wait_ssh
+    ssh_vm "timeout 600 systemctl is-system-running --wait" || true
+    for _ in $(seq 60); do
+        ssh_vm 'pgrep -u arkade -x plasmashell' >/dev/null && break
+        sleep 5
+    done
+    sleep 10
+}
+# What the mode touches, as one list: the Balanced profile on the charger,
+# its device settings, the audio latency file and the user's dimming file.
+mode_state='ppd() { busctl set-property net.hadess.PowerProfiles /net/hadess/PowerProfiles net.hadess.PowerProfiles ActiveProfile s "$1"; sleep 4; }
+    ppd balanced; tuned-adm active; cat /sys/class/scsi_host/*/link_power_management_policy;
+    cat /sys/module/snd_hda_intel/parameters/power_save 2>/dev/null; test -e /run/arkadeos/no-power-save.saved && echo kept-awake;
+    grep -h control /run/arkadeos/no-power-save.saved 2>/dev/null | wc -l; ls /etc/pipewire/pipewire.conf.d 2>/dev/null;
+    ls /home/arkade/.config/kdedefaults/powerdevilrc 2>/dev/null; sysctl -n vm.swappiness'
+check "mode: Teljesítmény by default" '/usr/libexec/arkadeos/mode status | grep -qx active=performance &&
+    test ! -e /etc/arkadeos/mode && test ! -e /etc/pipewire/pipewire.conf.d/60-arkadeos-balanced.conf &&
+    test ! -e /home/arkade/.config/kdedefaults/powerdevilrc'
+ssh_vm "${mode_state}" > "${out}/mode-performance-before.txt" 2>&1 || true
+check "mode: the Portal's switch needs no password from an admin" "${session} pkexec /usr/libexec/arkadeos/mode set balanced &&
+    /usr/libexec/arkadeos/mode status | grep -qx chosen=balanced && /usr/libexec/arkadeos/mode status | grep -qx active=performance"
+mode_reboot
+check "mode: Kiegyensúlyozott after the restart" '/usr/libexec/arkadeos/mode status | grep -qx active=balanced'
+ssh_vm "${mode_state}" > "${out}/mode-balanced.txt" 2>&1 || true
+check "Kiegyensúlyozott: on the charger the devices save power" 'tuned-adm active | grep -q arkadeos-balanced &&
+    test ! -e /run/arkadeos/no-power-save.saved &&
+    ! grep -L -x med_power_with_dipm /sys/class/scsi_host/*/link_power_management_policy | grep -q . &&
+    { test ! -e /sys/module/snd_hda_intel/parameters/power_save || test "$(cat /sys/module/snd_hda_intel/parameters/power_save)" = 10; }'
+check "Kiegyensúlyozott: TuneD read the mode" "! journalctl -b -u tuned | grep -qiE 'error|exception|traceback'"
+check "Kiegyensúlyozott: PipeWire's own latency" 'grep -qx "    default.clock.quantum = 1024" /etc/pipewire/pipewire.conf.d/60-arkadeos-balanced.conf'
+check "Kiegyensúlyozott: Plasma's own dimming and sleep on the charger" 'grep -qx "AutoSuspendAction\[\$d\]" /home/arkade/.config/kdedefaults/powerdevilrc &&
+    grep -qx "DimDisplayWhenIdle\[\$d\]" /home/arkade/.config/kdedefaults/powerdevilrc'
+# A game (GameMode's client) does not raise the profile here; notifications
+# still wait while it runs.
+ssh_vm "nohup sh -c 'for i in \$(seq 8); do tuned-adm active; sleep 3; done' > /tmp/mode-game.log 2>&1 &"
+ssh_vm "${session} timeout 25 gamemoderun sleep 22" || true
+check "Kiegyensúlyozott: a game keeps the profile" 'grep -q arkadeos-balanced /tmp/mode-game.log && ! grep -q arkadeos-gaming /tmp/mode-game.log'
+check "Kiegyensúlyozott: the taskbar's Gaming still works" '/usr/libexec/arkadeos/power-set gaming && sleep 4 &&
+    tuned-adm active | grep -q arkadeos-gaming && test -s /run/arkadeos/no-power-save.saved &&
+    /usr/libexec/arkadeos/power-set balanced && sleep 4 && tuned-adm active | grep -q arkadeos-balanced &&
+    test ! -e /run/arkadeos/no-power-save.saved'
+check "mode: back to Teljesítmény" "${session} pkexec /usr/libexec/arkadeos/mode set performance && test ! -e /etc/arkadeos/mode"
+mode_reboot
+check "mode: Teljesítmény after the restart" '/usr/libexec/arkadeos/mode status | grep -qx active=performance &&
+    test ! -e /etc/pipewire/pipewire.conf.d/60-arkadeos-balanced.conf && test ! -e /home/arkade/.config/kdedefaults/powerdevilrc'
+ssh_vm "${mode_state}" > "${out}/mode-performance-after.txt" 2>&1 || true
+# Compared here, on the test's side.
+if diff "${out}/mode-performance-before.txt" "${out}/mode-performance-after.txt" > "${out}/mode-performance-diff.txt"; then
+    echo "ok Teljesítmény: every setting as before the switch" >> "${out}/apps.txt"
+else
+    echo "FAILED Teljesítmény: every setting as before the switch" >> "${out}/apps.txt"
+    failed=1
+fi
+ssh_vm "nohup sh -c 'for i in \$(seq 8); do tuned-adm active; sleep 3; done' > /tmp/mode-game.log 2>&1 &"
+ssh_vm "${session} timeout 25 gamemoderun sleep 22" || true
+check "Teljesítmény: a game switches to Gaming as before" 'grep -q arkadeos-gaming /tmp/mode-game.log'
+fi # mode
 
 if want games; then
 step "running a Windows program with GE-Proton"

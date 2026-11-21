@@ -64,12 +64,15 @@ while read -r f; do
         system_files/usr/libexec/arkadeos/lamparray | system_files/usr/lib/udev/rules.d/90-arkadeos-lamparray.rules | \
         system_files/usr/libexec/arkadeos/power-* | system_files/usr/libexec/arkadeos/gpu-cap | \
         system_files/usr/libexec/arkadeos/no-power-save | system_files/usr/libexec/arkadeos/vendor-* | \
-        system_files/usr/libexec/arkadeos/asus-defaults | system_files/usr/libexec/arkadeos/x3d-vcache) add power games apps ;;
+        system_files/usr/libexec/arkadeos/asus-defaults | system_files/usr/libexec/arkadeos/x3d-vcache) add power mode games apps ;;
+        # The Portal's mode (Teljesítmény or Kiegyensúlyozott).
+        system_files/usr/libexec/arkadeos/mode | system_files/usr/lib/systemd/system/arkadeos-mode.service | \
+        system_files/usr/lib/systemd/user/arkadeos-mode-session.service) add mode power ;;
         # When the machine sleeps by itself.
-        system_files/etc/xdg/powerdevilrc) add power ;;
+        system_files/etc/xdg/powerdevilrc | system_files/usr/share/pipewire/*) add power mode ;;
         # Games: Proton, the game watcher and its profiles.
         build_files/60-gaming.sh | build_files/proton-ge.sh | \
-        system_files/usr/libexec/arkadeos/game-profile | system_files/usr/libexec/arkadeos/no-game-running) add games power ;;
+        system_files/usr/libexec/arkadeos/game-profile | system_files/usr/libexec/arkadeos/no-game-running) add games power mode ;;
         # Apps, stores, the Portal.
         build_files/66-apps.sh | build_files/69-desktop-extras.sh | \
         system_files/usr/bin/arkadeos-portal | system_files/usr/libexec/arkadeos/portal-item | \

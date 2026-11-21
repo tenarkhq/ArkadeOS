@@ -1,0 +1,16 @@
+[Unit]
+Description=ArkadeOS: the mode chosen in the Portal, for this boot
+# The Portal's choice (Teljesítmény or Kiegyensúlyozott, /etc/arkadeos/mode)
+# is copied to /run/arkadeos/mode once, before TuneD loads its profiles and
+# before anyone logs in, so the whole boot runs in one mode.
+DefaultDependencies=no
+After=local-fs.target
+Before=tuned.service tuned-ppd.service sysinit.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/libexec/arkadeos/mode boot
+
+[Install]
+WantedBy=sysinit.target

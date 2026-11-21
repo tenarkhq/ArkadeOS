@@ -1,0 +1,94 @@
+#!/usr/bin/bash
+# The machine's mode, chosen in the Portal (Roland, 2026-11-21):
+#   performance  Teljesítmény, the default: everything exactly as ArkadeOS
+#                runs without this switch (the gaming setup, T011-T084).
+#   balanced     Kiegyensúlyozott, an everyday laptop: on the charger the
+#                devices save power too (Balanced), a game does not raise the
+#                power profile by itself, PipeWire's own audio latency, and
+#                Plasma's own dimming and sleep on the charger.
+# The choice is /etc/arkadeos/mode, which exists only for balanced. It takes
+# effect at the next boot: arkadeos-mode.service copies it to
+# /run/arkadeos/mode before TuneD starts, and everything that depends on the
+# mode reads that copy, so a running machine never changes mode halfway ("a
+# legbiztosabb ha üzemmódot váltunk akkor rebootolhat is a gép").
+#   mode status                  active=<mode> and chosen=<mode>
+#   mode set performance|balanced  (root; the Portal through pkexec)
+#   mode boot                    (arkadeos-mode.service, at boot)
+#   mode session                 (arkadeos-mode-session.service, at login)
+#   mode pick <performance> <balanced>
+#                                prints the first word on performance, the
+#                                second on balanced, without a newline (TuneD
+#                                profiles: ${f:exec:...}); anything unknown
+#                                counts as performance.
+set -uo pipefail
+
+chosen_file=/etc/arkadeos/mode
+active_file=/run/arkadeos/mode
+pipewire=/etc/pipewire/pipewire.conf.d/60-arkadeos-balanced.conf
+mark="# ArkadeOS Kiegyensúlyozott üzemmód"
+
+active() { [[ "$(cat "${active_file}" 2>/dev/null)" == balanced ]] && echo balanced || echo performance; }
+chosen() { [[ "$(cat "${chosen_file}" 2>/dev/null)" == balanced ]] && echo balanced || echo performance; }
+
+case "${1:-}" in
+    pick)
+        if [[ "$(active)" == balanced ]]; then printf %s "${3:-}"; else printf %s "${2:-}"; fi
+        ;;
+    status)
+        echo "active=$(active)"
+        echo "chosen=$(chosen)"
+        ;;
+    set)
+        case "${2:-}" in
+            performance) rm -f "${chosen_file}" || exit 1 ;;
+            balanced)
+                mkdir -p "$(dirname "${chosen_file}")" &&
+                    echo balanced > "${chosen_file}.new" && mv "${chosen_file}.new" "${chosen_file}" || exit 1
+                ;;
+            *) echo "usage: mode set performance|balanced" >&2; exit 2 ;;
+        esac
+        ;;
+    boot)
+        mkdir -p "$(dirname "${active_file}")"
+        chosen > "${active_file}"
+        if [[ "$(active)" == balanced ]]; then
+            # PipeWire's own latency, 1024 samples: the sound chip wakes the
+            # processor less often. Performance keeps ArkadeOS's 256 (T016,
+            # 50-arkadeos-latency.conf), and this file is gone there.
+            mkdir -p "$(dirname "${pipewire}")"
+            printf '%s (/usr/libexec/arkadeos/mode writes and removes this file at boot).\n%s\n' \
+                "${mark}" 'context.properties = {
+    default.clock.quantum = 1024
+    default.clock.min-quantum = 32
+}' > "${pipewire}"
+        else
+            rm -f "${pipewire}"
+        fi
+        ;;
+    session)
+        # Plasma's own dimming and sleep on the charger: the keys ArkadeOS
+        # sets in /etc/xdg/powerdevilrc are marked deleted in the user's
+        # kdedefaults, which Plasma reads before /etc/xdg, so Plasma's own
+        # defaults count. On battery the screen stays undimmed as in
+        # performance. A user's own choice (~/.config/powerdevilrc) still wins.
+        f="${XDG_CONFIG_HOME:-${HOME}/.config}/kdedefaults/powerdevilrc"
+        if [[ "$(active)" == balanced ]]; then
+            mkdir -p "$(dirname "${f}")"
+            printf '%s (/usr/libexec/arkadeos/mode writes and removes this file at login).\n%s\n' "${mark}" \
+                '[AC][SuspendAndShutdown]
+AutoSuspendAction[$d]
+
+[AC][Display]
+DimDisplayWhenIdle[$d]
+TurnOffDisplayWhenIdle[$d]
+TurnOffDisplayIdleTimeoutSec[$d]' > "${f}"
+        elif [[ -f "${f}" ]] && head -1 "${f}" | grep -q "^${mark}"; then
+            rm -f "${f}"
+        fi
+        ;;
+    *)
+        echo "usage: mode status|set performance|balanced|boot|session|pick <performance> <balanced>" >&2
+        exit 2
+        ;;
+esac
+exit 0

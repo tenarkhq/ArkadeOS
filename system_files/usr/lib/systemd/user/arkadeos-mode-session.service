@@ -1,0 +1,13 @@
+[Unit]
+Description=ArkadeOS: the mode chosen in the Portal, for this login
+# Kiegyensúlyozott: Plasma's own dimming and sleep on the charger, set before
+# Plasma's power management starts (mode session).
+Before=plasma-powerdevil.service plasma-kwin_wayland.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/libexec/arkadeos/mode session
+TimeoutStartSec=10
+
+[Install]
+WantedBy=plasma-core.target

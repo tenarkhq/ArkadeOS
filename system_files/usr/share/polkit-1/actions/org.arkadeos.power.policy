@@ -15,4 +15,16 @@
     </defaults>
     <annotate key="org.freedesktop.policykit.exec.path">/usr/libexec/arkadeos/power-set</annotate>
   </action>
+  <action id="org.arkadeos.mode-set">
+    <description>Choose the machine's mode (Performance or Balanced)</description>
+    <description xml:lang="hu">A gép üzemmódjának választása (Teljesítmény vagy Kiegyensúlyozott)</description>
+    <message>Choosing the machine's mode</message>
+    <message xml:lang="hu">Üzemmód választása</message>
+    <defaults>
+      <allow_any>no</allow_any>
+      <allow_inactive>no</allow_inactive>
+      <allow_active>yes</allow_active>
+    </defaults>
+    <annotate key="org.freedesktop.policykit.exec.path">/usr/libexec/arkadeos/mode</annotate>
+  </action>
 </policyconfig>

@@ -4,6 +4,8 @@
 Apps: tick to install, untick to remove (portal-item does the work). On the
 first login it opens by itself as the choice screen (T026, --first-run): the
 defaults are ticked, and what is chosen gets installed.
+Home (Kezdőlap, where it opens): the machine at a glance. Mode (Üzemmód):
+Teljesítmény or Kiegyensúlyozott, from the next start (mode).
 System: update now, the automatic update on or off, go back to the previous
 version, channel (stable or testing), the image for the graphics card,
 firmware, desktop defaults. --system opens on it.
@@ -21,6 +23,7 @@ import html
 import json
 import os
 import re
+import shutil
 import subprocess
 import sys
 import time
@@ -1494,7 +1497,580 @@ def style_sheet(palette):
 #side QPushButton#nav:checked {{ background: rgba(255,255,255,{.20 if dark else .45}); border: 1px solid rgba(255,255,255,{.35 if dark else .7}); }}
 #badge {{ background: {accent.name()}; color: {ink}; border-radius: 9px; padding: 1px 7px; font-size: 11px; font-weight: 700; }}
 #sideFoot {{ color: {glass_ink}; font-size: 11px; }}
+#heroName {{ font-size: 20px; font-weight: 700; }}
+#tileValue {{ font-size: 15px; font-weight: 700; }}
+#chip {{ background: {rgba(accent, .16)}; color: {accent.lighter(130).name() if dark else accent.darker(130).name()};
+  border-radius: 10px; padding: 2px 10px; font-size: 12px; }}
+#chipOk {{ background: {rgba(QColor("#7fd3b4"), .16)}; color: {"#a5e3cc" if dark else "#1f7a5c"};
+  border-radius: 10px; padding: 2px 10px; font-size: 12px; }}
+#tileBar {{ background: {mix(window, black, .45 if dark else .12).name()}; border: none; border-radius: 3px; }}
+#tileBar::chunk {{ background: {accent.name()}; border-radius: 3px; }}
+#tileBar[tone="battery"]::chunk {{ background: #7fd3b4; }}
+#modeTitle {{ font-size: 19px; font-weight: 700; }}
+#pane QPushButton#modePanel {{ background: {card.name()}; border: 1px solid {line}; border-radius: 12px;
+  padding: 0; text-align: left; }}
+#pane QPushButton#modePanel:hover {{ border: 1px solid {rgba(text, .28)}; }}
+#pane QPushButton#modePanel[mode="performance"]:checked {{ border: 2px solid #6db8ff;
+  background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 {rgba(QColor("#6db8ff"), .14)}, stop:.6 {card.name()}); }}
+#pane QPushButton#modePanel[mode="balanced"]:checked {{ border: 2px solid #7fd3b4;
+  background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 {rgba(QColor("#7fd3b4"), .13)}, stop:.6 {card.name()}); }}
 """
+
+
+# ---------------------------------------------------------------- Kezdőlap
+# The machine at a glance, like the start page of Windows' Settings (Roland,
+# 2026-11-21, design A of https://claude.ai/artifact/RBbkseo9tq24AWZwJHLtWv):
+# who the machine is, then the main facts in tiles. It only reads; its
+# buttons open the Portal's other pages.
+
+def read_file(path, default=""):
+    try:
+        return Path(path).read_text().strip()
+    except OSError:
+        return default
+
+
+def gigabytes(n):
+    """Bytes as the Portal says them: 9,4 GB / 9.4 GB."""
+    text = f"{n / 1e9:.1f}" if n < 100e9 else f"{n / 1e9:.0f}"
+    return (text.replace(".", ",") if HU else text) + " GB"
+
+
+def machine_facts():
+    """What the Kezdőlap shows that takes a moment to find (lspci,
+    nvidia-smi): read in the background."""
+    facts = {}
+    model, cores, threads = "", set(), 0
+    for line in read_file("/proc/cpuinfo").splitlines():
+        key, _, value = line.partition(":")
+        key, value = key.strip(), value.strip()
+        if key == "model name" and not model:
+            model = value
+        elif key == "processor":
+            threads += 1
+        elif key == "core id":
+            cores.add(value)
+    model = re.sub(r"\s+(\d+-Core|\d+ Core) Processor$|\s+with Radeon.*$|\(R\)|\(TM\)|\s+CPU @.*$", "", model).strip()
+    facts["cpu"] = model or tr("Processor", "Processzor")
+    top = read_file("/sys/devices/system/cpu/cpu0/cpufreq/cpuinfo_max_freq")
+    ghz = f"{int(top) / 1e6:.1f}".replace(".", "," if HU else ".") if top.isdigit() else ""
+    parts = []
+    if len(cores) > 1:
+        parts.append(tr(f"{len(cores)} cores", f"{len(cores)} mag"))
+    if threads:
+        parts.append(tr(f"{threads} threads", f"{threads} szál"))
+    if ghz:
+        parts.append(tr(f"up to {ghz} GHz", f"{ghz} GHz-ig"))
+    facts["cpu_sub"] = " · ".join(parts)
+    gpus = []
+    for line in run("lspci", "-mm").splitlines():
+        fields = re.findall(r'"([^"]*)"', line)
+        if len(fields) >= 3 and re.search(r"VGA|3D|Display", fields[0]):
+            vendor, device = fields[1], fields[2]
+            short = "NVIDIA" if "NVIDIA" in vendor else "AMD" if re.search(r"AMD|ATI", vendor) else \
+                "Intel" if "Intel" in vendor else vendor.split()[0]
+            m = re.search(r"\[([^\]]+)\]", device)
+            gpus.append(f"{short} {m.group(1) if m else device}".strip())
+    vram = run("nvidia-smi", "--query-gpu=name,memory.total", "--format=csv,noheader,nounits") \
+        if Path("/usr/bin/nvidia-smi").exists() else ""
+    if vram:
+        name, _, mib = vram.splitlines()[0].rpartition(",")
+        if name.strip():
+            gpus = [g for g in gpus if not g.startswith("NVIDIA")]
+            gpus.insert(0, name.strip() + (f" · {round(int(mib) / 1024)} GB" if mib.strip().isdigit() else ""))
+    facts["gpu"] = gpus[0] if gpus else tr("Graphics", "Videókártya")
+    facts["gpu_sub"] = tr("and ", "és ") + ", ".join(gpus[1:]) if len(gpus) > 1 else ""
+    facts["kernel"] = os.uname().release.split("-")[0]
+    return facts
+
+
+class FactsReader(QObject):
+    found = Signal(dict)
+
+    def work(self):
+        try:
+            self.found.emit(machine_facts())
+        except Exception:  # the page shows its plain words then
+            self.found.emit({})
+
+
+class HomeTab(QWidget):
+    def __init__(self, open_page):
+        super().__init__()
+        self.open_page = open_page
+        outer = QVBoxLayout(self)
+        outer.setContentsMargins(0, 0, 0, 0)
+        outer.setSpacing(0)
+        head, _ = page_head(tr("Home", "Kezdőlap"), tr("This machine at a glance.", "Ez a gép egy pillantásra."))
+        outer.addLayout(head)
+        body = QWidget()
+        body.setObjectName("scrollBody")
+        b = QVBoxLayout(body)
+        b.setContentsMargins(22, 0, 22, 16)
+        b.setSpacing(12)
+        scroll = QScrollArea()
+        scroll.setObjectName("scroll")
+        scroll.setWidgetResizable(True)
+        scroll.setFrameShape(QFrame.NoFrame)
+        scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        scroll.setWidget(body)
+        outer.addWidget(scroll, 1)
+
+        hero = card()
+        h = QHBoxLayout(hero)
+        h.setContentsMargins(18, 14, 18, 14)
+        h.setSpacing(16)
+        mark = QLabel()
+        mark.setPixmap(QIcon.fromTheme("arkadeos-launcher", QIcon.fromTheme("arkadeos-portal")).pixmap(68, 68))
+        h.addWidget(mark)
+        who = QVBoxLayout()
+        who.setSpacing(2)
+        self.name = QLabel()
+        self.name.setObjectName("heroName")
+        who.addWidget(self.name)
+        self.model = QLabel()
+        self.model.setObjectName("muted")
+        who.addWidget(self.model)
+        h.addLayout(who, 1)
+        chips = QVBoxLayout()
+        chips.setSpacing(6)
+        self.version_chip = QLabel()
+        self.version_chip.setObjectName("chip")
+        chips.addWidget(self.version_chip, 0, Qt.AlignRight)
+        self.update_chip = QLabel()
+        self.update_chip.setObjectName("chipOk")
+        chips.addWidget(self.update_chip, 0, Qt.AlignRight)
+        h.addLayout(chips)
+        b.addWidget(hero)
+
+        grid = QGridLayout()
+        grid.setSpacing(10)
+        self.tiles = {}
+        spots = [("cpu", 0, 0, 1), ("gpu", 0, 1, 1), ("memory", 0, 2, 1), ("disk", 1, 0, 1), ("battery", 1, 1, 1),
+                 ("mode", 1, 2, 1), ("update", 2, 0, 2), ("uptime", 2, 2, 1)]
+        titles = {"cpu": tr("Processor", "Processzor"), "gpu": tr("Graphics", "Videókártya"),
+                  "memory": tr("Memory", "Memória"), "disk": tr("Storage", "Tárhely"),
+                  "battery": tr("Battery", "Akkumulátor"), "mode": tr("Mode", "Üzemmód"),
+                  "update": tr("Updates", "Frissítés"), "uptime": tr("Running for", "Működik")}
+        for key, row, col, span in spots:
+            tile = card()
+            t = QVBoxLayout(tile)
+            t.setContentsMargins(14, 12, 14, 12)
+            t.setSpacing(4)
+            label = QLabel(titles[key].upper())
+            label.setObjectName("groupTitle")
+            t.addWidget(label)
+            line = QHBoxLayout()
+            value = QLabel()
+            value.setObjectName("tileValue")
+            value.setWordWrap(True)
+            line.addWidget(value, 1)
+            t.addLayout(line)
+            sub = QLabel()
+            sub.setObjectName("muted")
+            sub.setWordWrap(True)
+            t.addWidget(sub)
+            bar = None
+            if key in ("memory", "disk", "battery"):
+                bar = QProgressBar()
+                bar.setObjectName("tileBar")
+                bar.setTextVisible(False)
+                bar.setFixedHeight(6)
+                t.addWidget(bar)
+            t.addStretch()
+            self.tiles[key] = (tile, value, sub, bar, line)
+            grid.addWidget(tile, row, col, 1, span)
+        for col in range(3):
+            grid.setColumnStretch(col, 1)
+        b.addLayout(grid)
+        go = QPushButton(tr("System page", "Rendszer fül"))
+        go.clicked.connect(lambda: self.open_page("system"))
+        self.tiles["update"][4].addWidget(go)
+        go = QPushButton(tr("Mode page", "Üzemmód fül"))
+        go.clicked.connect(lambda: self.open_page("mode"))
+        self.tiles["mode"][4].addWidget(go)
+        b.addStretch()
+        self.foot = QLabel()
+        self.foot.setObjectName("footNote")
+        self.foot.setContentsMargins(22, 0, 22, 12)
+        outer.addWidget(self.foot)
+
+        self.facts = {}
+        self.reader_thread = QThread(self)
+        self.reader = FactsReader()
+        self.reader.moveToThread(self.reader_thread)
+        self.reader_thread.started.connect(self.reader.work)
+        self.reader.found.connect(self.got_facts)
+        self.reader.found.connect(self.reader_thread.quit)
+        self.reader_thread.start()
+        self.refresh()
+        self.timer = QTimer(self)
+        # Memory, battery and the running time every 5 s while it shows; the
+        # rest (it asks other programs) when the page opens.
+        self.timer.timeout.connect(lambda: self.isVisible() and self.refresh(full=False))
+        self.timer.start(5000)
+
+    def tile(self, key, value, sub="", share=None, colour=None):
+        _, v, s, bar, _ = self.tiles[key]
+        v.setText(value)
+        s.setText(sub)
+        s.setVisible(bool(sub))
+        if bar is not None:
+            bar.setVisible(share is not None)
+            if share is not None:
+                bar.setValue(round(share * 100))
+                set_flag(bar, "tone", colour or "")
+
+    def got_facts(self, facts):
+        self.facts = facts
+        self.refresh()
+
+    def showEvent(self, event):
+        super().showEvent(event)
+        self.refresh()
+
+    def refresh(self, full=True):
+        if full:
+            self.refresh_slow()
+        self.refresh_fast()
+
+    def refresh_slow(self):
+        f = self.facts
+        self.name.setText(os.uname().nodename)
+        vendor = read_file("/sys/class/dmi/id/sys_vendor")
+        product = read_file("/sys/class/dmi/id/product_name")
+        vendor = {"ASUSTeK COMPUTER INC.": "ASUS", "Micro-Star International Co., Ltd.": "MSI", "LENOVO": "Lenovo"}.get(vendor, vendor)
+        if vendor == "Lenovo":
+            product = read_file("/sys/class/dmi/id/product_version") or product
+        model = " ".join(x for x in (vendor, product) if x and x not in ("System manufacturer", "System Product Name",
+                                                                        "To Be Filled By O.E.M."))
+        batteries = sorted(Path("/sys/class/power_supply").glob("BAT*"))
+        kind = tr("laptop", "laptop") if batteries else tr("desktop", "asztali gép")
+        self.model.setText(" · ".join(x for x in (model, kind) if x))
+        version = next((line.split("=", 1)[1].strip('"') for line in read_file("/usr/lib/os-release").splitlines()
+                        if line.startswith("VERSION=")), "")
+        channel = {"stable": tr("Stable channel", "Stabil csatorna"),
+                   "testing": tr("Testing channel", "Teszt csatorna")}.get(run("arkadeos-update", "channel"), "")
+        self.version_chip.setText(" · ".join(x for x in (f"ArkadeOS {version}", channel) if x))
+        auto = run("arkadeos-update", "auto") != "off"
+        try:
+            stamp = int((STATE / "update-checked").read_text().strip())
+        except (OSError, ValueError):
+            stamp = 0
+        staged = run("arkadeos-update", "staged")
+        self.update_chip.setText("● " + (tr("A new version starts after a restart", "Újraindítás után új verzió indul")
+                                         if staged else tr("Automatic update on", "Automatikus frissítés bekapcsolva")
+                                         if auto else tr("Automatic update off", "Automatikus frissítés kikapcsolva")))
+
+        self.tile("cpu", f.get("cpu", "…"), f.get("cpu_sub", ""))
+        self.tile("gpu", f.get("gpu", "…"), f.get("gpu_sub", ""))
+        self.refresh_mode(auto, stamp)
+
+    def refresh_mode(self, auto, stamp):
+        modes = dict(line.split("=", 1) for line in run("/usr/libexec/arkadeos/mode", "status").splitlines() if "=" in line)
+        names = {"performance": tr("Performance", "Teljesítmény"), "balanced": tr("Balanced", "Kiegyensúlyozott")}
+        active, chosen = modes.get("active", "performance"), modes.get("chosen", "performance")
+        power = dict(line.split("=", 1) for line in run("arkadeos-power", "status").splitlines() if "=" in line)
+        profiles = {"battery": "Akku", "balanced": tr("Balanced", "Kiegyensúlyozott"), "gaming": "Gaming", "max": "Max",
+                    "wow": "WoW"}
+        sub = tr(f"now: the {profiles.get(power.get('profile'), '…')} profile",
+                 f"most: {profiles.get(power.get('profile'), '…')} profil")
+        if chosen != active:
+            sub = tr(f"{names[chosen]} after a restart", f"újraindítás után: {names[chosen]}")
+        self.tile("mode", names[active], sub)
+        when = ""
+        if stamp:
+            when = tr(f"Last look today at {clock(stamp)}", f"Utolsó keresés ma {clock(stamp)}") \
+                if time.strftime("%Y-%m-%d", time.localtime(stamp)) == time.strftime("%Y-%m-%d") else \
+                tr(f"Last look {time.strftime('%Y-%m-%d', time.localtime(stamp))}",
+                   f"Utolsó keresés {time.strftime('%Y-%m-%d', time.localtime(stamp))}")
+        self.tile("update", tr("Automatic update on", "Automatikus frissítés bekapcsolva") if auto
+                  else tr("Automatic update off", "Automatikus frissítés kikapcsolva"), when)
+
+    def refresh_fast(self):
+        f = self.facts
+        mem = {}
+        for line in read_file("/proc/meminfo").splitlines():
+            key, _, value = line.partition(":")
+            mem[key] = int(value.split()[0]) * 1024 if value.split() else 0
+        total, free = mem.get("MemTotal", 0), mem.get("MemAvailable", 0)
+        if total:
+            self.tile("memory", f"{round(total / 2**30)} GB", tr(f"{gigabytes(total - free)} in use",
+                                                               f"ebből {gigabytes(total - free)} használatban"),
+                      (total - free) / total)
+        try:
+            disk = shutil.disk_usage("/var/home" if os.path.isdir("/var/home") else "/")
+            self.tile("disk", gigabytes(disk.total), tr(f"{gigabytes(disk.free)} free", f"{gigabytes(disk.free)} szabad"),
+                      (disk.total - disk.free) / disk.total)
+        except OSError:
+            self.tile("disk", "…")
+        batteries = sorted(Path("/sys/class/power_supply").glob("BAT*"))
+        if batteries:
+            bat = batteries[0]
+            level = read_file(bat / "capacity")
+            status = read_file(bat / "status")
+            plugged = status in ("Charging", "Full", "Not charging")
+            limit = read_file(bat / "charge_control_end_threshold")
+            sub = tr(f"Battery care: charges to {limit} %", f"Akkukímélés: {limit} %-ig tölt") if limit and limit != "100" else ""
+            self.tile("battery", f"{level} % · " + (tr("on the charger", "töltőn") if plugged else tr("on battery", "akkun")),
+                      sub, int(level) / 100 if level.isdigit() else None, "battery")
+        else:
+            self.tile("battery", tr("No battery", "Nincs akkumulátor"), tr("This machine runs on mains power.",
+                                                                          "Ez a gép hálózatról működik."))
+        try:
+            up = int(float(read_file("/proc/uptime").split()[0]))
+        except (IndexError, ValueError):
+            up = 0
+        hours, minutes = up // 3600, up % 3600 // 60
+        started = time.strftime("%H:%M", time.localtime(time.time() - up))
+        self.tile("uptime", tr(f"{hours} h {minutes} min", f"{hours} óra {minutes} perc"),
+                  tr(f"started at {started}", f"indult: {started}"))
+        screen = QApplication.primaryScreen()
+        size = screen.size() * screen.devicePixelRatio() if screen else None
+        parts = []
+        if screen:
+            parts.append(tr("Display", "Kijelző") + f": {size.width()} × {size.height()}, {round(screen.refreshRate())} Hz")
+        parts.append("KDE Plasma 6")
+        if f.get("kernel"):
+            parts.append(f"Linux {f['kernel']}")
+        self.foot.setText(" · ".join(parts))
+
+
+# ---------------------------------------------------------------- Üzemmód
+# Two modes on two panels (Roland, 2026-11-21, design A of
+# https://claude.ai/artifact/RBbkseo9tq24AWZwJHLtWv): Teljesítmény, the
+# gaming setup exactly as it was ("a mostani gaming performance mód
+# semmiképp sem sérülhet"), and Kiegyensúlyozott, an everyday laptop. The
+# choice takes effect at the next boot (/usr/libexec/arkadeos/mode); the
+# taskbar's power profile works on inside either.
+
+MODE_COLOUR = {"performance": "#6db8ff", "balanced": "#7fd3b4"}
+
+
+class Gauge(QWidget):
+    """A mode's mark: a gauge, high for Teljesítmény, in the middle for
+    Kiegyensúlyozott."""
+
+    def __init__(self, share, colour):
+        super().__init__()
+        self.share, self.colour = share, QColor(colour)
+        self.setFixedSize(150, 118)
+
+    def paintEvent(self, event):
+        from PySide6.QtCore import QPointF, QRectF
+        from PySide6.QtGui import QPen, QRadialGradient
+        p = QPainter(self)
+        p.setRenderHint(QPainter.Antialiasing)
+        cx, cy, r = 75.0, 76.0, 56.0
+        box = QRectF(cx - r, cy - r, 2 * r, 2 * r)
+        track = QApplication.palette().color(QPalette.WindowText)
+        track.setAlphaF(.16)
+        p.setPen(QPen(track, 7, Qt.SolidLine, Qt.RoundCap))
+        p.drawArc(box, 210 * 16, -240 * 16)
+        p.setPen(QPen(self.colour, 7, Qt.SolidLine, Qt.RoundCap))
+        p.drawArc(box, 210 * 16, int(-240 * 16 * self.share))
+        import math
+        for i in range(13):
+            a = math.radians(150 + 240 * i / 12)
+            inner = r - (18 if i % 3 == 0 else 15)
+            on = i / 12 <= self.share + 1e-6
+            colour = QColor(self.colour) if on else QColor(track)
+            p.setPen(QPen(colour, 1.6 if i % 3 == 0 else 1, Qt.SolidLine, Qt.RoundCap))
+            p.drawLine(QPointF(cx + (r - 12) * math.cos(a), cy + (r - 12) * math.sin(a)),
+                       QPointF(cx + inner * math.cos(a), cy + inner * math.sin(a)))
+        a = math.radians(150 + 240 * self.share)
+        glow = QRadialGradient(QPointF(cx + r * math.cos(a), cy + r * math.sin(a)), 13)
+        c = QColor(self.colour)
+        c.setAlphaF(.55)
+        glow.setColorAt(0, c)
+        c.setAlphaF(0)
+        glow.setColorAt(1, c)
+        p.setPen(Qt.NoPen)
+        p.setBrush(glow)
+        p.drawEllipse(QPointF(cx + r * math.cos(a), cy + r * math.sin(a)), 13, 13)
+        needle = QColor("#eef4fb") if QApplication.palette().color(QPalette.Window).lightness() < 128 else QColor("#1d2530")
+        p.setPen(QPen(needle, 2.6, Qt.SolidLine, Qt.RoundCap))
+        p.drawLine(QPointF(cx, cy), QPointF(cx + (r - 20) * math.cos(a), cy + (r - 20) * math.sin(a)))
+        p.setBrush(QApplication.palette().color(QPalette.Window))
+        p.drawEllipse(QPointF(cx, cy), 5.5, 5.5)
+
+
+class ModePanel(QPushButton):
+    """A mode's panel: a checkable button as big as what its layout holds."""
+
+    def sizeHint(self):
+        return self.layout().sizeHint()
+
+    def minimumSizeHint(self):
+        return self.layout().minimumSize()
+
+    def hasHeightForWidth(self):
+        return True
+
+    def heightForWidth(self, width):
+        return self.layout().totalHeightForWidth(width)
+
+
+class ModeTab(QWidget):
+    def __init__(self):
+        super().__init__()
+        outer = QVBoxLayout(self)
+        outer.setContentsMargins(0, 0, 0, 0)
+        outer.setSpacing(0)
+        head, _ = page_head(tr("Mode", "Üzemmód"), tr(
+            "How the machine treats performance and power. The taskbar's power profile works on inside it.",
+            "Hogyan bánjon a gép a teljesítménnyel és az energiával. A tálcán lévő energiaprofil ezen belül működik tovább."))
+        outer.addLayout(head)
+        body = QWidget()
+        body.setObjectName("scrollBody")
+        row = QHBoxLayout(body)
+        row.setContentsMargins(22, 0, 22, 16)
+        row.setSpacing(14)
+        row.setAlignment(Qt.AlignTop)
+        scroll = QScrollArea()
+        scroll.setObjectName("scroll")
+        scroll.setWidgetResizable(True)
+        scroll.setFrameShape(QFrame.NoFrame)
+        scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        scroll.setWidget(body)
+        outer.addWidget(scroll, 1)
+        self.group = QButtonGroup(self)
+        self.panels = {}
+        info = {
+            "performance": (.9, tr("Performance", "Teljesítmény"),
+                            tr("Tuned for games. This is how ArkadeOS runs.", "Játékra hangolva. Így fut most az ArkadeOS."),
+                            [tr("on the charger nothing saves power", "töltőn semmi nem takarékoskodik"),
+                             tr("a game switches to Gaming by itself, WoW to the WoW profile",
+                                "játék indulásakor magától Gaming, WoW-nál WoW-profil"),
+                             tr("low audio latency", "alacsony hangkésleltetés"),
+                             tr("on the charger the machine never sleeps by itself",
+                                "töltőn a gép nem alszik el magától")]),
+            "balanced": (.5, tr("Balanced", "Kiegyensúlyozott"),
+                         tr("An everyday laptop: quieter, cooler, lasts longer.",
+                            "Hétköznapi notebook: csendesebb, hűvösebb, tovább bírja."),
+                         [tr("on the charger the devices save power too, the graphics card may rest",
+                             "töltőn is takarékoskodnak az eszközök, a videókártya pihenhet"),
+                          tr("a game does not switch by itself; Gaming by hand in the taskbar",
+                             "játék indulásakor nem vált magától; Gaming a tálcán kézzel"),
+                          tr("the system's own audio latency", "a rendszer alap hangkésleltetése"),
+                          tr("on the charger too the screen dims and the machine sleeps",
+                             "töltőn is halványul a képernyő és elalszik a gép")]),
+        }
+        for key, (share, title, tag, points) in info.items():
+            panel = ModePanel()
+            panel.setObjectName("modePanel")
+            panel.setProperty("mode", key)
+            panel.setCheckable(True)
+            panel.setCursor(Qt.PointingHandCursor)
+            panel.setAccessibleName(title)
+            p = QVBoxLayout(panel)
+            p.setContentsMargins(18, 14, 18, 16)
+            p.setSpacing(8)
+            top = QHBoxLayout()
+            top.addStretch()
+            active = QLabel(tr("Active", "Aktív"))
+            active.setObjectName("chip" if key == "performance" else "chipOk")
+            active.setAttribute(Qt.WA_TransparentForMouseEvents)
+            top.addWidget(active)
+            p.addLayout(top)
+            gauge = Gauge(share, MODE_COLOUR[key])
+            gauge.setAttribute(Qt.WA_TransparentForMouseEvents)
+            p.addWidget(gauge, 0, Qt.AlignHCenter)
+            name = QLabel(f"<span style='color:{MODE_COLOUR[key]}'>●</span>&nbsp; {html.escape(title)}")
+            name.setObjectName("modeTitle")
+            name.setTextFormat(Qt.RichText)
+            p.addWidget(name)
+            line = QLabel(tag)
+            line.setObjectName("muted")
+            line.setWordWrap(True)
+            p.addWidget(line)
+            dots = QLabel("<br>".join("•&nbsp; " + html.escape(x) for x in points))
+            dots.setTextFormat(Qt.RichText)
+            dots.setWordWrap(True)
+            p.addWidget(dots)
+            p.addStretch()
+            for child in panel.findChildren(QWidget):
+                child.setAttribute(Qt.WA_TransparentForMouseEvents)
+            self.group.addButton(panel)
+            panel.clicked.connect(self.picked)
+            self.panels[key] = (panel, active)
+            row.addWidget(panel, 1)
+        foot = QFrame()
+        foot.setObjectName("footBar")
+        f = QHBoxLayout(foot)
+        f.setContentsMargins(16, 10, 16, 10)
+        self.message = QLabel()
+        self.message.setObjectName("muted")
+        self.message.setWordWrap(True)
+        f.addWidget(self.message, 1)
+        self.go = QPushButton(QIcon.fromTheme("system-reboot"), tr("Switch and restart", "Váltás és újraindítás"))
+        self.go.setObjectName("primary")
+        self.go.clicked.connect(self.switch)
+        f.addWidget(self.go)
+        outer.addWidget(foot)
+        self.read()
+
+    def read(self):
+        modes = dict(line.split("=", 1) for line in run("/usr/libexec/arkadeos/mode", "status").splitlines() if "=" in line)
+        self.active = modes.get("active", "performance")
+        self.chosen = modes.get("chosen", "performance")
+        self.panels[self.chosen][0].setChecked(True)
+        self.picked()
+
+    def showEvent(self, event):
+        super().showEvent(event)
+        self.read()
+
+    def selected(self):
+        return next(k for k, (panel, _) in self.panels.items() if panel.isChecked())
+
+    def picked(self):
+        names = {"performance": tr("Performance", "Teljesítmény"), "balanced": tr("Balanced", "Kiegyensúlyozott")}
+        want = self.selected()
+        for key, (panel, chip) in self.panels.items():
+            chip.setVisible(key == self.active)
+        if want == self.active and want == self.chosen:
+            self.message.setText(tr(f"{names[want]} mode · the machine started in it.",
+                                    f"{names[want]} üzemmód · a gép így indult el."))
+            self.go.setEnabled(False)
+            self.go.setText(tr("Switch and restart", "Váltás és újraindítás"))
+        elif want == self.chosen:
+            self.message.setText(tr(f"{names[want]} starts after a restart.", f"Újraindítás után {names[want]} indul."))
+            self.go.setEnabled(True)
+            self.go.setText(tr("Restart now", "Újraindítás most"))
+        else:
+            self.message.setText(tr(f"Chosen: {names[want]} · takes effect after a restart.",
+                                    f"Kiválasztva: {names[want]} · újraindítás után lép érvénybe."))
+            self.go.setEnabled(True)
+            self.go.setText(tr("Switch and restart", "Váltás és újraindítás"))
+
+    def switch(self):
+        names = {"performance": tr("Performance", "Teljesítmény"), "balanced": tr("Balanced", "Kiegyensúlyozott")}
+        want = self.selected()
+        box = QMessageBox(self)
+        box.setWindowTitle(tr("Mode", "Üzemmód"))
+        box.setText(tr(f"Switch to the {names[want]} mode", f"Váltás {names[want]} üzemmódra"))
+        box.setInformativeText(tr("So that every setting surely changes, the machine restarts. Save what you are working on.",
+                                  "Hogy minden beállítás biztosan átálljon, a gép újraindul. Mentsd el, amin dolgozol."))
+        now = box.addButton(tr("Restart now", "Újraindítás most"), QMessageBox.AcceptRole)
+        later = box.addButton(tr("Later, at the next start", "Később, a következő indításkor"), QMessageBox.RejectRole)
+        box.addButton(QMessageBox.Cancel)
+        box.setDefaultButton(now)
+        box.exec()
+        if box.clickedButton() not in (now, later):
+            return
+        if want != self.chosen:
+            result = subprocess.run(["pkexec", "/usr/libexec/arkadeos/mode", "set", want], capture_output=True, text=True)
+            if result.returncode != 0:
+                QMessageBox.warning(self, tr("Mode", "Üzemmód"), tr("The mode could not be saved.",
+                                                                     "Az üzemmódot nem sikerült elmenteni."))
+                self.read()
+                return
+        if box.clickedButton() is now:
+            # Plasma closes the session cleanly, then the machine restarts.
+            if subprocess.run(["qdbus-qt6", "org.kde.Shutdown", "/Shutdown", "logoutAndReboot"]).returncode != 0:
+                subprocess.Popen(["systemctl", "reboot"])
+        self.read()
 
 
 class Portal(QWidget):
@@ -1526,6 +2102,12 @@ class Portal(QWidget):
         row.addWidget(pane, 1)
         self.buttons = QButtonGroup(self)
 
+        self.named = {}
+        if not first_run:
+            self.named["home"] = self.page(HomeTab(self.open_named), ("go-home-symbolic", "user-home-symbolic"),
+                                           tr("Home", "Kezdőlap"))
+            self.named["mode"] = self.page(ModeTab(), ("speedometer", "power-profile-performance-symbolic",
+                                                       "preferences-system-power-symbolic"), tr("Mode", "Üzemmód"))
         apps = AppsTab(first_run)
         button = self.page(apps, "view-app-grid-symbolic", tr("Apps", "Appok"))
         apps.pending.connect(lambda n, b=button: self.badge(b, str(n) if n else ""))
@@ -1533,7 +2115,8 @@ class Portal(QWidget):
             self.page(GamesTab(), "input-gamepad-symbolic", tr("Games", "Játékok"))
             system = SystemTab()
             button = self.page(system, "preferences-system-symbolic", tr("System", "Rendszer"))
-            # The Portal opens on Apps: a newer version shows beside System.
+            self.named["system"] = button
+            # The Portal opens on Kezdőlap: a newer version shows beside System.
             system.newer.connect(lambda on, b=button: self.badge(b, tr("new", "új") if on else ""))
         self.nav.addStretch()
         version = next((line.split("=", 1)[1].strip('"') for line in Path("/usr/lib/os-release").read_text().splitlines()
@@ -1546,6 +2129,11 @@ class Portal(QWidget):
         self.nav.addWidget(foot)
         self.buttons.buttons()[0].setChecked(True)
         self.system_button = None if first_run else button
+
+    def open_named(self, name):
+        """A Kezdőlap button: opens the Portal's page of that name."""
+        if name in self.named:
+            self.named[name].click()
 
     def open_system(self):
         """Opens on System: the "Open the Portal" of the new-version notice."""
@@ -1576,7 +2164,9 @@ class Portal(QWidget):
 
     def page(self, widget, icon, title):
         index = self.stack.addWidget(widget)
-        button = QPushButton(QIcon.fromTheme(icon), "  " + title)
+        names = icon if isinstance(icon, tuple) else (icon,)
+        found = next((QIcon.fromTheme(n) for n in names if QIcon.hasThemeIcon(n)), QIcon.fromTheme(names[-1]))
+        button = QPushButton(found, "  " + title)
         button.setObjectName("nav")
         button.setCheckable(True)
         button.clicked.connect(lambda: self.stack.setCurrentIndex(index))

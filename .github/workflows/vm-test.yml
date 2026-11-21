@@ -92,7 +92,7 @@ jobs:
             echo "${out:-none}"
           }
           echo "half1=$(half 'look keys power games')" >> "$GITHUB_OUTPUT"
-          echo "half2=$(half 'apps update')" >> "$GITHUB_OUTPUT"
+          echo "half2=$(half 'mode apps update')" >> "$GITHUB_OUTPUT"
 
   vm-test:
     # The parts in the name: promote.yml takes a build to stable only after a
