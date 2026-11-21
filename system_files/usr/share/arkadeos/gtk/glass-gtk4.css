@@ -42,6 +42,15 @@ windowcontrols > button.close {
 windowcontrols > button.close:hover {
   background: linear-gradient(to bottom, #ff7d8a, #e0485b);
 }
+/* The marks are the buttons' own symbolic icons; Breeze hides them (image:
+   transparent) for marks of its own in the background, which ours replaces
+   (Piper's empty buttons, Roland 2026-11-21). */
+windowcontrols > button image {
+  color: @theme_titlebar_foreground_breeze;
+}
+windowcontrols > button.close image {
+  color: #ffffff;
+}
 
 /* The content is solid, as in KDE's windows (a file list, a page of
    settings): the window's own colour under a toolbar view's content, so

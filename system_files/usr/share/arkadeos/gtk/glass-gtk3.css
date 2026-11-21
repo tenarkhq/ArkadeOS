@@ -46,3 +46,16 @@ headerbar button.titlebutton.close:hover,
 .titlebar button.titlebutton.close:hover {
   background-image: linear-gradient(to bottom, #ff7d8a, #e0485b);
 }
+/* The marks are the buttons' own symbolic icons. Breeze hides them (image:
+   transparent) and paints its marks as the background, which kde-gtk-config
+   replaces with ones drawn from the window decoration; ArkadeOS Glass's is an
+   Aurorae theme, which it draws as empty pictures, so the buttons had no
+   marks at all (Piper, Roland 2026-11-21). */
+headerbar button.titlebutton image,
+.titlebar button.titlebutton image {
+  color: @theme_titlebar_foreground_breeze;
+}
+headerbar button.titlebutton.close image,
+.titlebar button.titlebutton.close image {
+  color: #ffffff;
+}
