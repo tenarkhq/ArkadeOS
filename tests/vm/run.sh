@@ -749,9 +749,12 @@ check "mode: the Portal's switch needs no password from an admin" "${session} pk
 mode_reboot
 check "mode: Kiegyensúlyozott after the restart" '/usr/libexec/arkadeos/mode status | grep -qx active=balanced'
 ssh_vm "${mode_state}" > "${out}/mode-balanced.txt" 2>&1 || true
-# TuneD leaves hot-plug SATA ports at full power (every port of QEMU's AHCI
-# is one), so a port counts only when TuneD sets it; the values TuneD gets
-# are checked on their own (tuned-values.py).
+# TuneD leaves hot-plug SATA ports at full power, and the kernel refuses link
+# power saving where the controller has none (QEMU's AHCI), so a port counts
+# only where it can save; the values TuneD gets are checked on their own
+# (tuned-values.py), and TuneD's log goes to the results.
+ssh_vm 'for h in /sys/class/scsi_host/*; do echo "$h $(cat $h/ahci_port_cmd 2>/dev/null) $(cat $h/link_power_management_policy 2>/dev/null)"; done;
+    grep -iE "alpm|scsi_host|error" /var/log/tuned/tuned.log | tail -40' > "${out}/mode-balanced-tuned.txt" 2>&1 || true
 ssh_vm "echo $(base64 -w0 "${here}/tuned-values.py") | base64 -d > /tmp/tuned-values.py"
 check "Kiegyensúlyozott: TuneD gets the power-saving values" 'test "$(python3 /tmp/tuned-values.py)" = "10 med_power_with_dipm"'
 check "Kiegyensúlyozott: on the charger the devices save power" 'tuned-adm active | grep -q arkadeos-balanced &&
@@ -759,7 +762,10 @@ check "Kiegyensúlyozott: on the charger the devices save power" 'tuned-adm acti
     for h in /sys/class/scsi_host/*; do
         test -e "$h/link_power_management_policy" || continue
         c=$(cat "$h/ahci_port_cmd" 2>/dev/null) && test -n "$c" && (( (16#${c#0x} & (1 << 18 | 1 << 21)) != 0 )) && continue
-        grep -qx med_power_with_dipm "$h/link_power_management_policy" || exit 1
+        grep -qx med_power_with_dipm "$h/link_power_management_policy" && continue
+        # A port the kernel refuses link power saving for cannot save; one
+        # that takes it now should have had it from TuneD.
+        ! echo med_power_with_dipm 2>/dev/null > "$h/link_power_management_policy" || exit 1
     done &&
     { test ! -e /sys/module/snd_hda_intel/parameters/power_save || test "$(cat /sys/module/snd_hda_intel/parameters/power_save)" = 10; }'
 check "Kiegyensúlyozott: TuneD read the mode" "! journalctl -b -u tuned | grep -qiE 'error|exception|traceback'"
