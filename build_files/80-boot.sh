@@ -15,7 +15,7 @@ img=/usr/lib/modules/${kver}/initramfs.img
 [[ "$(stat -c %a "${img}")" == 600 ]]
 lsinitrd -f usr/share/plymouth/themes/arkadeos/arkadeos.script "${img}" | cmp - "${theme}/arkadeos.script"
 lsinitrd "${img}" > /tmp/initrd.txt
-grep -c themes/arkadeos/piece5-6.png /tmp/initrd.txt
+grep -c themes/arkadeos/mark.png /tmp/initrd.txt
 grep -c plymouth/script.so /tmp/initrd.txt
 
 # T023: Windows next to ArkadeOS gets an entry in the boot menu.
