@@ -46,8 +46,13 @@ config = GlobalConfig()
 dirs = config.get_list(consts.CFG_PROFILE_DIRS, consts.CFG_DEF_PROFILE_DIRS)
 loader = profiles.Loader(profiles.Locator(dirs), profiles.Factory(), profiles.Merger(), config, Variables())
 
+variables = Variables()
+
 def options(profile, unit):
-    return dict(loader.load([profile]).units[unit].options)
+    # Expanded as TuneD does when it applies them: the balanced profile asks
+    # the mode (${f:exec:...}), which gives the old values by default.
+    units = loader.load([profile]).units
+    return {k: variables.expand(v) for k, v in units[unit].options.items()}
 
 for name in ("arkadeos-gaming", "arkadeos-max", "arkadeos-wow"):
     assert "vm.swappiness" not in options(name, "sysctl"), name
