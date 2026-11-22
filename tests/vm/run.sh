@@ -1201,6 +1201,16 @@ check "Portal: Battle.net hidden and back" "${portal} battlenet remove && test \
 check "Portal: switch item (tiling)" "${portal} tiling install && test \$(${portal} tiling status) = on &&
     ${portal} tiling remove && test \$(${portal} tiling status) = off"
 check "Portal: AI tools not installed by default" "test \$(${portal} claude-code status) = off"
+# Roland, 2026-11-22: the Update button's check. The desktop apps, not
+# installed, answer nothing; an lsfg-vk installed before its version was
+# noted (a fake, in a home of its own) counts as old.
+check "Portal: update check" "a=\$(${portal} claude-desktop check) && test -z \"\${a}\" &&
+    b=\$(${portal} codex-desktop check) && test -z \"\${b}\" &&
+    rm -rf /tmp/pc-home && install -d -o arkade /tmp/pc-home &&
+    runuser -u arkade -- sh -c 'mkdir -p /tmp/pc-home/.local/lib /tmp/pc-home/.local/share/arkadeos &&
+        touch /tmp/pc-home/.local/lib/liblsfg-vk-layer.so &&
+        echo ./lib/liblsfg-vk-layer.so > /tmp/pc-home/.local/share/arkadeos/lsfg-vk.files' &&
+    ${session} env HOME=/tmp/pc-home /usr/libexec/arkadeos/portal-item lsfg-vk check | grep -qx 'unknown [0-9.]*'; r=\$?; rm -rf /tmp/pc-home; exit \$r"
 check "Portal: first-start choice saved" "/usr/libexec/arkadeos/apps-choose discord nonsense vlc &&
     test \"\$(cat /etc/arkadeos/apps)\" = \"\$(printf 'discord\\nvlc')\""
 check "Portal: first-boot apps installed once, never again" "grep -qx vlc /var/lib/arkadeos/apps-done"

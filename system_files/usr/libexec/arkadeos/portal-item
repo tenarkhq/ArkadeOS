@@ -4,6 +4,8 @@
 # need the system ask for the password (polkit), the AI parts run in the
 # user's containers, command-line tools go to the user's Homebrew.
 #   portal-item ITEM install|remove|status      status prints on or off
+#   portal-item ITEM check|update               check prints the installed and the
+#                                              newer version, only when there is one
 #   portal-item --list                         every item: id, group, names
 set -uo pipefail
 
@@ -27,6 +29,32 @@ IFS=$'\t' read -r _ _ kind ref _ <<< "${line}"
 status() { if "$@" &>/dev/null; then echo on; else echo off; fi; }
 in_terminal() {  # installers that ask questions run where the user sees them
     if [[ -n "${WAYLAND_DISPLAY:-}${DISPLAY:-}" ]]; then konsole --hold -e "$@"; else "$@"; fi
+}
+# Roland, 2026-11-22: the apps the Portal installs and that cannot update
+# themselves get an Update button; check answers only when NEW is newer.
+newer() {  # OLD NEW
+    [[ -n "${1:-}" && -n "${2:-}" && "$1" != "$2" &&
+        "$(printf '%s\n' "$1" "$2" | sort -V | tail -n1)" == "$2" ]] && echo "$1 $2"
+    return 0
+}
+lsfg_data="${HOME}/.local/share/arkadeos"
+# T056: lsfg-vk, its makers' own build into ~/.local, as their guide says; the
+# frame generation itself comes from the user's Lossless Scaling (Steam).
+# Pinned, checksum checked. The files and the version are noted: remove and
+# update take the files away, check compares the version with the pinned one.
+# An update removes the old files only once the new build checked out.
+lsfg_install() {  # [replace]
+    local tarball="${XDG_CACHE_HOME:-${HOME}/.cache}/arkadeos/lsfg-vk-${LSFG_VERSION}.tar.xz"
+    mkdir -p "$(dirname "${tarball}")" "${lsfg_data}"
+    curl -fsSL -o "${tarball}" "https://builds.lsfg-vk.dev/lsfg-vk-${LSFG_VERSION}.tar.xz" &&
+        echo "${LSFG_SHA256}  ${tarball}" | sha256sum -c --quiet || { rm -f "${tarball}"; return 1; }
+    if [[ "${1:-}" == replace && -f "${lsfg_data}/lsfg-vk.files" ]]; then
+        while read -r f; do rm -f "${HOME}/.local/${f#./}"; done < "${lsfg_data}/lsfg-vk.files"
+    fi
+    tar -tf "${tarball}" | grep -v '/$' > "${lsfg_data}/lsfg-vk.files" &&
+        tar -xf "${tarball}" -C "${HOME}/.local" || return 1
+    echo "${LSFG_VERSION}" > "${lsfg_data}/lsfg-vk.version"
+    rm -f "${tarball}"
 }
 
 case "${kind}:${action}" in
@@ -82,6 +110,12 @@ case "${kind}:${action}" in
     desktop:status) /usr/libexec/arkadeos/ai-desktop "${ref}" status ;;
     desktop:install) /usr/libexec/arkadeos/ai-desktop "${ref}" install ;;
     desktop:remove) /usr/libexec/arkadeos/ai-desktop "${ref}" remove ;;
+    # Not installed or offline: ai-desktop says nothing, so neither does this.
+    desktop:check)
+        read -r old new < <(/usr/libexec/arkadeos/ai-desktop "${ref}" check 2>/dev/null)
+        newer "${old:-}" "${new:-}"
+        ;;
+    desktop:update) /usr/libexec/arkadeos/ai-desktop "${ref}" update ;;
 
     # Installers from the tool's own makers, into the user's home.
     script:status)
@@ -100,18 +134,26 @@ case "${kind}:${action}" in
                 curl -fsSL https://chatgpt.com/codex/install.sh | CODEX_NON_INTERACTIVE=1 sh || exit 1
                 if "${brew}" list codex &>/dev/null; then "${brew}" uninstall codex; fi
                 ;;
-            # T056: lsfg-vk, its makers' own build into ~/.local, as their guide
-            # says; the frame generation itself comes from the user's Lossless
-            # Scaling (Steam). Pinned, checksum checked.
+            lsfg-vk) lsfg_install || exit 1 ;;
+        esac
+        ;;
+    # Claude CLI and Codex CLI update themselves: no answer, no button. An
+    # lsfg-vk installed before its version was noted counts as old.
+    script:check)
+        case "${item}" in
             lsfg-vk)
-                tarball="${XDG_CACHE_HOME:-${HOME}/.cache}/arkadeos/lsfg-vk-${LSFG_VERSION}.tar.xz"
-                mkdir -p "$(dirname "${tarball}")" "${HOME}/.local/share/arkadeos"
-                curl -fsSL -o "${tarball}" "https://builds.lsfg-vk.dev/lsfg-vk-${LSFG_VERSION}.tar.xz" &&
-                    echo "${LSFG_SHA256}  ${tarball}" | sha256sum -c --quiet || { rm -f "${tarball}"; exit 1; }
-                tar -tf "${tarball}" | grep -v '/$' > "${HOME}/.local/share/arkadeos/lsfg-vk.files" &&
-                    tar -xf "${tarball}" -C "${HOME}/.local" || exit 1
-                rm -f "${tarball}"
+                if [[ -f "${HOME}/.local/lib/liblsfg-vk-layer.so" ]]; then
+                    old=$(cat "${lsfg_data}/lsfg-vk.version" 2>/dev/null)
+                    if [[ -z "${old}" ]]; then echo "unknown ${LSFG_VERSION}"
+                    elif [[ "${old}" != "${LSFG_VERSION}" ]]; then echo "${old} ${LSFG_VERSION}"; fi
+                fi
                 ;;
+        esac
+        ;;
+    script:update)
+        case "${item}" in
+            lsfg-vk) lsfg_install replace || exit 1 ;;
+            *) echo "${item}: updates itself" >&2; exit 2 ;;
         esac
         ;;
     script:remove)
@@ -120,7 +162,7 @@ case "${kind}:${action}" in
             codex) rm -rf "${HOME}/.local/bin/codex" "${HOME}/.local/bin/codex-code-mode-host" "${HOME}/.codex/packages/standalone" ;;
             lsfg-vk)
                 while read -r f; do rm -f "${HOME}/.local/${f#./}"; done < "${HOME}/.local/share/arkadeos/lsfg-vk.files"
-                rm -f "${HOME}/.local/share/arkadeos/lsfg-vk.files"
+                rm -f "${HOME}/.local/share/arkadeos/lsfg-vk.files" "${lsfg_data}/lsfg-vk.version"
                 ;;
         esac
         ;;

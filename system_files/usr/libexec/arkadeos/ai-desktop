@@ -5,8 +5,12 @@ Fedora packages from signed repositories; on ArkadeOS the system is
 read-only, so the app goes to ~/.local/opt/arkadeos/<app>, where it can be
 updated while the system stays as it is. Every download is checked against
 the maker's signed index (the signing keys ship in the image).
-  ai-desktop APP install|remove|status|update    status prints on or off
+  ai-desktop APP install|remove|status|update    status prints on or off; update
+                                                 restarts the app if it was running
   ai-desktop APP latest                          newest version in the repository
+  ai-desktop APP check                           the installed and the newest
+                                                 version; nothing (exit 1) when
+                                                 not installed or offline
   ai-desktop notify          a notification for each installed app that has
                              a newer version; its button updates the app and,
                              if it was running, restarts it
@@ -225,6 +229,30 @@ def say(en, hu_text):
     return hu_text if hu() else en
 
 
+def install_restarting(name, app):
+    """Installs the newest version and, if the app was running, restarts it
+    (the notification's Update and the Portal's Update button, Roland,
+    2026-11-22). Returns the processes that ran before."""
+    was_running = running(name)
+    install(name, app)
+    if was_running:
+        for pid in was_running:
+            try:
+                os.kill(pid, 15)
+            except OSError:
+                pass
+        for _ in range(20):
+            if not running(name):
+                break
+            time.sleep(0.5)
+        # A scope of its own, or the app would end with this service; not on
+        # this program's output, which would stay open as long as the app runs.
+        subprocess.run(["systemd-run", "--user", "--scope", "--collect", "--quiet",
+                        "gtk-launch", app["entry"].removesuffix(".desktop")],
+                       stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    return was_running
+
+
 def notify(name, app):
     """Roland, 2026-11-03 (the approved draft): Update / Later. Later only
     closes it; the next hour or the next login asks again."""
@@ -246,23 +274,7 @@ def notify(name, app):
         capture_output=True, text=True).stdout.strip()
     if action != "update":
         return
-    was_running = running(name)
-    install(name, app)
-    if was_running:
-        for pid in was_running:
-            try:
-                os.kill(pid, 15)
-            except OSError:
-                pass
-        for _ in range(20):
-            if not running(name):
-                break
-            time.sleep(0.5)
-        # A scope of its own, or the app would end with this service; not on
-        # this program's output, which would stay open as long as the app runs.
-        subprocess.run(["systemd-run", "--user", "--scope", "--collect", "--quiet",
-                        "gtk-launch", app["entry"].removesuffix(".desktop")],
-                       stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    was_running = install_restarting(name, app)
     new = installed(name)
     subprocess.run(["notify-send", "-a", title, "-i", icon, title,
                     say(f"Updated to {new}.", f"Frissítve {new} verzióra.")
@@ -296,7 +308,19 @@ def main():
     elif action == "update":
         newest = (latest_claude if name == "claude" else latest_chatgpt)(app)[0]
         if installed(name) and vkey(newest) > vkey(installed(name)):
-            install(name, app)
+            install_restarting(name, app)
+    elif action == "check":
+        # The Portal's Apps tab asks at its start (Roland, 2026-11-22): no
+        # answer when the app is not here or the repository cannot be read,
+        # so the Portal simply shows no Update button.
+        old = installed(name)
+        if not old:
+            sys.exit(1)
+        try:
+            newest = (latest_claude if name == "claude" else latest_chatgpt)(app)[0]
+        except Exception:
+            sys.exit(1)
+        print(old, newest)
     elif action == "latest":
         print((latest_claude if name == "claude" else latest_chatgpt)(app)[0])
     elif action == "remove":

@@ -26,6 +26,7 @@ import re
 import shutil
 import subprocess
 import sys
+import threading
 import time
 from pathlib import Path
 
@@ -109,6 +110,26 @@ class StatusReader(QObject):
         self.finished.emit()
 
 
+class UpdateChecker(QObject):
+    """Roland, 2026-11-22: asks portal-item, at the Portal's start, which
+    apps it installed that cannot update themselves have a newer version.
+    Network calls: a thread of their own; offline or a failure only means no
+    Update button."""
+    found = Signal(str, str, str)  # item, installed version, newer version
+    finished = Signal()
+
+    def __init__(self, ids):
+        super().__init__()
+        self.ids = ids
+
+    def work(self):
+        for item_id in self.ids:
+            words = run(ITEM, item_id, "check").split()
+            if len(words) == 2:
+                self.found.emit(item_id, *words)
+        self.finished.emit()
+
+
 def split_name(name):
     """'EasyEffects (microphone filter)' -> ('EasyEffects', 'microphone filter')."""
     m = re.match(r"^(.*?) \((.*)\)$", name)
@@ -165,6 +186,9 @@ class AppsTab(QWidget):
         self.queue = []
         self.busy = False
         self.loaded = False
+        # Newer versions found (item: (installed, newer)) and the one updating.
+        self.updates = {}
+        self.updating = None
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
@@ -316,6 +340,11 @@ class AppsTab(QWidget):
         self.reader.finished.connect(self.ready)
         self.reader.finished.connect(self.thread.quit)
         self.thread.start()
+        # A plain daemon thread: a slow server must not hold the Portal open
+        # when it is closed.
+        self.checker = UpdateChecker([i["id"] for i in self.items if i["kind"] in ("desktop", "script")])
+        self.checker.found.connect(self.update_found)
+        threading.Thread(target=self.checker.work, daemon=True).start()
 
     def place(self, text=""):
         """The cards that match the search, two by two, under their group."""
@@ -349,18 +378,81 @@ class AppsTab(QWidget):
                 frame.note.setVisible(True)
             else:
                 set_flag(frame, "pending", False)
-                frame.note.setText(frame.about)
-                frame.note.setVisible(bool(frame.about))
+                text = self.update_note(item_id) or frame.about
+                frame.note.setText(text)
+                frame.note.setVisible(bool(text))
+            self.show_update_button(item_id, frame, item_id in waiting)
         if self.loaded and not self.busy:
             names = [split_name(self.names[i])[0] for i in waiting]
+            updates = len(self.shown_updates())
             if names:
                 count = tr(f"{len(names)} change{'s' if len(names) > 1 else ''}", f"{len(names)} változás")
                 shown = ", ".join(names[:3]) + ("…" if len(names) > 3 else "")
                 self.state.setText(f"<b>{count}</b> " + tr("waiting: ", "vár: ") + html.escape(shown))
+            elif updates:
+                self.state.setText(tr(f"<b>Updates for {updates} app{'s' if updates > 1 else ''}.</b>",
+                                      f"<b>{updates} apphoz van frissítés.</b>"))
             else:
                 self.state.setText(tr("Everything is as it is on the machine.", "Minden úgy van, ahogy a gépen."))
             self.cancel.setVisible(bool(names) and not self.first_run)
         self.pending.emit(len(waiting))
+
+    def shown_updates(self):
+        """The newer versions of the apps that are installed."""
+        return [i for i in self.updates if self.installed.get(i)]
+
+    def update_note(self, item_id):
+        """The card's line about its newer version (Roland, 2026-11-22)."""
+        if item_id not in self.shown_updates():
+            return ""
+        old, new = self.updates[item_id]
+        if self.updating == item_id:
+            return tr(f"Downloading {new}…", f"{new} letöltése…")
+        if (item_id, "update") in self.queue:
+            return tr(f"New version: {new} · waiting", f"Új verzió: {new} · sorban vár")
+        if old == "unknown":  # an lsfg-vk installed before its version was noted
+            return tr(f"New version: {new}", f"Új verzió: {new}")
+        return tr(f"New version: {new} · now {old}", f"Új verzió: {new} · most {old}")
+
+    def show_update_button(self, item_id, frame, pending):
+        """The Update button just left of the switch, while there is a newer
+        version and no change waits on the card."""
+        button = getattr(frame, "update_button", None)
+        wanted = self.loaded and item_id in self.shown_updates() and not pending
+        if button is None:
+            if not wanted:
+                return
+            button = QPushButton()
+            button.setCursor(Qt.PointingHandCursor)
+            button.clicked.connect(lambda *_: self.update_app(item_id))
+            row = frame.layout()
+            row.insertWidget(row.indexOf(frame.switch), button)
+            frame.update_button = button
+        button.setVisible(wanted)
+        button.setText(tr("Updating…", "Frissül…") if self.updating == item_id else tr("Update", "Frissítés"))
+        button.setEnabled(self.updating != item_id and (item_id, "update") not in self.queue)
+
+    def update_found(self, item_id, old, new):
+        if item_id in self.cards:
+            self.updates[item_id] = (old, new)
+            self.changed()
+
+    def update_app(self, item_id):
+        """Updates run one after another, through the same queue as the
+        installs."""
+        if self.updating == item_id or (item_id, "update") in self.queue:
+            return
+        self.queue.append((item_id, "update"))
+        if self.busy:
+            self.changed()
+            return
+        self.busy = True
+        self.apply.setEnabled(False)
+        self.cancel.setVisible(False)
+        for check in self.boxes.values():
+            check.setEnabled(False)
+        self.log.show()
+        self.next()
 
     def undo(self):
         for item_id, switch in self.boxes.items():
@@ -408,8 +500,13 @@ class AppsTab(QWidget):
             return
         item_id, action = self.queue.pop(0)
         name = self.names[item_id]
-        self.state.setText(html.escape(tr(f"{'Installing' if action == 'install' else 'Removing'}: {name}",
-                                          f"{'Telepítés' if action == 'install' else 'Eltávolítás'}: {name}")))
+        if action == "update":
+            self.updating = item_id
+            self.changed()
+            self.state.setText(html.escape(tr(f"Updating: {name}", f"Frissítés: {name}")))
+        else:
+            self.state.setText(html.escape(tr(f"{'Installing' if action == 'install' else 'Removing'}: {name}",
+                                              f"{'Telepítés' if action == 'install' else 'Eltávolítás'}: {name}")))
         proc = QProcess(self)
         proc.setProcessChannelMode(QProcess.MergedChannels)
         proc.readyRead.connect(lambda: self.log.appendPlainText(
@@ -419,6 +516,17 @@ class AppsTab(QWidget):
 
     def item_done(self, item_id, action, code):
         ok = code == 0
+        if action == "update":
+            # Done: the button goes; failed: it stays, the log says so.
+            self.updating = None
+            if ok:
+                self.updates.pop(item_id, None)
+            self.log.appendPlainText(("✔ " + self.names[item_id]) if ok else
+                                     tr(f"✘ {self.names[item_id]}: the update failed",
+                                        f"✘ {self.names[item_id]}: a frissítés nem sikerült"))
+            self.changed()
+            self.next()
+            return
         if ok:
             self.installed[item_id] = action == "install"
         else:
@@ -435,7 +543,8 @@ class AppsTab(QWidget):
         for item_id, check in self.boxes.items():
             check.setEnabled(item_id not in self.locked)
         self.changed()
-        self.state.setText(tr("Done.", "Kész."))
+        if not self.shown_updates():
+            self.state.setText(tr("Done.", "Kész."))
 
 
 # The update (uupd.service, "Update now" or the daily 04:00 run) and how far it
