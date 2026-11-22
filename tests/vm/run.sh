@@ -454,6 +454,8 @@ sleep 3
 ssh_vm "for i in \$(${session} busctl --user get-property org.kde.StatusNotifierWatcher /StatusNotifierWatcher org.kde.StatusNotifierWatcher RegisteredStatusNotifierItems | grep -oE '\"[^\"]+\"' | tr -d '\"'); do
         echo \"== \${i}\"; ${session} busctl --user get-property \"\${i%%/*}\" \"/\${i#*/}\" org.kde.StatusNotifierItem Id Title IconName Status; done;
     grep -E '^(plugin|extraItems|knownItems|shownItems|hiddenItems)=' ${home}/plasma-org.kde.plasma.desktop-appletsrc" > "${out}/tray-items.txt" 2>&1 || true
+check "notifications bell always on the tray" "grep -E '^shownItems=' ${home}/plasma-org.kde.plasma.desktop-appletsrc | grep -q org.kde.plasma.notifications &&
+    test -e ${home%/.config}/.local/state/arkadeos/migrations/014-notifications-bell.sh"
 ssh_vm "pkill -u arkade -x konsole; rm -f ${home}/kwinrulesrc; ${session} busctl --user call org.kde.KWin /KWin org.kde.KWin reconfigure;
     ${session} plasma-apply-lookandfeel -a org.arkadeos.dark.desktop" >/dev/null 2>&1 || true
 sleep 20

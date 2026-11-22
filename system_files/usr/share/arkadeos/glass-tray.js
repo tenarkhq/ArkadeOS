@@ -7,6 +7,11 @@
 // (SystrayContainmentId), made only once the bar is up: until then this
 // prints "wait" and the step asks again. Also for a new user, whose bar the
 // layout script built.
+// The notifications bell always on the tray (Roland, 2026-11-22: "az
+// értesítéseknek kellene egy fix gomb a tálcán, mert így elvesznek"): Plasma
+// hides it under the arrow while nothing is unread. Added to the shown items
+// unless the user hid it on purpose; Plasma puts it last, before the arrow.
+// Run again by migration 014 for the users whose step 008 is done.
 var waiting = false
 panels().forEach(function (panel) {
     if (panel.location !== "bottom")
@@ -21,6 +26,18 @@ panels().forEach(function (panel) {
         tray.currentConfigGroup = ["General"]
         if (Number(tray.readConfig("iconSpacing", 2)) === 2)
             tray.writeConfig("iconSpacing", 1)
+        var list = function (key) {
+            var v = tray.readConfig(key, [])
+            if (typeof v === "string")
+                v = v.length ? v.split(",") : []
+            return Array.prototype.slice.call(v)
+        }
+        var bell = "org.kde.plasma.notifications"
+        var shown = list("shownItems")
+        if (shown.indexOf(bell) < 0 && list("hiddenItems").indexOf(bell) < 0) {
+            shown.push(bell)
+            tray.writeConfig("shownItems", shown)
+        }
     })
 })
 print(waiting ? "wait" : "done")
